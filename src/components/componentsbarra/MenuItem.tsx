@@ -1,4 +1,3 @@
-import React from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { MenuItemType } from "../componentsbarra/types";
 

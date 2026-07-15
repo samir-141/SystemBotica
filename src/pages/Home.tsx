@@ -1,4 +1,4 @@
-import React from 'react';
+
 import Barra from '../components/barralaterral'; // Asegúrate de apuntar a tu nueva carpeta modulada
 import PestañaVenta from '../pages/Venta';
 

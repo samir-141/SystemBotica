@@ -1,4 +1,3 @@
-import React from "react";
 import type { MenuItemType } from "./types";
 import {
     LayoutDashboard,

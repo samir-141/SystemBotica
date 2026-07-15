@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Search, ShoppingCart, Trash2, CreditCard, RotateCcw, Coins } from "lucide-react";
 import Data from "../config/Data.json";
 import Item from "../components/item";
