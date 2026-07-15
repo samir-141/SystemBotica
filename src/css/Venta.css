@@ -1,0 +1,276 @@
+:root {
+    --bg-pos: #F8F9FA;
+    --panel-bg: #ffffff;
+    --text-dark: #212529;
+    --text-gray: #6C757D;
+    --pharmacy-primary: #00A896;
+    --alert-orange: #FFB703;
+    --alert-orange-bg: #FFF3CD;
+    --border-light: #E5E5E5;
+}
+
+.pos-container {
+    display: flex;
+    height: calc(100vh - 40px);
+    /* Ajustado al espacio disponible */
+    background-color: var(--bg-pos);
+    font-family: system-ui, sans-serif;
+    gap: 16px;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+/* --- SECCIÓN IZQUIERDA (BUSCADOR Y TABLA) --- */
+.pos-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--panel-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.pos-search-bar {
+    display: flex;
+    padding: 16px;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.search-input {
+    flex: 1;
+    padding: 14px 16px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    font-size: 1rem;
+    background-color: #FAFAFA;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--pharmacy-primary);
+    background-color: #fff;
+}
+
+.btn-search-filter {
+    padding: 0 16px;
+    background-color: #F1F3F5;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Tabla de ventas */
+.pos-table-container {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.pos-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.pos-table th {
+    background-color: #FAFAFA;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: var(--text-gray);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.pos-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #F1F3F5;
+    vertical-align: middle;
+    color: var(--text-dark);
+}
+
+/* Alerta visual sutil para medicamentos con receta */
+.row-receta-alert {
+    background-color: #FFFDF5;
+}
+
+.badge-receta {
+    background-color: var(--alert-orange-bg);
+    color: #A05E03;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.prod-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.prod-sub {
+    font-size: 0.8rem;
+    color: var(--text-gray);
+}
+
+.quantity-controls {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    overflow: hidden;
+    background: white;
+}
+
+.quantity-controls button {
+    border: none;
+    background: #F8F9FA;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+.quantity-controls button:hover {
+    background: #E9ECEF;
+}
+
+.quantity-controls span {
+    padding: 0 12px;
+    font-weight: 600;
+    min-width: 20px;
+}
+
+/* --- SECCIÓN DERECHA (TOTALES Y PAGO) --- */
+.pos-sidebar-totals {
+    width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.panel-cliente,
+.panel-prices,
+.panel-actions {
+    background-color: var(--panel-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    padding: 18px;
+}
+
+.panel-cliente {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+}
+
+.btn-link-edit {
+    position: absolute;
+    right: 18px;
+    top: 18px;
+    background: none;
+    border: none;
+    color: var(--pharmacy-primary);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.price-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: var(--text-gray);
+    font-size: 0.95rem;
+}
+
+.divider {
+    border: 0;
+    border-top: 1px solid var(--border-light);
+    margin: 14px 0;
+}
+
+.total-row {
+    color: var(--text-dark);
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+.total-amount {
+    font-size: 1.6rem;
+    color: var(--pharmacy-primary);
+}
+
+/* Botones de acción */
+.panel-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.btn-pay {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: white;
+    transition: opacity 0.15s;
+}
+
+.btn-pay.cash {
+    background-color: #4CAF50;
+    /* Verde Éxito para Efectivo */
+}
+
+.btn-pay.card {
+    background-color: #2A9D8F;
+    /* Turquesa para medios electrónicos */
+}
+
+.btn-pay:hover {
+    opacity: 0.9;
+}
+
+.btn-cancel {
+    background: none;
+    border: 1px solid #E63946;
+    color: #E63946;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    margin-top: 10px;
+}
+
+.btn-cancel:hover {
+    background-color: #FFF5F5;
+}
+
+/* Utilidades básicas alignment */
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-muted {
+    color: var(--text-gray);
+}
+
+.font-semibold {
+    font-weight: 600;
+}
