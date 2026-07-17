@@ -29,7 +29,7 @@ export default function Sidebar() {
                 <div className="p-4 flex items-center justify-between border-b border-slate-800">
                     {!isCollapsed && (
                         <span className="font-extrabold text-xl text-teal-400 tracking-wider">
-                            Botica<span className="text-white">POS</span>
+                            Botica<span className="text-white">Marifarma</span>
                         </span>
                     )}
                     <button

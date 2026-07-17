@@ -3,8 +3,8 @@
         {
             "id": "usr-001",
             "username": "admin",
-            "nombres": "Juan",
-            "apellidos": "Pérez",
+            "nombres": "Angi",
+            "apellidos": "Marina",
             "estado": true,
             "roles": [
                 "Administrador"
@@ -19,6 +19,16 @@
             "roles": [
                 "Cajero"
             ]
+        },
+        {
+            "id": "usr-003",
+            "username": "cajero02",
+            "nombres": "José",
+            "apellidos": "Ramírez",
+            "estado": true,
+            "roles": [
+                "Cajero"
+            ]
         }
     ],
     "categorias": [
@@ -28,7 +38,15 @@
         },
         {
             "id": "cat-002",
+            "nombre": "Antibióticos"
+        },
+        {
+            "id": "cat-003",
             "nombre": "Vitaminas"
+        },
+        {
+            "id": "cat-004",
+            "nombre": "Antiinflamatorios"
         }
     ],
     "laboratorios": [
@@ -39,6 +57,10 @@
         {
             "id": "lab-002",
             "nombre": "Genfar"
+        },
+        {
+            "id": "lab-003",
+            "nombre": "Pfizer"
         }
     ],
     "principios_activos": [
@@ -49,6 +71,14 @@
         {
             "id": "pa-002",
             "nombre": "Ácido Acetilsalicílico"
+        },
+        {
+            "id": "pa-003",
+            "nombre": "Amoxicilina"
+        },
+        {
+            "id": "pa-004",
+            "nombre": "Ibuprofeno"
         }
     ],
     "productos": [
@@ -60,32 +90,22 @@
             "descripcion": "Caja x 100 tabletas",
             "categoria_id": "cat-001",
             "laboratorio_id": "lab-002",
-            "precio_compra": 0.50,
-            "cantidad": 20,
+            "precio_compra": 0.45,
             "precio_venta": 0.80,
-            "fecha_vencimiento": "2027-06-15",
-            "nombre_lote": "LOTE-001",
-            "stock_minimo": 20,
-            "stock_total": 100,
-            "unidad": "Unidad",
+            "unidad": "Caja",
             "activo": true
         },
         {
-            "id": "prod-005",
-            "sku": "PARA500",
-            "codigo_barras": "1234567890123",
-            "nombre": "Paracetamol 500mg",
+            "id": "prod-002",
+            "sku": "IBU400",
+            "codigo_barras": "7751234567891",
+            "nombre": "Ibuprofeno 400mg",
             "descripcion": "Caja x 100 tabletas",
-            "categoria_id": "cat-001",
-            "laboratorio_id": "lab-002",
-            "precio_compra": 0.50,
-            "cantidad": 20,
-            "precio_venta": 0.80,
-            "fecha_vencimiento": "2028-01-01",
-            "nombre_lote": "LOTE-002",
-            "stock_minimo": 20,
-            "stock_total": 100,
-            "unidad": "Unidad",
+            "categoria_id": "cat-004",
+            "laboratorio_id": "lab-001",
+            "precio_compra": 0.55,
+            "precio_venta": 1.10,
+            "unidad": "Caja",
             "activo": true
         },
         {
@@ -93,53 +113,12 @@
             "sku": "AMOX500",
             "codigo_barras": "7751234567892",
             "nombre": "Amoxicilina 500mg",
-            "descripcion": "Caja x 100 tabletas",
-            "categoria_id": "cat-001",
+            "descripcion": "Caja x 100 cápsulas",
+            "categoria_id": "cat-002",
             "laboratorio_id": "lab-002",
-            "precio_compra": 0.50,
-            "cantidad": 20,
-            "precio_venta": 0.80,
-            "fecha_vencimiento": "2027-06-15",
-            "nombre_lote": "LOTE-001",
-            "stock_minimo": 20,
-            "stock_total": 100,
-            "unidad": "Unidad",
-            "activo": true
-        },
-        {
-            "id": "prod-002",
-            "sku": "IBUPRO500",
-            "codigo_barras": "7751234567891",
-            "nombre": "Ibuprofeno 500mg",
-            "descripcion": "Caja x 100 tabletas",
-            "categoria_id": "cat-001",
-            "laboratorio_id": "lab-002",
-            "precio_compra": 0.50,
-            "fecha_vencimiento": "2027-06-15",
-            "nombre_lote": "LOTE-001",
-            "cantidad": 20,
-            "precio_venta": 0.70,
-            "stock_minimo": 20,
-            "stock_total": 100,
-            "unidad": "Unidad",
-            "activo": true
-        },
-        {
-            "id": "prod-004",
-            "sku": "GLIC500",
-            "codigo_barras": "7751234567893",
-            "nombre": "Glicerina 500mg",
-            "descripcion": "Caja x 100 tabletas",
-            "categoria_id": "cat-001",
-            "laboratorio_id": "lab-002",
-            "precio_compra": 0.50,
-            "cantidad": 20,
-            "precio_venta": 0.80,
-            "fecha_vencimiento": "2027-06-15",
-            "nombre_lote": "LOTE-001",
-            "stock_minimo": 20,
-            "stock_total": 100,
-            "unidad": "Unidad",
+            "precio_compra": 0.60,
+            "precio_venta": 1.25,
+            "unidad": "Caja",
             "activo": true
         }
     ],
@@ -150,7 +129,11 @@
         },
         {
             "producto_id": "prod-002",
-            "principio_id": "pa-002"
+            "principio_id": "pa-004"
+        },
+        {
+            "producto_id": "prod-003",
+            "principio_id": "pa-003"
         }
     ],
     "lotes": [
@@ -159,21 +142,32 @@
             "producto_id": "prod-001",
             "numero_lote": "PARA2026A",
             "fecha_vencimiento": "2027-06-15",
-            "stock": 80
+            "stock": 150,
+            "stock_minimo": 30
         },
         {
             "id": "lot-002",
             "producto_id": "prod-001",
             "numero_lote": "PARA2026B",
             "fecha_vencimiento": "2027-12-20",
-            "stock": 120
+            "stock": 80,
+            "stock_minimo": 30
         },
         {
             "id": "lot-003",
             "producto_id": "prod-002",
-            "numero_lote": "ASP2026A",
-            "fecha_vencimiento": "2028-01-01",
-            "stock": 50
+            "numero_lote": "IBU2026X",
+            "fecha_vencimiento": "2027-08-10",
+            "stock": 120,
+            "stock_minimo": 25
+        },
+        {
+            "id": "lot-004",
+            "producto_id": "prod-003",
+            "numero_lote": "AMOX2026Z",
+            "fecha_vencimiento": "2026-11-05",
+            "stock": 60,
+            "stock_minimo": 20
         }
     ],
     "clientes": [
@@ -182,7 +176,16 @@
             "documento": "76543210",
             "nombre": "Carlos Mendoza",
             "telefono": "987654321",
-            "direccion": "Av. Lima 123"
+            "direccion": "Av. Lima 123",
+            "tipo": "Regular"
+        },
+        {
+            "id": "cli-002",
+            "documento": "87654321",
+            "nombre": "Laura Torres",
+            "telefono": "912345678",
+            "direccion": "Jr. Unión 456",
+            "tipo": "Frecuente"
         }
     ],
     "ventas": [
@@ -194,8 +197,20 @@
             "fecha": "2026-07-14T15:30:00",
             "subtotal": 22.0,
             "igv": 3.96,
-            "descuento": 0,
+            "descuento": 0.0,
             "total": 25.96,
+            "estado": "PAGADO"
+        },
+        {
+            "id": "ven-002",
+            "numero": "B001-00000126",
+            "usuario_id": "usr-003",
+            "cliente_id": "cli-002",
+            "fecha": "2026-07-15T10:15:00",
+            "subtotal": 35.0,
+            "igv": 6.3,
+            "descuento": 2.0,
+            "total": 39.3,
             "estado": "PAGADO"
         }
     ],
@@ -206,7 +221,7 @@
             "producto_id": "prod-001",
             "lote_id": "lot-001",
             "cantidad": 2,
-            "precio": 8.0,
+            "precio_unitario": 8.0,
             "descuento": 0,
             "subtotal": 16.0
         },
@@ -216,9 +231,19 @@
             "producto_id": "prod-002",
             "lote_id": "lot-003",
             "cantidad": 1,
-            "precio": 6.0,
+            "precio_unitario": 6.0,
             "descuento": 0,
             "subtotal": 6.0
+        },
+        {
+            "id": "det-003",
+            "venta_id": "ven-002",
+            "producto_id": "prod-003",
+            "lote_id": "lot-004",
+            "cantidad": 3,
+            "precio_unitario": 11.0,
+            "descuento": 1.0,
+            "subtotal": 30.0
         }
     ],
     "pagos": [
@@ -233,6 +258,12 @@
             "venta_id": "ven-001",
             "metodo": "EFECTIVO",
             "monto": 10.0
+        },
+        {
+            "id": "pag-003",
+            "venta_id": "ven-002",
+            "metodo": "TARJETA",
+            "monto": 39.3
         }
     ],
     "movimientos_inventario": [
@@ -241,8 +272,8 @@
             "lote_id": "lot-001",
             "usuario_id": "usr-001",
             "tipo": "COMPRA",
-            "cantidad": 100,
-            "motivo": "Ingreso de proveedor",
+            "cantidad": 200,
+            "motivo": "Compra a proveedor",
             "fecha": "2026-07-01T10:00:00"
         },
         {
@@ -253,6 +284,15 @@
             "cantidad": -2,
             "motivo": "Venta POS",
             "fecha": "2026-07-14T15:30:00"
+        },
+        {
+            "id": "mov-003",
+            "lote_id": "lot-004",
+            "usuario_id": "usr-003",
+            "tipo": "VENTA",
+            "cantidad": -3,
+            "motivo": "Venta POS",
+            "fecha": "2026-07-15T10:15:00"
         }
     ]
 }

@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Search, ShoppingCart, Trash2, CreditCard, RotateCcw, Coins } from "lucide-react";
-import Data from "../config/Data.json";
+
+import { FindProducts } from "../config/api.data";
 import Item from "../components/item";
-import type { ProductoItem, ItemCarrito, Moneda } from "../components/elementosglobales/types"; // Ajusta la ruta
+import type { ProductoItem, ItemCarrito, Moneda, Lote } from "../components/elementosglobales/types"; // Ajusta la ruta
 
 export default function PestañaVenta() {
     // 1. Estados principales
-    const [productos] = useState<ProductoItem[]>(Data.productos);
+    const [productos] = useState<ProductoItem[]>(FindProducts());
+
     const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
     const [busqueda, setBusqueda] = useState<string>("");
     const [monedaActiva, setMonedaActiva] = useState<number>(1); // 0: Dólar, 1: Soles (Default)
@@ -31,10 +33,7 @@ export default function PestañaVenta() {
             const existe = prevCarrito.find(item => item.id === producto.id);
             if (existe) {
                 // Validación opcional: No exceder el stock disponible
-                if (existe.cantidad >= producto.stock_total) return prevCarrito;
-                return prevCarrito.map(item =>
-                    item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
-                );
+
             }
             return [...prevCarrito, { ...producto, cantidad: 1 }];
         });

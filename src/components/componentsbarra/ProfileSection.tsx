@@ -8,7 +8,7 @@ interface ProfileSectionProps {
         nombres: string,
         apellidos: string,
         estado: boolean,
-        roles: any
+        roles: string[]
     };
     isCollapsed: boolean;
 }

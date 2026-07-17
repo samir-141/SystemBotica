@@ -121,7 +121,7 @@ export default function EditarModulo({ item, setModal }: Props) {
                         <input
                             type="number"
                             name="stock_total"
-                            value={productoEditado.stock_total}
+                            value={productoEditado.unidad}
                             onChange={handleInputChange}
                             className="w-full border rounded-lg p-2"
                         />
