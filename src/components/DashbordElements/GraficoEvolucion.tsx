@@ -7,7 +7,7 @@ import { TrendingUp } from 'lucide-react';
 const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
 
 interface GraficoEvolucionProps {
-    ventasGrafico: any[];           // Idealmente tipar mejor después
+    ventasGrafico: any[];
     topProductosRaw: any[];
     porCategoriaRaw: any[];
     metodosPagoRaw: any[];
@@ -21,6 +21,10 @@ export default function GraficoEvolucion({
     metodosPagoRaw,
     ventasPorCajeroRaw
 }: GraficoEvolucionProps) {
+
+    // Formatter seguro y compatible con Recharts
+    const moneyFormatter = (value: any) => [`S/ ${Number(value || 0).toFixed(2)}`, "Monto"];
+    const unitFormatter = (value: any) => [`${value} unidades`, "Cantidad"];
 
     return (
         <div className="space-y-6">
@@ -36,12 +40,7 @@ export default function GraficoEvolucion({
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                             <XAxis dataKey="fecha" />
                             <YAxis />
-                            <Tooltip
-                                formatter={(value: number | string | undefined) => [
-                                    value !== undefined ? `S/ ${Number(value).toFixed(2)}` : 'S/ 0.00',
-                                    "Total"
-                                ]}
-                            />
+                            <Tooltip formatter={moneyFormatter} />
                             <Line
                                 type="natural"
                                 dataKey="total"
@@ -68,9 +67,7 @@ export default function GraficoEvolucion({
                                 interval={0}
                             />
                             <YAxis />
-                            <Tooltip
-                                formatter={(value: number) => [`${value} unidades`, "Cantidad"]}
-                            />
+                            <Tooltip formatter={unitFormatter} />
                             <Bar dataKey="cantidad" fill="#3b82f6" radius={8} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -97,9 +94,7 @@ export default function GraficoEvolucion({
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
-                            <Tooltip
-                                formatter={(value: number) => [`S/ ${value.toFixed(2)}`, "Monto"]}
-                            />
+                            <Tooltip formatter={moneyFormatter} />
                             <Legend verticalAlign="bottom" height={36} />
                         </PieChart>
                     </ResponsiveContainer>
@@ -114,9 +109,7 @@ export default function GraficoEvolucion({
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                 <XAxis dataKey="metodo" />
                                 <YAxis />
-                                <Tooltip
-                                    formatter={(value: number) => [`S/ ${value.toFixed(2)}`, "Monto"]}
-                                />
+                                <Tooltip formatter={moneyFormatter} />
                                 <Bar dataKey="monto" fill="#8b5cf6" radius={6} />
                             </BarChart>
                         </ResponsiveContainer>
@@ -126,10 +119,13 @@ export default function GraficoEvolucion({
                         <h2 className="text-xl font-semibold mb-4">Rendimiento por Cajero</h2>
                         <div className="space-y-4">
                             {ventasPorCajeroRaw.map((cajero, i) => (
-                                <div key={i} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                                <div
+                                    key={i}
+                                    className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                                >
                                     <span className="font-medium text-slate-700">{cajero.cajero}</span>
                                     <span className="font-bold text-lg text-emerald-600">
-                                        S/ {cajero.total.toFixed(2)}
+                                        S/ {Number(cajero.total).toFixed(2)}
                                     </span>
                                 </div>
                             ))}
