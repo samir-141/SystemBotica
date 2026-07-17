@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { MenuItemType } from "../componentsbarra/types";
+import type { MenuItemType } from "../elementosglobales/types";
 
 interface MenuItemProps {
     item: MenuItemType;

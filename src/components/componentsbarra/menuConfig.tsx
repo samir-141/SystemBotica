@@ -1,4 +1,4 @@
-import type { MenuItemType } from "./types";
+import type { MenuItemType } from "../elementosglobales/types";
 import {
     LayoutDashboard,
     ShoppingCart,

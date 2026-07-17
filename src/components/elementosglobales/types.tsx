@@ -13,10 +13,22 @@ export interface MenuItemType {
     submenu?: SubMenuItem[];
 }
 export interface ProductoItem {
-    sku: string;
-    nombre: string;
-    precio_venta: number;
-    // Puedes extenderlo después (ej: stock, presentacion)
+    id: string,
+    sku: string,
+    codigo_barras: string,
+    nombre: string,
+    descripcion: string,
+    categoria_id: string,
+    laboratorio_id: string,
+    precio_compra: number,
+    cantidad: number,
+    precio_venta: number,
+    fecha_vencimiento: string,
+    nombre_lote: string,
+    stock_minimo: number,
+    stock_total: number,
+    unidad: string,
+    activo: boolean
 }
 
 export interface Moneda {
@@ -30,24 +42,9 @@ export interface ItemProps {
     monedaActivaIdx: number; // Especificamos que es el índice del array
 }
 
-export interface Producto {
-    id: string;
-    sku: string,
-    codigo_barras: string,
-    nombre: string,
-    descripcion: string,
-    categoria_id: string,
-    laboratorio_id: string,
-    precio_compra: number,
-    cantidad: number,
-    precio_venta: number,
-    stock_minimo: number,
-    stock_total: number,
-    unidad: string,
-    activo: boolean
-}
 
-export interface ItemCarrito extends Producto {
+
+export interface ItemCarrito extends ProductoItem {
     cantidad: number;
 }
 

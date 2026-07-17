@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Search, ShoppingCart, Trash2, CreditCard, RotateCcw, Coins } from "lucide-react";
 import Data from "../config/Data.json";
 import Item from "../components/item";
-import type { Producto, ItemCarrito, Moneda } from "../components/componentsbarra/types"; // Ajusta la ruta
+import type { ProductoItem, ItemCarrito, Moneda } from "../components/elementosglobales/types"; // Ajusta la ruta
 
 export default function PestañaVenta() {
     // 1. Estados principales
-    const [productos] = useState<Producto[]>(Data.productos);
+    const [productos] = useState<ProductoItem[]>(Data.productos);
     const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
     const [busqueda, setBusqueda] = useState<string>("");
     const [monedaActiva, setMonedaActiva] = useState<number>(1); // 0: Dólar, 1: Soles (Default)
@@ -26,7 +26,7 @@ export default function PestañaVenta() {
     );
 
     // 3. Acciones del Carrito de Ventas
-    const agregarAlCarrito = (producto: Producto) => {
+    const agregarAlCarrito = (producto: ProductoItem) => {
         setCarrito(prevCarrito => {
             const existe = prevCarrito.find(item => item.id === producto.id);
             if (existe) {
@@ -220,6 +220,12 @@ export default function PestañaVenta() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
+                        <button
+
+                            className="w-full py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            Escanear Codigo De Barras
+                        </button>
                         <button
                             disabled={carrito.length === 0}
                             onClick={vaciarCarrito}
