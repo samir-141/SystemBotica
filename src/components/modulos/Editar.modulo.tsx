@@ -1,27 +1,22 @@
-import { useState, useRef } from "react";
-import type { ProductoItem } from "../elementosglobales/types";
+import { useState } from "react";
+import { X, Save, AlertTriangle } from "lucide-react";
+import type { ProductoItem, Lote } from "../elementosglobales/types";
 
 interface Props {
     item: ProductoItem;
+    lotes: Lote[];                    // Lotes del producto
     setModal: (value: boolean) => void;
 }
 
-export default function EditarModulo({ item, setModal }: Props) {
+export default function EditarModulo({ item, lotes, setModal }: Props) {
     const [productoEditado, setProductoEditado] = useState<ProductoItem>({ ...item });
-    const overlayRef = useRef<HTMLDivElement>(null);
+    const [lotesEditados, setLotesEditados] = useState<Lote[]>([...lotes]);
 
-    const handleInputChange = (
+    const handleProductoChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target;
-
-        const camposNumericos = [
-            "precio_compra",
-            "precio_venta",
-            "stock_total",
-            "stock_minimo",
-            "cantidad",
-        ];
+        const camposNumericos = ["precio_compra", "precio_venta"];
 
         setProductoEditado((prev) => ({
             ...prev,
@@ -29,133 +24,192 @@ export default function EditarModulo({ item, setModal }: Props) {
         }));
     };
 
-    const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, checked } = e.target;
-
-        setProductoEditado((prev) => ({
-            ...prev,
-            [name]: checked,
-        }));
+    const handleLoteChange = (index: number, field: keyof Lote, value: string | number) => {
+        const nuevosLotes = [...lotesEditados];
+        nuevosLotes[index] = {
+            ...nuevosLotes[index],
+            [field]: field === "stock" || field === "stock_minimo" ? Number(value) : value,
+        };
+        setLotesEditados(nuevosLotes);
     };
 
     const cerrarModal = () => setModal(false);
 
     const guardarCambios = () => {
-        console.log(productoEditado); // Aquí irá tu petición al backend
+        console.log("Producto actualizado:", productoEditado);
+        console.log("Lotes actualizados:", lotesEditados);
+        // Aquí iría tu llamada al API / backend
         setModal(false);
     };
 
     return (
-        <div
-            ref={overlayRef}
-            onClick={(e) => {
-                if (e.target === overlayRef.current) cerrarModal();
-            }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-        >
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] overflow-hidden flex flex-col">
 
                 {/* Header */}
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold">
-                        Editar Producto
-                    </h2>
-
+                <div className="px-6 py-4 border-b flex items-center justify-between bg-slate-50 rounded-t-2xl">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-bold text-slate-800">Editar Medicamento</h2>
+                        <span className="text-sm text-slate-500 font-mono">#{item.sku}</span>
+                    </div>
                     <button
                         onClick={cerrarModal}
-                        className="text-2xl text-gray-500 hover:text-red-500"
+                        className="p-2 hover:bg-slate-200 rounded-full transition-colors"
                     >
-                        ×
+                        <X size={24} className="text-slate-500" />
                     </button>
                 </div>
 
-                {/* Contenido */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex-1 overflow-auto p-6 space-y-8">
 
-                    <div className="col-span-2">
-                        <label className="font-semibold">Nombre</label>
-                        <input
-                            type="text"
-                            name="nombre"
-                            value={productoEditado.nombre}
-                            onChange={handleInputChange}
-                            className="w-full border rounded-lg p-2"
-                        />
-                    </div>
-
-                    <div className="col-span-2">
-                        <label className="font-semibold">Descripción</label>
-                        <textarea
-                            name="descripcion"
-                            value={productoEditado.descripcion}
-                            onChange={handleInputChange}
-                            className="w-full border rounded-lg p-2"
-                            rows={3}
-                        />
-                    </div>
-
+                    {/* Información Básica del Producto */}
                     <div>
-                        <label className="font-semibold">Precio Compra</label>
-                        <input
-                            type="number"
-                            name="precio_compra"
-                            value={productoEditado.precio_compra}
-                            onChange={handleInputChange}
-                            className="w-full border rounded-lg p-2"
-                        />
+                        <h3 className="font-semibold text-lg mb-4 text-slate-700">Información General</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-slate-600 mb-1">Nombre del Producto</label>
+                                <input
+                                    type="text"
+                                    name="nombre"
+                                    value={productoEditado.nombre}
+                                    onChange={handleProductoChange}
+                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-slate-600 mb-1">Descripción</label>
+                                <textarea
+                                    name="descripcion"
+                                    value={productoEditado.descripcion}
+                                    onChange={handleProductoChange}
+                                    rows={3}
+                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 mb-1">Precio de Compra</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    name="precio_compra"
+                                    value={productoEditado.precio_compra}
+                                    onChange={handleProductoChange}
+                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 mb-1">Precio de Venta</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    name="precio_venta"
+                                    value={productoEditado.precio_venta}
+                                    onChange={handleProductoChange}
+                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 mb-1">Unidad</label>
+                                <input
+                                    type="text"
+                                    name="unidad"
+                                    value={productoEditado.unidad}
+                                    onChange={handleProductoChange}
+                                    className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-3 pt-8">
+                                <input
+                                    type="checkbox"
+                                    name="activo"
+                                    checked={productoEditado.activo}
+                                    onChange={(e) => setProductoEditado(prev => ({ ...prev, activo: e.target.checked }))}
+                                    className="w-5 h-5 accent-teal-600"
+                                />
+                                <label className="font-medium text-slate-700">Producto Activo</label>
+                            </div>
+                        </div>
                     </div>
 
+                    {/* Gestión de Lotes */}
                     <div>
-                        <label className="font-semibold">Precio Venta</label>
-                        <input
-                            type="number"
-                            name="precio_venta"
-                            value={productoEditado.precio_venta}
-                            onChange={handleInputChange}
-                            className="w-full border rounded-lg p-2"
-                        />
-                    </div>
+                        <h3 className="font-semibold text-lg mb-4 text-slate-700 flex items-center gap-2">
+                            Gestión de Lotes
+                            {lotesEditados.length === 0 && <AlertTriangle className="text-amber-500" size={20} />}
+                        </h3>
 
-                    <div>
-                        <label className="font-semibold">Stock</label>
-                        <input
-                            type="number"
-                            name="stock_total"
-                            value={productoEditado.unidad}
-                            onChange={handleInputChange}
-                            className="w-full border rounded-lg p-2"
-                        />
+                        {lotesEditados.length > 0 ? (
+                            <div className="space-y-4">
+                                {lotesEditados.map((lote, index) => (
+                                    <div key={lote.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div>
+                                                <label className="text-xs text-slate-500">N° Lote</label>
+                                                <input
+                                                    type="text"
+                                                    value={lote.numero_lote}
+                                                    onChange={(e) => handleLoteChange(index, "numero_lote", e.target.value)}
+                                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500">Vencimiento</label>
+                                                <input
+                                                    type="date"
+                                                    value={lote.fecha_vencimiento}
+                                                    onChange={(e) => handleLoteChange(index, "fecha_vencimiento", e.target.value)}
+                                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500">Stock Actual</label>
+                                                <input
+                                                    type="number"
+                                                    value={lote.stock}
+                                                    onChange={(e) => handleLoteChange(index, "stock", e.target.value)}
+                                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-slate-500">Stock Mínimo</label>
+                                                <input
+                                                    type="number"
+                                                    value={lote.stock_minimo}
+                                                    onChange={(e) => handleLoteChange(index, "stock_minimo", e.target.value)}
+                                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-amber-600 text-sm italic">No hay lotes registrados para este producto.</p>
+                        )}
                     </div>
-
-                    <div className="flex items-center gap-2 mt-7">
-                        <input
-                            type="checkbox"
-                            name="activo"
-                            checked={productoEditado.activo}
-                            onChange={handleCheckboxChange}
-                        />
-                        <label>Activo</label>
-                    </div>
-
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 mt-6">
+                <div className="border-t p-6 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
                     <button
                         onClick={cerrarModal}
-                        className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                        className="px-6 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition-colors"
                     >
                         Cancelar
                     </button>
-
                     <button
                         onClick={guardarCambios}
-                        className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700"
+                        className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold flex items-center gap-2 transition-colors"
                     >
-                        Guardar
+                        <Save size={18} />
+                        Guardar Cambios
                     </button>
                 </div>
-
             </div>
         </div>
     );

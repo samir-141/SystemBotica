@@ -3,7 +3,7 @@ import { Search, ShoppingCart, Trash2, CreditCard, RotateCcw, Coins } from "luci
 
 import { FindProducts } from "../config/api.data";
 import Item from "../components/item";
-import type { ProductoItem, ItemCarrito, Moneda, Lote } from "../components/elementosglobales/types"; // Ajusta la ruta
+import type { ProductoItem, ItemCarrito, Moneda } from "../components/elementosglobales/types"; // Ajusta la ruta
 
 export default function PestañaVenta() {
     // 1. Estados principales
