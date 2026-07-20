@@ -35,11 +35,11 @@ export default function DashboardVentas() {
     const [categoriaFiltro, setCategoriaFiltro] = useState<string>('all');
 
     // Datos crudos del backend
-    const [ventasRaw, setVentasRaw] = useState<VentaGrafico[]>([]);
-    const [porCategoriaRaw, setPorCategoriaRaw] = useState<VentaPorCategoria[]>([]);
-    const [ventasPorCajeroRaw, setVentasPorCajeroRaw] = useState<VentaPorCajero[]>([]);
+    const [ventasRaw, /*setVentasRaw*/] = useState<VentaGrafico[]>([]);
+    const [porCategoriaRaw, /*setPorCategoriaRaw*/] = useState<VentaPorCategoria[]>([]);
+    const [ventasPorCajeroRaw, /*setVentasPorCajeroRaw*/] = useState<VentaPorCajero[]>([]);
 
-    const [cargando, setCargando] = useState<boolean>(true);
+    const [/*cargando*/, setCargando] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
     // ==================== FETCH DE DATOS ====================
