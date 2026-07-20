@@ -62,15 +62,15 @@ export interface Medicamento {
 
 export interface ProductoPresentacion {
     id: string;
-    producto_comercial_id: string;
-    unidad_presentacion_id: string;
     cantidad_unidad_base: number;
-    codigo_barras?: string;
-    precio_actual: number;
+    codigo_barras: string;
+    precio_actual: string;
     orden: number;
-    // Includes de Prisma:
-    productos_comerciales?: ProductoItem;
-    unidades_presentacion?: UnidadPresentacion;
+    unidades_presentacion: {
+        id: string;
+        nombre: string;
+        abreviatura: string;
+    }
 }
 
 export interface Lote {
