@@ -1,7 +1,7 @@
 // src/api/client.ts
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://backpos-lymg.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
     baseURL: API_URL,

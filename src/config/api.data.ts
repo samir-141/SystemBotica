@@ -1,7 +1,7 @@
 // src/services/api.ts
 import type { ProductoItem, UsuarioItem } from "../components/elementosglobales/types";
 
-const API_BASE_URL = 'https://backpos-lymg.onrender.com'; // La URL de tu servidor NestJS
+const API_BASE_URL = import.meta.env.VITE_API_URL; // La URL de tu servidor NestJS
 
 // 1. Obtener Productos desde la Base de Datos
 export async function FindProducts(): Promise<ProductoItem[]> {
