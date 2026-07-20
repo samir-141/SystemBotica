@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 interface ItemProps {
     item: {
         sku: string;
-        nombre: string;
+        nombre_comercial: string;
         precio_venta: number;
     };
     monedas: any[];
@@ -21,11 +21,11 @@ export default function Item({ item, monedas, monedaActivaIdx, onAgregar }: Item
                 {item.sku}
             </td>
             <td className="p-4 text-sm font-medium text-slate-800">
-                {item.nombre}
+                {item.nombre_comercial}
             </td>
             <td className="p-4 text-sm font-bold text-slate-900 text-right">
                 <span className="text-xs text-teal-600 mr-1">{monedaActual.simbolo}</span>
-                {item.precio_venta.toFixed(2)}
+                {item.precio_venta}
             </td>
             <td className="p-4 text-center">
                 <button

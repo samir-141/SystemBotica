@@ -1,4 +1,8 @@
-import React from "react";
+// src/config/types.ts
+
+// ===========================================================================
+// 1. ENTIDADES DEL CATÁLOGO (Reflejo exacto del DDL y los Includes de Prisma)
+// ===========================================================================
 
 export interface Categoria {
     id: string;
@@ -8,99 +12,98 @@ export interface Categoria {
 export interface Laboratorio {
     id: string;
     nombre: string;
+    pais?: string;
+    telefono?: string;
+    email?: string;
 }
 
 export interface PrincipioActivo {
     id: string;
     nombre: string;
+    descripcion?: string;
 }
 
-export interface ProductoItem {
+export interface FormaFarmaceutica {
     id: string;
-    sku: string;
-    codigo_barras: string;
     nombre: string;
-    descripcion: string;
-    categoria_id: string;
-    laboratorio_id: string;
-    precio_compra: number;
-    precio_venta: number;
-    unidad: string;
-    activo: boolean;
+}
+
+export interface UnidadPresentacion {
+    id: string;
+    nombre: string;
+    abreviatura: string;
+}
+
+export interface Medicamento {
+    id: string;
+    principio_activo_id: string;
+    forma_farmaceutica_id: string;
+    concentracion: number;
+    unidad_concentracion: string;
+    via_administracion: string;
+    requiere_receta: boolean;
+    afecto_igv: boolean;
+    // Includes de Prisma:
+    principios_activos?: PrincipioActivo;
+    formas_farmaceuticas?: FormaFarmaceutica;
+}
+
+
+export interface ProductoPresentacion {
+    id: string;
+    producto_comercial_id: string;
+    unidad_presentacion_id: string;
+    cantidad_unidad_base: number;
+    codigo_barras?: string;
+    precio_actual: number;
+    orden: number;
+    // Includes de Prisma:
+    productos_comerciales?: ProductoItem;
+    unidades_presentacion?: UnidadPresentacion;
 }
 
 export interface Lote {
     id: string;
-    producto_id: string;
+    producto_comercial_id: string;
+    detalle_compra_id?: string;
+    sucursal_id: string;
     numero_lote: string;
+    fecha_fabricacion?: string;
     fecha_vencimiento: string;
-    stock: number;
-    stock_minimo: number;
+    precio_compra_unidad_base: number;
+    stock_actual: number;
+    fecha_ingreso: string;
+    // Includes opcionales:
+    productos_comerciales?: ProductoItem;
 }
 
 export interface UsuarioItem {
     id: string;
-    username: string;
-    nombres: string;
-    apellidos: string;
-    estado: boolean;
+    nombre: string;
+    correo: string;
+    estado: 'ACTIVO' | 'INACTIVO';
     roles: string[];
 }
 
-export interface Cliente {
-    id: string;
-    documento: string;
+// ===========================================================================
+// 2. TIPOS ESPECÍFICOS PARA VENTAS
+// ===========================================================================
+
+export interface Moneda {
     nombre: string;
-    telefono: string;
-    direccion: string;
-    tipo?: string; // Regular, Frecuente, etc.
+    simbolo: string;
+    tipoCambio: number;
 }
 
-export interface Venta {
-    id: string;
-    numero: string;
-    usuario_id: string;
-    cliente_id: string;
-    fecha: string;
-    subtotal: number;
-    igv: number;
-    descuento: number;
-    total: number;
-    estado: "PAGADO" | "ANULADO" | "PENDIENTE";
-}
-
-export interface DetalleVenta {
-    id: string;
-    venta_id: string;
-    producto_id: string;
-    lote_id: string;
+export interface ItemCarrito extends ProductoItem {
     cantidad: number;
-    precio_unitario: number;     // ← Mejor nombre
-    descuento: number;
-    subtotal: number;
 }
 
-export interface Pago {
-    id: string;
-    venta_id: string;
-    metodo: string;
-    monto: number;
-}
-
-export interface MovimientoInventario {
-    id: string;
-    lote_id: string;
-    usuario_id: string;
-    tipo: "COMPRA" | "VENTA" | "AJUSTE" | "DEVOLUCION";
-    cantidad: number;
-    motivo: string;
-    fecha: string;
-}
-
-// === Interfaces para Gráficos y Reportes ===
+// ===========================================================================
+// 3. INTERFACES PARA REPORTES Y GRÁFICOS
+// ===========================================================================
 
 export interface VentaGrafico {
-    id: string;
     fecha: string;
     total: number;
     cantidad_ventas: number;
@@ -112,7 +115,6 @@ export interface TopProducto {
     nombre: string;
     cantidad: number;
     total: number;
-    porcentaje?: number;
 }
 
 export interface VentaPorCategoria {
@@ -129,38 +131,74 @@ export interface VentaPorCajero {
 export interface MetodoPagoStats {
     metodo: string;
     monto: number;
-    porcentaje?: number;
 }
 
-// === Interfaces existentes que conservamos o mejoramos ===
+// src/config/types.ts
 
-export interface SubMenuItem {
-    label: string;
-    url: string;
-    shortcut?: string;
+export interface PrincipioActivo {
+    id: string;
+    nombre: string;
+    descripcion?: string;
 }
 
-export interface MenuItemType {
-    label: string;
-    icon: React.ReactNode;
-    url?: string;
-    submenu?: SubMenuItem[];
+export interface FormaFarmaceutica {
+    id: string;
+    nombre: string;
+}
+
+export interface Medicamento {
+    id: string;
+    principio_activo_id: string;
+    forma_farmaceutica_id: string;
+    concentracion: number;
+    unidad_concentracion: string;
+    via_administracion: string;
+    requiere_receta: boolean;
+    afecto_igv: boolean;
+    principios_activos?: PrincipioActivo;
+    formas_farmaceuticas?: FormaFarmaceutica;
+}
+
+export interface Laboratorio {
+    id: string;
+    nombre: string;
+    pais?: string;
+}
+
+export interface UnidadPresentacion {
+    id: string;
+    nombre: string;
+    abreviatura: string;
+}
+
+// ==================== TIPO PRINCIPAL PARA VENTAS ====================
+export interface ProductoItem {
+    id: string;
+    medicamento_id: string;
+    laboratorio_id: string;
+    categoria_id?: string;
+    unidad_base_id: string;
+    sku?: string;
+    nombre_comercial: string;
+    registro_sanitario?: string;
+    codigo_interno?: string;
+    estado: string;
+    // Relaciones
+    medicamentos?: Medicamento;
+    laboratorios?: Laboratorio;
+    unidades_presentacion?: UnidadPresentacion;
+    // Campo útil para ventas
+    productos_presentaciones?: ProductoPresentacion[];
+    // lo puedes agregar después si quieres
+}
+
+// Tipo para el carrito
+export interface ItemCarrito extends ProductoItem {
+    cantidad: number;
 }
 
 export interface Moneda {
     nombre: string;
     simbolo: string;
     tipoCambio: number;
-}
-
-export interface ItemProps {
-    item: ProductoItem;
-    monedas: Moneda[];
-    monedaActivaIdx: number;
-}
-
-export interface ItemCarrito extends ProductoItem {
-    cantidad: number;
-    lote_id?: string;        // Importante para ventas
-    precio_unitario?: number;
 }

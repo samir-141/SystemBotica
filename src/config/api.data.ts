@@ -1,97 +1,65 @@
-import type { VentaGrafico, ProductoItem, UsuarioItem, DetalleVenta, Categoria, TopProducto } from "../components/elementosglobales/types"; import data from "./Data.json";
+// src/services/api.ts
+import type { ProductoItem, UsuarioItem } from "../components/elementosglobales/types";
+
+const API_BASE_URL = 'http://localhost:3000'; // La URL de tu servidor NestJS
+
+// 1. Obtener Productos desde la Base de Datos
+export async function FindProducts(): Promise<ProductoItem[]> {
+    const response = await fetch(`${API_BASE_URL}/productos/todos?sucursalId=b2222222-2222-2222-2222-222222222222`);
+    if (!response.ok) throw new Error('Error al obtener productos');
+    return response.json();
+}
+
+// 2. Obtener Usuarios
+export async function FindUser(id: string): Promise<UsuarioItem> {
+    const response = await fetch(`${API_BASE_URL}/usuarios/usuario/` + id);
+    if (!response.ok) throw new Error('Error al obtener usuarios');
+    return response.json();
+}
 
 
-function FindProducts() {
-    const productos: ProductoItem[] = data.productos;
-    return productos;
-}
-function FindUsers() {
-    const users: UsuarioItem[] = data.usuarios;
-    return users;
-}
-export const getVentasData = (): VentaGrafico[] => {
-    return data.ventas.map(v => ({
-        id: v.id,
+
+
+
+
+/*
+// 3. Obtener Datos para el Gráfico de Ventas (Ya agrupados por el Backend)
+export const getVentasData = async (): Promise<VentaGrafico[]> => {
+    const response = await fetch(`${API_BASE_URL}/reportes/ventas-grafico`);
+    if (!response.ok) throw new Error('Error al obtener datos de ventas');
+
+    const data = await response.json();
+    // Si tu backend ya devuelve la fecha formateada, la mapeas directo
+    return data.map((v: any) => ({
+        ...v,
         fecha: new Date(v.fecha).toLocaleDateString('es-PE'),
-        total: v.total,
-        cantidad_ventas: 1,
-        promedio_ventas: v.total,
     }));
 };
 
-export const getTopProductos = (): TopProducto[] => {
-    const detalle: DetalleVenta[] = data.detalle_venta;
-    const productos: ProductoItem[] = data.productos;
+// 4. Obtener el Top de Productos más vendidos (El backend ya hizo el conteo y ordenamiento)
+export const getTopProductos = async (): Promise<TopProducto[]> => {
+    const response = await fetch(`${API_BASE_URL}/reportes/top-productos`);
+    if (!response.ok) throw new Error('Error al obtener el top de productos');
+    return response.json();
+};
+// prisma.service.ts (NestJS)
 
-    const agrupado = detalle.reduce((acc, det) => {
-        const prod = productos.find(p => p.id === det.producto_id);
-        if (!prod) return acc;
+export const getVentasPorCajero = async () => {
+    const response = await fetch(`${API_BASE_URL}/reportes/ventas-por-cajero`);
+    if (!response.ok) throw new Error('Error al obtener ventas por cajero');
+    return response.json();
+}
 
-        if (!acc[det.producto_id]) {
-            acc[det.producto_id] = {
-                id: det.producto_id,
-                nombre: prod.nombre,
-                cantidad: 0,
-                total: 0
-            };
-        }
-        acc[det.producto_id].cantidad += det.cantidad;
-        acc[det.producto_id].total += det.subtotal;
-        return acc;
-    }, {} as Record<string, TopProducto>);
-
-    return Object.values(agrupado)
-        .sort((a, b) => b.total - a.total);
+// 5. Obtener Ventas por Categoría (El backend devuelve el JSON listo para el gráfico de torta)
+export const getVentasPorCategoria = async (): Promise<VentaPorCategoria[]> => {
+    const response = await fetch(`${API_BASE_URL}/reportes/ventas-categoria`);
+    if (!response.ok) throw new Error('Error al obtener ventas por categoría');
+    return response.json();
 };
 
-export const getVentasPorCategoria = () => {
-    const detalle: DetalleVenta[] = data.detalle_venta;
-    const productos: ProductoItem[] = data.productos;
-    const categorias: Categoria[] = data.categorias;
-
-    const porCategoria = detalle.reduce((acc, det) => {
-        const prod = productos.find(p => p.id === det.producto_id);
-        if (!prod) return acc;
-
-        const cat = categorias.find(c => c.id === prod.categoria_id);
-        const nombreCat = cat?.nombre || "Sin categoría";
-
-        if (!acc[nombreCat]) {
-            acc[nombreCat] = { categoria: nombreCat, total: 0, cantidad: 0 };
-        }
-        acc[nombreCat].total += det.subtotal;
-        acc[nombreCat].cantidad += det.cantidad;
-        return acc;
-    }, {} as Record<string, any>);
-
-    return Object.values(porCategoria);
-};
-
-export const getVentasPorCajero = () => {
-    const ventas = data.ventas;
-    const usuarios: UsuarioItem[] = data.usuarios;
-
-    return ventas.map(v => {
-        const user = usuarios.find(u => u.id === v.usuario_id);
-        return {
-            cajero: user ? `${user.nombres} ${user.apellidos}` : "Desconocido",
-            total: v.total
-        };
-    });
-};
-
-export const getMetodosPago = () => {
-    const pagos = data.pagos;
-    const agrupado = pagos.reduce((acc, p) => {
-        acc[p.metodo] = (acc[p.metodo] || 0) + p.monto;
-        return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(agrupado).map(([metodo, monto]) => ({
-        metodo,
-        monto
-    }));
-};
-
-
-export { FindProducts, FindUsers }
+// 6. Obtener Métodos de Pago
+export const getMetodosPago = async () => {
+    const response = await fetch(`${API_BASE_URL}/reportes/metodos-pago`);
+    if (!response.ok) throw new Error('Error al obtener métodos de pago');
+    return response.json();
+};*/
