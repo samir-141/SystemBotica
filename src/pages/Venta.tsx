@@ -66,8 +66,8 @@ export default function PestañaVenta() {
     const vaciarCarrito = () => setCarrito([]);
 
     // Cálculos
-    const subtotal = carrito.reduce((acc, item) => acc + (Number(item.productos_presentaciones[0].precio_actual) || 0) * item.cantidad, 0);
-    const total = subtotal * monedaActual.tipoCambio;
+    // Reemplaza tu línea 69 por esta:
+    const subtotal = carrito.reduce((acc, item) => acc + (Number(item.productos_presentaciones?.[0]?.precio_actual) || 0) * item.cantidad, 0); const total = subtotal * monedaActual.tipoCambio;
     const igv = total * 0.18;
     const totalFinal = total + igv;
 
@@ -118,8 +118,9 @@ export default function PestañaVenta() {
                                     key={item.id}
                                     item={{
                                         nombre_comercial: item.nombre_comercial,
-                                        sku: item.sku,
-                                        precio_venta: Number(item.productos_presentaciones[0].precio_actual)
+                                        // Reemplaza ese bloque del objeto por este:
+                                        sku: item.sku || "",
+                                        precio_venta: Number(item.productos_presentaciones?.[0]?.precio_actual) || 0
                                     }}
                                     monedaActivaIdx={monedaActiva}
                                     monedas={monedas}
