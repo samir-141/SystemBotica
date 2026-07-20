@@ -94,7 +94,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                     type="number"
                                     step="0.01"
                                     name="precio_compra"
-                                    value={productoEditado.productos_presentaciones[0].precio_actual}
+                                    value={Number(productoEditado.productos_presentaciones[0].precio_actual)}
                                     onChange={handleProductoChange}
                                     className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
@@ -106,7 +106,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                     type="number"
                                     step="0.01"
                                     name="precio_venta"
-                                    value={productoEditado.productos_presentaciones[0].precio_actual}
+                                    value={Number(productoEditado.productos_presentaciones[0].precio_actual)}
                                     onChange={handleProductoChange}
                                     className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />

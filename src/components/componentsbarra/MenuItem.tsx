@@ -1,10 +1,6 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { MenuItemType } from "../elementosglobales/types";
 // 1. Definimos la estructura exacta que tiene un submenú
-interface SubmenuItem {
-    label: string;
-    url: string;
-}
 
 // 2. Definimos la estructura completa del ítem del menú principal
 /*interface MenuItemType {
