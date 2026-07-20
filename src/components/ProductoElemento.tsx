@@ -13,22 +13,22 @@ export default function ProductoElemento({ item, lotes = [] }: ProductoElementoP
     const [open, setOpen] = useState(false);
 
     // Filtrar lotes de este producto
-    const lotesProducto = lotes.filter(l => l.producto_id === item.id);
+    const lotesProducto = lotes.filter(l => l.id === item.id);
 
     // Calcular stock total
-    const stockTotal = lotesProducto.reduce((sum, lote) => sum + lote.stock, 0);
+    const stockTotal = lotesProducto.reduce((sum, lote) => sum + lote.stock_actual, 0);
 
     // Encontrar lote más próximo a vencer (para mostrar alerta)
     const loteMasCritico = lotesProducto
-        .filter(l => l.stock > 0)
+        .filter(l => l.stock_actual > 0)
         .sort((a, b) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())[0];
 
     const fechaVencimientoCritica = loteMasCritico?.fecha_vencimiento;
     const estaVencido = fechaVencimientoCritica ? new Date(fechaVencimientoCritica) < new Date() : false;
-    const stockBajo = stockTotal <= (loteMasCritico?.stock_minimo || 20);
+    const stockBajo = stockTotal <= (loteMasCritico?.stock_actual || 20);
 
-    const precioFormateado = typeof item.precio_venta === "number"
-        ? item.precio_venta.toFixed(2)
+    const precioFormateado = typeof item.productos_presentaciones?.[0].precio_actual === "number"
+        ? item.productos_presentaciones[0].precio_actual.toFixed(2)
         : "0.00";
 
     return (
@@ -42,9 +42,9 @@ export default function ProductoElemento({ item, lotes = [] }: ProductoElementoP
                     <div className="flex justify-between items-start gap-3">
                         <h3
                             className="font-bold text-slate-800 text-sm leading-snug line-clamp-2 flex-1"
-                            title={item.nombre}
+                            title={item.nombre_comercial}
                         >
-                            {item.nombre}
+                            {item.nombre_comercial}
                         </h3>
 
                         <span className="text-xs font-bold text-teal-600 bg-teal-50/80 px-2.5 py-1 rounded-lg shrink-0">
@@ -67,7 +67,7 @@ export default function ProductoElemento({ item, lotes = [] }: ProductoElementoP
                             <span>
                                 Stock Total:{" "}
                                 <strong className={`font-semibold ${stockBajo ? 'text-amber-600' : 'text-slate-700'}`}>
-                                    {stockTotal} {item.unidad}
+                                    {stockTotal} {item.unidad_base_id}
                                 </strong>
                                 {stockBajo && (
                                     <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">

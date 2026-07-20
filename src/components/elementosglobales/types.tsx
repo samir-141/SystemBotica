@@ -4,6 +4,17 @@
 // 1. ENTIDADES DEL CATÁLOGO (Reflejo exacto del DDL y los Includes de Prisma)
 // ===========================================================================
 
+export interface MenuItemType {
+
+    label: string;
+    icon: React.ReactNode;
+    url?: string;
+    submenu?: {
+        url: string;
+        label: string;
+    }[];
+}
+
 export interface Categoria {
     id: string;
     nombre: string;

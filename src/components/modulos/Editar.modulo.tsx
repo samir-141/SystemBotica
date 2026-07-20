@@ -28,7 +28,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
         const nuevosLotes = [...lotesEditados];
         nuevosLotes[index] = {
             ...nuevosLotes[index],
-            [field]: field === "stock" || field === "stock_minimo" ? Number(value) : value,
+            [field]: field === "stock_actual" ? Number(value) : value,
         };
         setLotesEditados(nuevosLotes);
     };
@@ -71,7 +71,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                 <input
                                     type="text"
                                     name="nombre"
-                                    value={productoEditado.nombre}
+                                    value={productoEditado.nombre_comercial}
                                     onChange={handleProductoChange}
                                     className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
@@ -81,7 +81,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                 <label className="block text-sm font-medium text-slate-600 mb-1">Descripción</label>
                                 <textarea
                                     name="descripcion"
-                                    value={productoEditado.descripcion}
+                                    value={productoEditado.estado}
                                     onChange={handleProductoChange}
                                     rows={3}
                                     className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -94,7 +94,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                     type="number"
                                     step="0.01"
                                     name="precio_compra"
-                                    value={productoEditado.precio_compra}
+                                    value={productoEditado.productos_presentaciones[0].precio_actual}
                                     onChange={handleProductoChange}
                                     className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
@@ -106,7 +106,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                     type="number"
                                     step="0.01"
                                     name="precio_venta"
-                                    value={productoEditado.precio_venta}
+                                    value={productoEditado.productos_presentaciones[0].precio_actual}
                                     onChange={handleProductoChange}
                                     className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
@@ -117,7 +117,7 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                 <input
                                     type="text"
                                     name="unidad"
-                                    value={productoEditado.unidad}
+                                    value={productoEditado.unidad_base_id}
                                     onChange={handleProductoChange}
                                     className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
                                 />
@@ -126,9 +126,9 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                             <div className="flex items-center gap-3 pt-8">
                                 <input
                                     type="checkbox"
-                                    name="activo"
-                                    checked={productoEditado.activo}
-                                    onChange={(e) => setProductoEditado(prev => ({ ...prev, activo: e.target.checked }))}
+                                    name="estado"
+                                    checked={productoEditado.estado === "ACTIVO"}
+                                    onChange={(e) => setProductoEditado(prev => ({ ...prev, estado: e.target.checked ? 'ACTIVO' : 'INACTIVO' }))}
                                     className="w-5 h-5 accent-teal-600"
                                 />
                                 <label className="font-medium text-slate-700">Producto Activo</label>
@@ -170,8 +170,8 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                                 <label className="text-xs text-slate-500">Stock Actual</label>
                                                 <input
                                                     type="number"
-                                                    value={lote.stock}
-                                                    onChange={(e) => handleLoteChange(index, "stock", e.target.value)}
+                                                    value={lote.stock_actual}
+                                                    onChange={(e) => handleLoteChange(index, "stock_actual", e.target.value)}
                                                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                                                 />
                                             </div>
@@ -179,8 +179,8 @@ export default function EditarModulo({ item, lotes, setModal }: Props) {
                                                 <label className="text-xs text-slate-500">Stock Mínimo</label>
                                                 <input
                                                     type="number"
-                                                    value={lote.stock_minimo}
-                                                    onChange={(e) => handleLoteChange(index, "stock_minimo", e.target.value)}
+                                                    value={lote.stock_actual}
+                                                    onChange={(e) => handleLoteChange(index, "stock_actual", e.target.value)}
                                                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                                                 />
                                             </div>

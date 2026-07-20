@@ -1,8 +1,21 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { MenuItemType } from "../elementosglobales/types";
+// 1. Definimos la estructura exacta que tiene un submenú
+interface SubmenuItem {
+    label: string;
+    url: string;
+}
+
+// 2. Definimos la estructura completa del ítem del menú principal
+/*interface MenuItemType {
+    label: string;
+    icon: React.ReactNode;
+    url?: string;
+    submenu?: SubmenuItem[];
+}*/
 
 interface MenuItemProps {
-    item: MenuItemType;
+    item: MenuItemType; // <-- Cambiado de {} al tipo real
     isCollapsed: boolean;
     isOpen: boolean;
     onToggle: () => void;
@@ -33,9 +46,9 @@ export default function MenuItem({ item, isCollapsed, isOpen, onToggle }: MenuIt
                 </button>
 
                 {/* Submenú */}
-                {isOpen && !isCollapsed && (
+                {isOpen && !isCollapsed && item.submenu && (
                     <ul className="mt-1 ml-9 pl-3 border-l border-slate-800 space-y-1">
-                        {item.submenu!.map((sub) => (
+                        {item.submenu.map((sub) => ( // <-- TS ya sabe perfectamente qué es 'sub'
                             <li key={sub.label}>
                                 <a
                                     href={sub.url}
