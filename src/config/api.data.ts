@@ -1,10 +1,10 @@
 // src/services/api.ts
-import type { ProductoItem, UsuarioItem } from "../components/elementosglobales/types";
-
+import type { UsuarioItem } from "../components/elementosglobales/types";
+import type { Producto } from "../components/productos/types/types";
 const API_BASE_URL = import.meta.env.VITE_API_URL; // La URL de tu servidor NestJS
 
 // 1. Obtener Productos desde la Base de Datos
-export async function FindProducts(): Promise<ProductoItem[]> {
+export async function FindProducts(): Promise<Producto[]> {
     const response = await fetch(`${API_BASE_URL}/productos/todos?sucursalId=b2222222-2222-2222-2222-222222222222`);
     if (!response.ok) throw new Error('Error al obtener productos');
     return response.json();

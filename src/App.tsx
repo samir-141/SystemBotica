@@ -11,6 +11,9 @@ import Dashboard from './pages/dashboard/Dashboard';
 import Barra from './components/barralaterral';
 import PestañaVenta from './pages/Venta';
 import LoginHero from './components/auth/LoginHero';
+import ProductDashboard from './components/productos/ProductDashboard';
+
+
 const App: React.FC = () => {
   return (
     <PrimeReactProvider>
@@ -28,7 +31,7 @@ const App: React.FC = () => {
                 {/* Módulos vacíos para después */}
                 <Route path="/ventas/nueva" element={<PestañaVenta />} />
                 <Route path="/ventas/historial" element={<div>Historial de Ventas</div>} />
-                <Route path="/productos" element={<div>Catálogo de Productos</div>} />
+                <Route path="/productos" element={<ProductDashboard />} />
                 <Route path="/inventario/stock" element={<div>Stock</div>} />
                 <Route path="/clientes" element={<div>Clientes</div>} />
                 <Route path="/reportes/ventas" element={<div>Reporte de Ventas</div>} />
