@@ -4,16 +4,14 @@ import './css/Venta.css'
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { PrimeReactProvider } from 'primereact/api';
 import { AuthProvider } from './contexts/AuthContext';
-import PrivateRoute from './components/common/PrivateRoute';
-//import Layout from './components/common/Layout';
-import Login from './pages/auth/Login';
-import Dashboard from './pages/dashboard/Dashboard';
-import Barra from './components/barralaterral';
-import PestañaVenta from './pages/Venta';
-import LoginHero from './components/auth/LoginHero';
-import ProductDashboard from './components/productos/ProductDashboard';
+import PrivateRoute from './components/login/common/PrivateRoute';
 
 
+import LoginHero from './components/login/auth/LoginHero';
+
+import LoginForm from './pages/auth/Login';
+import VentaPosPage from './pages/ventapos/ventaPos';
+import Nav from './pages/navegacion/Nav';
 const App: React.FC = () => {
   return (
     <PrimeReactProvider>
@@ -21,17 +19,17 @@ const App: React.FC = () => {
         <AuthProvider>
           <Routes>
             {/* Rutas públicas */}
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={<LoginForm />} />
 
             {/* Rutas protegidas */}
             <Route element={<PrivateRoute />}>
-              <Route element={<Barra />}>
-                <Route path="/dashboard" element={<Dashboard />} />
+              <Route element={<Nav />}>
+                <Route path="/dashboard" element={<> nada</>} />
 
                 {/* Módulos vacíos para después */}
-                <Route path="/ventas/nueva" element={<PestañaVenta />} />
+                <Route path="/ventas/nueva" element={<VentaPosPage />} />
                 <Route path="/ventas/historial" element={<div>Historial de Ventas</div>} />
-                <Route path="/productos" element={<ProductDashboard />} />
+                <Route path="/productos" element={<div>Productos</div>} />
                 <Route path="/inventario/stock" element={<div>Stock</div>} />
                 <Route path="/clientes" element={<div>Clientes</div>} />
                 <Route path="/reportes/ventas" element={<div>Reporte de Ventas</div>} />

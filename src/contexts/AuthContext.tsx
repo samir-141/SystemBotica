@@ -1,7 +1,7 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { authApi } from '../api/auth.api';
-import type { LoginRequest } from '../api/auth.api';
+import { authApi } from '../components/api/auth.api';
+import type { LoginRequest } from '../components/api/auth.api';
 
 interface User {
     id: string;
@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('sucursalActual', JSON.stringify(data.sucursal_actual));
             localStorage.setItem('sucursales', JSON.stringify(data.sucursales_disponibles));
             localStorage.setItem('sucursalId', data.sucursal_actual.id);
-
+            localStorage.setItem('rol', data.usuario.rol);
             // Actualizar estado
             setToken(data.token);
             setUser(data.usuario);
