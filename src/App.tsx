@@ -7,8 +7,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './components/login/common/PrivateRoute';
 
 
-import LoginHero from './components/login/auth/LoginHero';
-
 import LoginForm from './pages/auth/Login';
 import VentaPosPage from './pages/ventapos/ventaPos';
 import Nav from './pages/navegacion/Nav';
