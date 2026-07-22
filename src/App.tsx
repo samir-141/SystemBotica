@@ -12,6 +12,7 @@ import LoginHero from './components/login/auth/LoginHero';
 import LoginForm from './pages/auth/Login';
 import VentaPosPage from './pages/ventapos/ventaPos';
 import Nav from './pages/navegacion/Nav';
+import HomePage from './pages/homePos/home..page';
 const App: React.FC = () => {
   return (
     <PrimeReactProvider>
@@ -38,7 +39,7 @@ const App: React.FC = () => {
                 <Route path="/admin/sucursales" element={<div>Gestión de Sucursales</div>} />
 
                 {/* Redirección por defecto */}
-                <Route path="/" element={<LoginHero />} />
+                <Route path="/" element={<HomePage />} />
               </Route>
             </Route>
 
