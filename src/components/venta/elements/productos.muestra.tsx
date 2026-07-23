@@ -1,5 +1,5 @@
 import { Search, ShoppingCart, Barcode, X, RefreshCw, Package } from "lucide-react";
-import Item, { type PresentacionOption } from "./item";
+import { type PresentacionOption } from "./item";
 import type { ProductoPOS } from "../../api/api.data"
 
 interface Props {

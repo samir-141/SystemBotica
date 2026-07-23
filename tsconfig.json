@@ -8,8 +8,4 @@
       "path": "./tsconfig.node.json"
     }
   ],
-  "compilerOptions": {
-    "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
-  }
 }
