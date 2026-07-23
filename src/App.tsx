@@ -9,6 +9,7 @@ import PrivateRoute from './components/login/common/PrivateRoute';
 
 import LoginForm from './pages/auth/Login';
 import VentaPosPage from './pages/ventapos/ventaPos';
+import ProductosPageWrapper from './pages/productos/productosPage';
 import Nav from './pages/navegacion/Nav';
 import HomePage from './pages/homePos/home..page';
 const App: React.FC = () => {
@@ -28,7 +29,7 @@ const App: React.FC = () => {
                 {/* Módulos vacíos para después */}
                 <Route path="/ventas/nueva" element={<VentaPosPage />} />
                 <Route path="/ventas/historial" element={<div>Historial de Ventas</div>} />
-                <Route path="/productos" element={<div>Productos</div>} />
+                <Route path="/productos" element={<ProductosPageWrapper />} />
                 <Route path="/inventario/stock" element={<div>Stock</div>} />
                 <Route path="/clientes" element={<div>Clientes</div>} />
                 <Route path="/reportes/ventas" element={<div>Reporte de Ventas</div>} />

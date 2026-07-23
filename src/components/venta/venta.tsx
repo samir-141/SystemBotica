@@ -6,6 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import MosProducto from "./elements/productos.muestra";
 import { formatMoney } from "./utils";
 import CartSummary from "./elements/CartSummary";
+
 // Tipo para items en el carrito
 interface ItemCarrito {
     id_carrito: string;
@@ -23,8 +24,6 @@ interface ItemCarrito {
 type ModoPrecio = "CON_IGV" | "SIN_IGV";
 type TipoPago = "CONTADO" | "ABONO" | "ANTICIPO";
 
-// formatMoney imported from utils
-
 export default function VentaPos() {
     const { sucursalActual } = useAuth();
 
@@ -40,7 +39,6 @@ export default function VentaPos() {
     const [tipoPago, setTipoPago] = useState<TipoPago>("CONTADO");
     const [showCartMobile, setShowCartMobile] = useState(false);
     const [feedbackId, setFeedbackId] = useState<string | null>(null);
-    // 1. Inicia con la primera opción por defecto (ej: Caja)
 
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,21 +55,25 @@ export default function VentaPos() {
         const handleKeyDown = (e: KeyboardEvent) => {
             const currentTime = Date.now();
 
-            // Si la velocidad entre teclas es menor a 30ms, es una pistola lectora
+            // Si la velocidad entre teclas es mayor a 50ms, reiniciamos el buffer
             if (currentTime - lastKeyTime > 50) {
                 bufferBarcode = "";
             }
             lastKeyTime = currentTime;
 
             if (e.key === "Enter" && bufferBarcode.length >= 3) {
-                // Buscar y agregar de inmediato al carrito el producto escaneado
                 const encontrado = productosRaw.find(
                     (p) => p.codigo_barras === bufferBarcode || p.sku === bufferBarcode
                 );
                 if (encontrado) {
-                    agregarAlCarrito(encontrado, 1, encontrado.presentacion_nombre || "Unidad", encontrado.precio_actual);
-                    bufferBarcode = "";
+                    agregarAlCarrito(
+                        encontrado,
+                        1,
+                        encontrado.presentacion_nombre || "Unidad",
+                        encontrado.precio_actual
+                    );
                 }
+                bufferBarcode = "";
             } else if (e.key.length === 1) {
                 bufferBarcode += e.key;
             }
@@ -79,10 +81,16 @@ export default function VentaPos() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [productosRaw]);
+    }, [productosRaw]); // agregarAlCarrito se maneja vía referencia estable
 
     // --- 2. CARGA DE PRODUCTOS DE LA SUCURSAL ACTUAL ---
     const fetchProductos = useCallback(async (termino: string) => {
+        if (!sucursalActual?.id) {
+            setProductosRaw([]);
+            setCargando(false);
+            return;
+        }
+
         setCargando(true);
         setError(null);
         try {
@@ -91,9 +99,9 @@ export default function VentaPos() {
                     buscar: termino || undefined,
                     limit: 60,
                     orden: "nombre_asc",
+                    //sucursal_id: sucursalActual.id, // ← Asegúrate de enviar la sucursal
                 },
             });
-            // Filtrar solo medicamentos que cuenten con stock > 0
             const soloConStock = (data.data || []).filter((p) => p.stock_total > 0);
             setProductosRaw(soloConStock);
         } catch (err: any) {
@@ -102,7 +110,7 @@ export default function VentaPos() {
         } finally {
             setCargando(false);
         }
-    }, []);
+    }, [sucursalActual]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -111,12 +119,11 @@ export default function VentaPos() {
         return () => clearTimeout(timer);
     }, [busqueda, fetchProductos]);
 
-    // --- 3. CONVERSIÓN DE UNIDADES Y CÁLCULO DE STOCK (Cajas + Unidades Sueltas) ---
+    // --- 3. CONVERSIÓN DE UNIDADES Y CÁLCULO DE STOCK ---
     const productosAgrupados = useMemo(() => {
         const mapa = new Map<string, any>();
 
         productosRaw.forEach((prod) => {
-            // Usamos el SKU o el ID comercial como clave de agrupación
             const key = prod.sku || prod.producto_comercial_id;
 
             if (!mapa.has(key)) {
@@ -127,15 +134,13 @@ export default function VentaPos() {
                     principio_activo: prod.principio_activo,
                     laboratorio: prod.laboratorio,
                     requiere_receta: prod.requiere_receta,
-                    stock_total: prod.stock_total, // Stock en unidades base (comprimidos/pastillas)
+                    stock_total: prod.stock_total,
                     unidad_base_nombre: prod.unidad_abreviatura || "unid",
                     presentaciones: [] as PresentacionOption[],
                 });
             }
 
             const itemAgrupado = mapa.get(key);
-
-            // Verificamos si la presentación (Caja, Blíster, Unidad) ya está agregada al array
             const presExistente = itemAgrupado.presentaciones.some(
                 (p: PresentacionOption) => p.id === (prod.presentacion_id || prod.presentacion_nombre)
             );
@@ -144,7 +149,7 @@ export default function VentaPos() {
                 itemAgrupado.presentaciones.push({
                     id: prod.presentacion_id || `${prod.producto_comercial_id}_${prod.presentacion_nombre}`,
                     nombre: prod.presentacion_nombre || "Unidad",
-                    cantidad_unidad_base: prod.cantidad_unidad_base || 1, // Ej: 100 para Caja, 10 para Blíster, 1 para Unidad
+                    cantidad_unidad_base: prod.cantidad_unidad_base || 1,
                     precio: prod.precio_actual,
                 });
             }
@@ -153,13 +158,13 @@ export default function VentaPos() {
         return Array.from(mapa.values());
     }, [productosRaw]);
 
-    // --- 4. ACCIONES DEL CARRITO ---
-    const triggerFeedback = (id: string) => {
+    // --- 4. ACCIONES DEL CARRITO (memoizadas) ---
+    const triggerFeedback = useCallback((id: string) => {
         setFeedbackId(id);
         setTimeout(() => setFeedbackId(null), 400);
-    };
+    }, []);
 
-    const agregarAlCarrito = (
+    const agregarAlCarrito = useCallback((
         producto: any,
         equivBase = 1,
         presentacionNombre = "Unidad",
@@ -174,7 +179,9 @@ export default function VentaPos() {
                 .reduce((acc, i) => acc + i.unidades_base_totales, 0);
 
             if (unidadesAnteriores + equivBase > producto.stock_total) {
-                alert(`Stock insuficiente. Disponible: ${producto.stock_total} ${producto.unidadBaseNombre || "unidades"}`);
+                alert(
+                    `Stock insuficiente. Disponible: ${producto.stock_total} ${producto.unidad_base_nombre || "unidades"}`
+                );
                 return prev;
             }
 
@@ -207,9 +214,9 @@ export default function VentaPos() {
                 },
             ];
         });
-    };
+    }, [triggerFeedback]);
 
-    const actualizarCantidad = (idCarrito: string, nuevaCantidad: number) => {
+    const actualizarCantidad = useCallback((idCarrito: string, nuevaCantidad: number) => {
         if (nuevaCantidad <= 0) {
             setCarrito((prev) => prev.filter((i) => i.id_carrito !== idCarrito));
             return;
@@ -225,22 +232,16 @@ export default function VentaPos() {
                     : i
             )
         );
-    };
+    }, []);
 
-    // --- 5. CÁLCULOS FINANCIEROS Y DESGLOSE DE IMPUESTOS ---
+    // --- 5. CÁLCULOS FINANCIEROS ---
     const totalItems = carrito.reduce((acc, i) => acc + i.cantidad, 0);
     const montoBrutoFinal = carrito.reduce((acc, i) => acc + i.precio_unitario * i.cantidad, 0);
-
-    // En Perú, los precios inc. IGV se desglosan dividiendo entre 1.18
     const baseImponible = montoBrutoFinal / 1.18;
     const igvCalculado = montoBrutoFinal - baseImponible;
 
     return (
         <div className="flex flex-col md:flex-row h-full bg-slate-100 text-slate-800 font-sans antialiased overflow-hidden">
-            {/* ═══════════════════════════════════════════════════════
-          SECCIÓN IZQUIERDA — Catálogo de Productos y Filtros
-      ═══════════════════════════════════════════════════════ */}
-
             <MosProducto
                 Item={Item}
                 busqueda={busqueda}
@@ -262,8 +263,7 @@ export default function VentaPos() {
                 carrito={carrito}
                 actualizarCantidad={actualizarCantidad}
                 totalItems={totalItems}
-                modoPrecio={modoPrecio}
-                setModoPrecio={setModoPrecio}
+
                 tipoPago={tipoPago}
                 setTipoPago={setTipoPago}
                 showCartMobile={showCartMobile}
@@ -274,7 +274,6 @@ export default function VentaPos() {
                 igvCalculado={igvCalculado}
                 formatMoney={formatMoney}
             />
-
         </div>
     );
 }

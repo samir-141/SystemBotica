@@ -1,5 +1,5 @@
 // src/components/venta/hooks/useProductos.ts
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { api } from "../../api/client";
 import type { ProductoPOS, PaginatedResponse } from "../../api/api.data";
 import type { PresentacionOption } from "../types";
@@ -18,7 +18,7 @@ export const useProductos = () => {
       const { data } = await api.get<PaginatedResponse<ProductoPOS>>("/productos", {
         params: {
           buscar: termino || undefined,
-          limit: 60,
+          limit: 20,
           orden: "nombre_asc",
         },
       });

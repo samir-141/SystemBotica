@@ -134,5 +134,26 @@ export const posApi = {
     eliminarItemCatalogo: async (tipo: TipoCatalogo, id: string): Promise<{ mensaje: string }> => {
         const { data } = await api.delete<{ mensaje: string }>(`/catalogos/${tipo}/${id}`);
         return data;
-    }
+    },
+
+    // --- PRODUCTOS CRUD (Gestión desde módulo productos) ---
+    buscarProductoPorIdentificador: async (valor: string): Promise<any> => {
+        const { data } = await api.get('/productos/buscar/identificador', { params: { valor } });
+        return data;
+    },
+
+    crearProducto: async (payload: Record<string, unknown>): Promise<ProductoPOS> => {
+        const { data } = await api.post<ProductoPOS>('/productos', payload);
+        return data;
+    },
+
+    actualizarProducto: async (id: string, payload: Record<string, unknown>): Promise<ProductoPOS> => {
+        const { data } = await api.patch<ProductoPOS>(`/productos/${id}`, payload);
+        return data;
+    },
+
+    eliminarProducto: async (id: string): Promise<{ mensaje: string }> => {
+        const { data } = await api.delete<{ mensaje: string }>(`/productos/${id}`);
+        return data;
+    },
 };

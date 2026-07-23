@@ -1,16 +1,16 @@
 // src/components/venta/hooks/useCart.ts
 import { useState, useCallback } from "react";
 import { formatMoney } from "../utils"; // optional utility, we'll create if missing
-import type { ItemCarrito, PresentacionOption } from "../types";
+import type { ItemCarrito } from "../types";
 
 export const useCart = () => {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
 
-  const triggerFeedback = (id: string) => {
-    // Placeholder for feedback logic; can be integrated with UI later
-    // For now we simply expose the setter via a callback
-    // The original component used setFeedbackId; we keep it external
-  };
+  // const triggerFeedback = (id: string) => {
+  //   // Placeholder for feedback logic; can be integrated with UI later
+  //   // For now we simply expose the setter via a callback
+  //   // The original component used setFeedbackId; we keep it external
+  // };
 
   const agregarAlCarrito = useCallback(
     (
