@@ -1,7 +1,7 @@
 // src/components/venta/hooks/useBarcodeScanner.ts
 import { useEffect, useRef } from "react";
 import type { ProductoPOS } from "../../api/api.data";
-import type { ItemCarrito } from "../types";
+
 
 export const useBarcodeScanner = (
   productosRaw: ProductoPOS[],

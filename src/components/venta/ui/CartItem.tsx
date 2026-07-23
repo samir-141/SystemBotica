@@ -8,14 +8,13 @@ interface CartItemProps {
   item: ItemCarrito;
   onUpdateQuantity: (id: string, newQty: number) => void;
   onRemove: (id: string) => void;
-  feedbackActive?: boolean;
 }
 
 export const CartItem: React.FC<CartItemProps> = ({
   item,
   onUpdateQuantity,
   onRemove,
-  feedbackActive = false,
+
 }) => {
   return (
     <div className="pt-2 first:pt-0 flex items-center justify-between gap-2">

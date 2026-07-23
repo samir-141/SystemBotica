@@ -1,4 +1,5 @@
 import { Search, ShoppingCart, Barcode, X, RefreshCw, Package } from "lucide-react";
+import Item, { type PresentacionOption } from "./item";
 import type { ProductoPOS } from "../../api/api.data"
 
 interface Props {
@@ -12,10 +13,10 @@ interface Props {
     feedbackId: string | null;
     setFeedbackId: (feedbackId: string | null) => void;
     searchInputRef: any;
-    productosAgrupados: any;
+    productosAgrupados: ProductoPOS[];
     cargando: boolean;
     totalItems: number;
-    sucursalActual: { nombre: string };
+    sucursalActual: { nombre: string } | null;
     agregarAlCarrito: (producto: ProductoPOS, cantidad: number, presentacionNombre: string, precioUnitario: number) => void;
 }
 export default function MosProducto({ Item, busqueda, setBusqueda, modoPrecio, setModoPrecio, searchInputRef, setShowCartMobile, feedbackId, productosAgrupados, cargando, totalItems, sucursalActual, agregarAlCarrito }: Props) {
@@ -104,14 +105,14 @@ export default function MosProducto({ Item, busqueda, setBusqueda, modoPrecio, s
                         <p className="text-xs font-medium">No se encontraron medicamentos coincidentes</p>
                     </div>
                 ) : (
-                    productosAgrupados.map((prod) => (
+                    productosAgrupados.map((prod: ProductoPOS) => (
                         <Item
                             key={prod.sku || prod.producto_comercial_id}
                             item={prod}
                             monedas={[{ simbolo: "S/", nombre: "Soles" }]}
                             monedaActivaIdx={0}
                             feedbackActive={feedbackId === prod.producto_comercial_id}
-                            onAgregar={(presentacionSeleccionada) =>
+                            onAgregar={(presentacionSeleccionada: PresentacionOption) =>
                                 agregarAlCarrito(
                                     prod,
                                     presentacionSeleccionada.cantidad_unidad_base,

@@ -10,6 +10,6 @@
   ],
   "compilerOptions": {
     "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true
+    "ignoreDeprecations": "6.0",
   }
 }
