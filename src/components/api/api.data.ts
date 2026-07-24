@@ -215,6 +215,55 @@ export const posApi = {
         const { data } = await api.delete<{ mensaje: string }>(`/clientes/${id}`);
         return data;
     },
+
+    // --- REPORTES ---
+    getReporteVentas: async (params?: { fecha_inicio?: string; fecha_fin?: string; sucursal_id?: string }): Promise<any> => {
+        const { data } = await api.get('/reportes/ventas', { params });
+        return data;
+    },
+
+    getReporteInventario: async (params?: { sucursal_id?: string }): Promise<any> => {
+        const { data } = await api.get('/reportes/inventario', { params });
+        return data;
+    },
+
+    // --- ADMINISTRACIÓN & ERP ---
+    getUsuarios: async (): Promise<any> => {
+        const { data } = await api.get('/usuarios');
+        return data;
+    },
+
+    getRoles: async (): Promise<any> => {
+        const { data } = await api.get('/usuarios/roles');
+        return data;
+    },
+
+    getSucursalesAdmin: async (): Promise<any> => {
+        const { data } = await api.get('/usuarios/sucursales');
+        return data;
+    },
+
+    crearUsuario: async (payload: Record<string, unknown>): Promise<any> => {
+        const { data } = await api.post('/usuarios', payload);
+        return data;
+    },
+
+    actualizarUsuario: async (id: string, payload: Record<string, unknown>): Promise<any> => {
+        const { data } = await api.patch(`/usuarios/${id}`, payload);
+        return data;
+    },
+
+    eliminarUsuario: async (id: string): Promise<{ mensaje: string }> => {
+        const { data } = await api.delete<{ mensaje: string }>(`/usuarios/${id}`);
+        return data;
+    },
+
+    crearSucursal: async (payload: { nombre: string; direccion: string; telefono?: string }): Promise<any> => {
+        const { data } = await api.post('/usuarios/sucursales', payload);
+        return data;
+    },
 };
+
+
 
 

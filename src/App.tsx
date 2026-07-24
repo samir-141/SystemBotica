@@ -14,6 +14,8 @@ import Nav from './pages/navegacion/Nav';
 import HomePage from './pages/homePos/home..page';
 import DashboardPage from './components/dashboard/DashboardPage';
 import ClientesPage from './components/clientes/ClientesPage';
+import ReportesPage from './components/reportes/ReportesPage';
+import AdminPage from './components/admin/AdminPage';
 
 const App: React.FC = () => {
   return (
@@ -36,10 +38,13 @@ const App: React.FC = () => {
                 <Route path="/inventario/stock" element={<div>Stock</div>} />
                 <Route path="/clientes" element={<ClientesPage />} />
 
-                <Route path="/reportes/ventas" element={<div>Reporte de Ventas</div>} />
-                <Route path="/reportes/inventario" element={<div>Reporte de Inventario</div>} />
-                <Route path="/admin/usuarios" element={<div>Gestión de Usuarios</div>} />
-                <Route path="/admin/sucursales" element={<div>Gestión de Sucursales</div>} />
+                <Route path="/reportes/ventas" element={<ReportesPage />} />
+                <Route path="/reportes/inventario" element={<ReportesPage />} />
+                <Route path="/admin/usuarios" element={<AdminPage />} />
+                <Route path="/admin/roles" element={<AdminPage />} />
+                <Route path="/admin/sucursales" element={<AdminPage />} />
+
+
 
                 {/* Redirección por defecto */}
                 <Route path="/" element={<HomePage />} />
