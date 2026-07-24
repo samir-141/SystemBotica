@@ -3,54 +3,28 @@
 import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const api = axios.create({
-    baseURL: API_URL + "/api",
+    baseURL: (API_URL ? API_URL : '') + "/api",
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Interceptor para agregar token
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    const sucursalId = localStorage.getItem('sucursalId');
-
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    if (sucursalId) {
-        config.headers['x-sucursal-id'] = sucursalId;
-    }
-
-    return config;
-});
-
-// Interceptor para manejar errores
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Token expirado o inválido
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('sucursalActual');
-            window.location.href = '/login';
-        }
-        return Promise.reject(error);
-    }
-);
-
-
-
-// Interceptor de Peticiones: Injecta el Token JWT
+// Interceptor de Peticiones: Inyecta el Token JWT y Sucursal ID
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem('token');
+        const sucursalId = localStorage.getItem('sucursalId');
+
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        if (sucursalId && config.headers) {
+            config.headers['x-sucursal-id'] = sucursalId;
+        }
+
         return config;
     },
     (error: AxiosError) => Promise.reject(error)
@@ -64,7 +38,9 @@ api.interceptors.response.use(
 
         if (status === 401) {
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
             localStorage.removeItem('usuario');
+            localStorage.removeItem('sucursalActual');
             if (!window.location.pathname.includes('/login')) {
                 window.location.href = '/login';
             }
@@ -83,4 +59,4 @@ api.interceptors.response.use(
     }
 );
 
-export { api };
+export { api };

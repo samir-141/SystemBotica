@@ -34,5 +34,39 @@ export interface DatosCliente {
   direccion: string;
 }
 
+export interface ProductoAgrupado {
+  producto_comercial_id: string;
+  sku: string;
+  nombre_comercial: string;
+  principio_activo?: string;
+  laboratorio?: string;
+  requiere_receta?: boolean;
+  stock_total: number;
+  unidad_base_nombre?: string;
+  presentaciones: PresentacionOption[];
+}
+
+export interface DetalleVentaInput {
+  producto_presentacion_id?: string;
+  producto_comercial_id: string;
+  presentacion_nombre: string;
+  cantidad: number;
+  precio_unitario: number;
+}
+
+export interface CreateVentaPayload {
+  tipo_comprobante: TipoComprobante;
+  tipo_pago: TipoPago;
+  metodo_pago: MetodoPago;
+  monto_recibido?: number;
+  vuelto?: number;
+  datos_cliente?: DatosCliente;
+  subtotal: number;
+  igv: number;
+  total: number;
+  items: DetalleVentaInput[];
+}
+
 // Re‑export product data types from the API layer for convenience
 export type { ProductoPOS, PaginatedResponse } from "../api/api.data";
+

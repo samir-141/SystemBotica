@@ -19,6 +19,7 @@ import {
   MapPin,
   Calculator,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import type {
   ItemCarrito,
@@ -27,6 +28,8 @@ import type {
   DatosCliente,
 } from "../types";
 import { formatMoney } from "../utils";
+import { posApi } from "../../api/api.data";
+
 
 /* ─── props ─────────────────────────────────────────── */
 type Props = {
@@ -37,6 +40,7 @@ type Props = {
   baseImponible: number;
   igvCalculado: number;
   tipoPago: "CONTADO" | "ABONO" | "ANTICIPO";
+  onVentaExitosa?: () => void;
 };
 
 /* ─── constants ─────────────────────────────────────── */
@@ -99,6 +103,7 @@ export default function CheckoutModal({
   baseImponible,
   igvCalculado,
   tipoPago,
+  onVentaExitosa,
 }: Props) {
   /* ── state ──────────────────────────────────────────── */
   const [paso, setPaso] = useState(0);
@@ -113,6 +118,10 @@ export default function CheckoutModal({
   });
   const [animatingOut, setAnimatingOut] = useState(false);
   const [slideDir, setSlideDir] = useState<"left" | "right">("left");
+  const [procesando, setProcesando] = useState(false);
+  const [errorVenta, setErrorVenta] = useState<string | null>(null);
+  const [consultandoPadron, setConsultandoPadron] = useState(false);
+  const [origenBadge, setOrigenBadge] = useState<string | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -130,8 +139,80 @@ export default function CheckoutModal({
         direccion: "",
       });
       setAnimatingOut(false);
+      setProcesando(false);
+      setErrorVenta(null);
+      setConsultandoPadron(false);
+      setOrigenBadge(null);
     }
   }, [open]);
+
+  const handleConsultarPadron = async (numeroDoc: string, tipoDocOverride?: string) => {
+    const tipoDoc = tipoDocOverride || (tipoComprobante === "BOLETA" ? "DNI" : tipoComprobante === "FACTURA" ? "RUC" : "DNI");
+    if (!numeroDoc || (tipoDoc === "DNI" && numeroDoc.length !== 8) && (tipoDoc === "RUC" && numeroDoc.length !== 11)) {
+      return;
+    }
+
+    setConsultandoPadron(true);
+    setOrigenBadge(null);
+
+    try {
+      const res = await posApi.consultarDocumentoPadron(tipoDoc, numeroDoc);
+      if (res.encontrado && res.nombre) {
+        setDatosCliente((prev) => ({
+          ...prev,
+          tipo_documento: tipoDoc as any,
+          numero_documento: numeroDoc,
+          nombre_razon_social: res.nombre,
+          direccion: res.direccion || prev.direccion,
+        }));
+        setOrigenBadge(res.origen);
+      }
+    } catch (err) {
+      console.error("Error al consultar padrón:", err);
+    } finally {
+      setConsultandoPadron(false);
+    }
+  };
+
+
+  const handleEmitirVenta = async () => {
+    if (!tipoComprobante) return;
+    setProcesando(true);
+    setErrorVenta(null);
+
+    try {
+      const payload = {
+        tipo_comprobante: tipoComprobante,
+        tipo_pago: tipoPago,
+        metodo_pago: metodoPago,
+        monto_recibido: montoRecibido ? parseFloat(montoRecibido) : montoBrutoFinal,
+        vuelto: Math.max(vuelto, 0),
+        datos_cliente: tipoComprobante !== "NOTA_VENTA" ? datosCliente : undefined,
+        subtotal: baseImponible,
+        igv: igvCalculado,
+        total: montoBrutoFinal,
+        items: carrito.map((item) => ({
+          producto_comercial_id: item.producto_comercial_id,
+          presentacion_nombre: item.presentacion_nombre,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+        })),
+      };
+
+      await posApi.registrarVenta(payload);
+
+      if (onVentaExitosa) {
+        onVentaExitosa();
+      }
+      handleClose();
+    } catch (err: any) {
+      console.error("Error al registrar venta:", err);
+      setErrorVenta(err.message || "Error al procesar la venta en el servidor");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
 
   /* close with animation */
   const handleClose = () => {
@@ -270,6 +351,13 @@ export default function CheckoutModal({
           </div>
         </div>
 
+        {errorVenta && (
+          <div className="mx-5 mt-3 px-4 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
+            <span className="font-bold">Error:</span> {errorVenta}
+          </div>
+        )}
+
+
         {/* ── BODY (steps) ────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
           <div
@@ -354,10 +442,17 @@ export default function CheckoutModal({
 
                     {/* Nro Documento */}
                     <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                        {tipoComprobante === "BOLETA" ? "DNI (8 dígitos)" : "RUC (11 dígitos)"}
-                      </label>
-                      <div className="relative">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
+                          {tipoComprobante === "BOLETA" ? "DNI (8 dígitos)" : "RUC (11 dígitos)"}
+                        </label>
+                        {origenBadge && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 animate-fadeIn">
+                            ✓ Verificado en {origenBadge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative flex items-center">
                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           type="text"
@@ -366,14 +461,32 @@ export default function CheckoutModal({
                           onChange={(e) => {
                             const v = e.target.value.replace(/\D/g, "");
                             setDatosCliente((d) => ({ ...d, numero_documento: v }));
+                            setOrigenBadge(null);
+                            const targetLen = tipoComprobante === "BOLETA" ? 8 : 11;
+                            if (v.length === targetLen) {
+                              handleConsultarPadron(v);
+                            }
                           }}
                           placeholder={tipoComprobante === "BOLETA" ? "Ej: 72456189" : "Ej: 20123456789"}
-                          className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-white
+                          className="w-full pl-10 pr-24 py-2.5 text-sm rounded-xl border border-slate-200 bg-white
                             focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400
                             placeholder:text-slate-300 font-mono tracking-wider transition"
                         />
+                        <button
+                          type="button"
+                          disabled={consultandoPadron || !datosCliente.numero_documento}
+                          onClick={() => handleConsultarPadron(datosCliente.numero_documento)}
+                          className="absolute right-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white font-bold text-xs rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                        >
+                          {consultandoPadron ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <span>Buscar</span>
+                          )}
+                        </button>
                       </div>
                     </div>
+
 
                     {/* Nombre / Razón Social */}
                     <div>
@@ -711,18 +824,29 @@ export default function CheckoutModal({
             </button>
           ) : (
             <button
-              onClick={handleClose}
+              onClick={handleEmitirVenta}
+              disabled={procesando}
               className="flex items-center gap-2 text-xs font-bold text-white
-                px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 shadow-md
-                shadow-emerald-500/20 transition active:scale-[0.98]"
+                px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 shadow-md
+                shadow-emerald-500/20 transition active:scale-[0.98] cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
-              CONFIRMAR Y EMITIR
-              <Printer className="w-4 h-4 ml-1 opacity-70" />
+              {procesando ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  PROCESANDO...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  CONFIRMAR Y EMITIR
+                  <Printer className="w-4 h-4 ml-1 opacity-70" />
+                </>
+              )}
             </button>
           )}
         </div>
       </div>
+
 
       {/* slide animation style */}
       <style>{`

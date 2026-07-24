@@ -151,7 +151,12 @@ export default function CartSummary({
         baseImponible={baseImponible}
         igvCalculado={igvCalculado}
         tipoPago={tipoPago}
+        onVentaExitosa={() => {
+          setCarrito([]);
+          setShowCartMobile(false);
+        }}
       />
     </>
   );
 }
+

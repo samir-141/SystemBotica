@@ -12,6 +12,9 @@ import VentaPosPage from './pages/ventapos/ventaPos';
 import ProductosPageWrapper from './pages/productos/productosPage';
 import Nav from './pages/navegacion/Nav';
 import HomePage from './pages/homePos/home..page';
+import DashboardPage from './components/dashboard/DashboardPage';
+import ClientesPage from './components/clientes/ClientesPage';
+
 const App: React.FC = () => {
   return (
     <PrimeReactProvider>
@@ -24,14 +27,15 @@ const App: React.FC = () => {
             {/* Rutas protegidas */}
             <Route element={<PrivateRoute />}>
               <Route element={<Nav />}>
-                <Route path="/dashboard" element={<> nada</>} />
+                <Route path="/dashboard" element={<DashboardPage />} />
 
-                {/* Módulos vacíos para después */}
+                {/* Módulos */}
                 <Route path="/ventas/nueva" element={<VentaPosPage />} />
                 <Route path="/ventas/historial" element={<div>Historial de Ventas</div>} />
                 <Route path="/productos" element={<ProductosPageWrapper />} />
                 <Route path="/inventario/stock" element={<div>Stock</div>} />
-                <Route path="/clientes" element={<div>Clientes</div>} />
+                <Route path="/clientes" element={<ClientesPage />} />
+
                 <Route path="/reportes/ventas" element={<div>Reporte de Ventas</div>} />
                 <Route path="/reportes/inventario" element={<div>Reporte de Inventario</div>} />
                 <Route path="/admin/usuarios" element={<div>Gestión de Usuarios</div>} />

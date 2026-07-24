@@ -1,25 +1,40 @@
 import { Search, ShoppingCart, Barcode, X, RefreshCw, Package } from "lucide-react";
 import { type PresentacionOption } from "./item";
-import type { ProductoPOS } from "../../api/api.data"
+import type { ProductoAgrupado, ModoPrecio } from "../types";
 
 interface Props {
     Item: any;
     busqueda: string;
     setBusqueda: (busqueda: string) => void;
-    modoPrecio: "CON_IGV" | "SIN_IGV";
-    setModoPrecio: (modoPrecio: "CON_IGV" | "SIN_IGV") => void;
+    modoPrecio: ModoPrecio;
+    setModoPrecio: (modoPrecio: ModoPrecio) => void;
     showCartMobile: boolean;
     setShowCartMobile: (showCartMobile: boolean) => void;
     feedbackId: string | null;
     setFeedbackId: (feedbackId: string | null) => void;
-    searchInputRef: any;
-    productosAgrupados: ProductoPOS[];
+    searchInputRef: React.RefObject<HTMLInputElement>;
+    productosAgrupados: ProductoAgrupado[];
     cargando: boolean;
     totalItems: number;
     sucursalActual: { nombre: string } | null;
-    agregarAlCarrito: (producto: ProductoPOS, cantidad: number, presentacionNombre: string, precioUnitario: number) => void;
+    agregarAlCarrito: (producto: ProductoAgrupado, cantidad: number, presentacionNombre: string, precioUnitario: number) => void;
 }
-export default function MosProducto({ Item, busqueda, setBusqueda, modoPrecio, setModoPrecio, searchInputRef, setShowCartMobile, feedbackId, productosAgrupados, cargando, totalItems, sucursalActual, agregarAlCarrito }: Props) {
+
+export default function MosProducto({
+    Item,
+    busqueda,
+    setBusqueda,
+    modoPrecio,
+    setModoPrecio,
+    searchInputRef,
+    setShowCartMobile,
+    feedbackId,
+    productosAgrupados,
+    cargando,
+    totalItems,
+    sucursalActual,
+    agregarAlCarrito
+}: Props) {
     return (
         <section className="flex-1 flex flex-col h-full min-w-0 overflow-hidden p-2.5 sm:p-4">
 
@@ -92,7 +107,6 @@ export default function MosProducto({ Item, busqueda, setBusqueda, modoPrecio, s
             </div>
 
             {/* Grilla / Lista de Productos */}
-            {/* Render de Cards de Productos */}
             <div className="flex-1 overflow-y-auto pr-1 space-y-2.5">
                 {cargando ? (
                     <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2">
@@ -105,7 +119,7 @@ export default function MosProducto({ Item, busqueda, setBusqueda, modoPrecio, s
                         <p className="text-xs font-medium">No se encontraron medicamentos coincidentes</p>
                     </div>
                 ) : (
-                    productosAgrupados.map((prod: ProductoPOS) => (
+                    productosAgrupados.map((prod: ProductoAgrupado) => (
                         <Item
                             key={prod.sku || prod.producto_comercial_id}
                             item={prod}
@@ -125,5 +139,5 @@ export default function MosProducto({ Item, busqueda, setBusqueda, modoPrecio, s
                 )}
             </div>
         </section>
-    )
-}
+    );
+}

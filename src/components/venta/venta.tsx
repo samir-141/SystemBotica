@@ -1,38 +1,24 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Item, { type PresentacionOption } from "./elements/item";
-import { api } from "../api/client";
-import type { ProductoPOS, PaginatedResponse } from "../api/api.data";
+import { useState, useEffect, useRef, useCallback } from "react";
+import Item from "./elements/item";
 import { useAuth } from "../../hooks/useAuth";
 import MosProducto from "./elements/productos.muestra";
 import { formatMoney } from "./utils";
 import CartSummary from "./elements/CartSummary";
-
-// Tipo para items en el carrito
-interface ItemCarrito {
-    id_carrito: string;
-    producto_comercial_id: string;
-    nombre_comercial: string;
-    presentacion_nombre: string;
-    precio_unitario: number;
-    cantidad: number;
-    unidades_base_por_pack: number;
-    unidades_base_totales: number;
-    lote_fefo_numero: string;
-    lote_fefo_vencimiento: string;
-}
-
-type ModoPrecio = "CON_IGV" | "SIN_IGV";
-type TipoPago = "CONTADO" | "ABONO" | "ANTICIPO";
+import { useProductos } from "./hooks/useProductos";
+import type { ItemCarrito, ModoPrecio, TipoPago, ProductoAgrupado } from "./types";
 
 export default function VentaPos() {
     const { sucursalActual } = useAuth();
+    const {
+        productosRaw,
+        busqueda,
+        setBusqueda,
+        cargando,
+        productosAgrupados
+    } = useProductos();
 
     // --- Estados de Datos ---
-    const [productosRaw, setProductosRaw] = useState<ProductoPOS[]>([]);
     const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
-    const [busqueda, setBusqueda] = useState("");
-    const [cargando, setCargando] = useState(true);
-    const [, setError] = useState<string | null>(null);
 
     // --- Opciones Visuales / Configuración ---
     const [modoPrecio, setModoPrecio] = useState<ModoPrecio>("CON_IGV");
@@ -47,135 +33,26 @@ export default function VentaPos() {
         searchInputRef.current?.focus();
     }, []);
 
-    // --- 1. LECTURA CONTINUA POR CÓDIGO DE BARRAS (Scanner) ---
-    useEffect(() => {
-        let bufferBarcode = "";
-        let lastKeyTime = Date.now();
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const currentTime = Date.now();
-
-            // Si la velocidad entre teclas es mayor a 50ms, reiniciamos el buffer
-            if (currentTime - lastKeyTime > 50) {
-                bufferBarcode = "";
-            }
-            lastKeyTime = currentTime;
-
-            if (e.key === "Enter" && bufferBarcode.length >= 3) {
-                const encontrado = productosRaw.find(
-                    (p) => p.codigo_barras === bufferBarcode || p.sku === bufferBarcode
-                );
-                if (encontrado) {
-                    agregarAlCarrito(
-                        encontrado,
-                        1,
-                        encontrado.presentacion_nombre || "Unidad",
-                        encontrado.precio_actual
-                    );
-                }
-                bufferBarcode = "";
-            } else if (e.key.length === 1) {
-                bufferBarcode += e.key;
-            }
-        };
-
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [productosRaw]); // agregarAlCarrito se maneja vía referencia estable
-
-    // --- 2. CARGA DE PRODUCTOS DE LA SUCURSAL ACTUAL ---
-    const fetchProductos = useCallback(async (termino: string) => {
-        if (!sucursalActual?.id) {
-            setProductosRaw([]);
-            setCargando(false);
-            return;
-        }
-
-        setCargando(true);
-        setError(null);
-        try {
-            const { data } = await api.get<PaginatedResponse<ProductoPOS>>("/productos", {
-                params: {
-                    buscar: termino || undefined,
-                    limit: 60,
-                    orden: "nombre_asc",
-                    //sucursal_id: sucursalActual.id, // ← Asegúrate de enviar la sucursal
-                },
-            });
-            const soloConStock = (data.data || []).filter((p) => p.stock_total > 0);
-            setProductosRaw(soloConStock);
-        } catch (err: any) {
-            console.error(err);
-            setError(err.message || "Error al conectar con el inventario de la sucursal");
-        } finally {
-            setCargando(false);
-        }
-    }, [sucursalActual]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchProductos(busqueda);
-        }, 250);
-        return () => clearTimeout(timer);
-    }, [busqueda, fetchProductos]);
-
-    // --- 3. CONVERSIÓN DE UNIDADES Y CÁLCULO DE STOCK ---
-    const productosAgrupados = useMemo(() => {
-        const mapa = new Map<string, any>();
-
-        productosRaw.forEach((prod) => {
-            const key = prod.sku || prod.producto_comercial_id;
-
-            if (!mapa.has(key)) {
-                mapa.set(key, {
-                    producto_comercial_id: prod.producto_comercial_id,
-                    sku: prod.sku || "SIN SKU",
-                    nombre_comercial: prod.nombre_comercial,
-                    principio_activo: prod.principio_activo,
-                    laboratorio: prod.laboratorio,
-                    requiere_receta: prod.requiere_receta,
-                    stock_total: prod.stock_total,
-                    unidad_base_nombre: prod.unidad_abreviatura || "unid",
-                    presentaciones: [] as PresentacionOption[],
-                });
-            }
-
-            const itemAgrupado = mapa.get(key);
-            const presExistente = itemAgrupado.presentaciones.some(
-                (p: PresentacionOption) => p.id === (prod.presentacion_id || prod.presentacion_nombre)
-            );
-
-            if (!presExistente) {
-                itemAgrupado.presentaciones.push({
-                    id: prod.presentacion_id || `${prod.producto_comercial_id}_${prod.presentacion_nombre}`,
-                    nombre: prod.presentacion_nombre || "Unidad",
-                    cantidad_unidad_base: prod.cantidad_unidad_base || 1,
-                    precio: prod.precio_actual,
-                });
-            }
-        });
-
-        return Array.from(mapa.values());
-    }, [productosRaw]);
-
-    // --- 4. ACCIONES DEL CARRITO (memoizadas) ---
+    // --- Feedback de adición ---
     const triggerFeedback = useCallback((id: string) => {
         setFeedbackId(id);
         setTimeout(() => setFeedbackId(null), 400);
     }, []);
 
+    // --- Agregar al Carrito ---
     const agregarAlCarrito = useCallback((
-        producto: any,
+        producto: ProductoAgrupado | any,
         equivBase = 1,
         presentacionNombre = "Unidad",
-        precio = producto.precio_actual
+        precio = producto.precio_actual || 0
     ) => {
-        triggerFeedback(producto.producto_comercial_id);
-        const idCarrito = `${producto.producto_comercial_id}_${presentacionNombre}`;
+        const prodId = producto.producto_comercial_id;
+        triggerFeedback(prodId);
+        const idCarrito = `${prodId}_${presentacionNombre}`;
 
         setCarrito((prev) => {
             const unidadesAnteriores = prev
-                .filter((i) => i.producto_comercial_id === producto.producto_comercial_id)
+                .filter((i) => i.producto_comercial_id === prodId)
                 .reduce((acc, i) => acc + i.unidades_base_totales, 0);
 
             if (unidadesAnteriores + equivBase > producto.stock_total) {
@@ -202,7 +79,7 @@ export default function VentaPos() {
                 ...prev,
                 {
                     id_carrito: idCarrito,
-                    producto_comercial_id: producto.producto_comercial_id,
+                    producto_comercial_id: prodId,
                     nombre_comercial: producto.nombre_comercial,
                     presentacion_nombre: presentacionNombre,
                     precio_unitario: precio,
@@ -215,6 +92,46 @@ export default function VentaPos() {
             ];
         });
     }, [triggerFeedback]);
+
+    // --- 1. LECTURA CONTINUA POR CÓDIGO DE BARRAS (Scanner) ---
+    useEffect(() => {
+        let bufferBarcode = "";
+        let lastKeyTime = Date.now();
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const currentTime = Date.now();
+
+            if (currentTime - lastKeyTime > 50) {
+                bufferBarcode = "";
+            }
+            lastKeyTime = currentTime;
+
+            if (e.key === "Enter" && bufferBarcode.length >= 3) {
+                const encontrado = productosRaw.find(
+                    (p) => p.codigo_barras === bufferBarcode || p.sku === bufferBarcode
+                );
+                if (encontrado) {
+                    const agrupado = productosAgrupados.find(
+                        (g) => g.producto_comercial_id === encontrado.producto_comercial_id
+                    );
+                    if (agrupado) {
+                        agregarAlCarrito(
+                            agrupado,
+                            encontrado.cantidad_unidad_base || 1,
+                            encontrado.presentacion_nombre || "Unidad",
+                            encontrado.precio_actual
+                        );
+                    }
+                }
+                bufferBarcode = "";
+            } else if (e.key.length === 1) {
+                bufferBarcode += e.key;
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [productosRaw, productosAgrupados, agregarAlCarrito]);
 
     const actualizarCantidad = useCallback((idCarrito: string, nuevaCantidad: number) => {
         if (nuevaCantidad <= 0) {
@@ -263,7 +180,6 @@ export default function VentaPos() {
                 carrito={carrito}
                 actualizarCantidad={actualizarCantidad}
                 totalItems={totalItems}
-
                 tipoPago={tipoPago}
                 setTipoPago={setTipoPago}
                 showCartMobile={showCartMobile}
@@ -276,4 +192,4 @@ export default function VentaPos() {
             />
         </div>
     );
-}
+}

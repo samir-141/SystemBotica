@@ -87,6 +87,14 @@ export default function HomePos() {
             roles: ["Administrador", "Farmacéutico", "Cajero"],
         },
         {
+            titulo: "Dashboard General",
+            descripcion: "Estadísticas del día, gráficos de ventas 7 días y alertas.",
+            icon: BarChart3,
+            path: "/dashboard",
+            color: "bg-emerald-600 text-white hover:bg-emerald-700",
+            roles: ["Administrador", "Farmacéutico", "Cajero", "Vendedor"],
+        },
+        {
             titulo: "Reportes & Ventas",
             descripcion: "Visualiza cortes de caja, cierres e informes.",
             icon: BarChart3,
@@ -95,6 +103,7 @@ export default function HomePos() {
             roles: ["Administrador"],
         },
     ];
+
 
     // Filtrar accesos según el rol del usuario
     const rolUsuario = user?.rol || "Cajero";

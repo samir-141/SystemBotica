@@ -156,4 +156,65 @@ export const posApi = {
         const { data } = await api.delete<{ mensaje: string }>(`/productos/${id}`);
         return data;
     },
+
+    // --- VENTAS ---
+    registrarVenta: async (payload: Record<string, unknown>): Promise<any> => {
+        const { data } = await api.post('/ventas', payload);
+        return data;
+    },
+
+    // --- BÚSQUEDA POR SUCURSAL ---
+    getProductosPorSucursal: async (sucursalId: string, params?: QueryParamsProductos): Promise<PaginatedResponse<ProductoPOS>> => {
+        const { data } = await api.get<PaginatedResponse<ProductoPOS>>(`/productos/sucursal/${sucursalId}`, { params });
+        return data;
+    },
+
+    // --- DASHBOARD ---
+    getDashboardResumen: async (sucursalId?: string): Promise<any> => {
+        const { data } = await api.get('/dashboard/resumen', {
+            params: { sucursal_id: sucursalId }
+        });
+        return data;
+    },
+
+    // --- CLIENTES ---
+    getClientes: async (params?: { page?: number; limit?: number; buscar?: string; tipo_documento?: string }): Promise<any> => {
+        const { data } = await api.get('/clientes', { params });
+        return data;
+    },
+
+    getClienteById: async (id: string): Promise<any> => {
+        const { data } = await api.get(`/clientes/${id}`);
+        return data;
+    },
+
+    buscarClientePorDocumento: async (documento: string): Promise<any> => {
+        const { data } = await api.get(`/clientes/buscar/${documento}`);
+        return data;
+    },
+
+    consultarDocumentoPadron: async (tipo: string, numero: string): Promise<any> => {
+        const { data } = await api.get('/clientes/consultar-padron', {
+            params: { tipo, numero }
+        });
+        return data;
+    },
+
+    crearCliente: async (payload: Record<string, unknown>): Promise<any> => {
+        const { data } = await api.post('/clientes', payload);
+        return data;
+    },
+
+
+    actualizarCliente: async (id: string, payload: Record<string, unknown>): Promise<any> => {
+        const { data } = await api.patch(`/clientes/${id}`, payload);
+        return data;
+    },
+
+    eliminarCliente: async (id: string): Promise<{ mensaje: string }> => {
+        const { data } = await api.delete<{ mensaje: string }>(`/clientes/${id}`);
+        return data;
+    },
 };
+
+
