@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, User, Phone, Mail, MapPin, ShoppingBag, Calendar, Receipt, CreditCard, Loader2 } from "lucide-react";
+import { X, User, Phone, Mail, MapPin, Calendar, Receipt, Loader2 } from "lucide-react";
 import { posApi } from "../../api/api.data";
+
 import type { Cliente } from "../types";
 
 type Props = {

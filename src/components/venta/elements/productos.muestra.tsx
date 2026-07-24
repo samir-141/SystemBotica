@@ -12,7 +12,8 @@ interface Props {
     setShowCartMobile: (showCartMobile: boolean) => void;
     feedbackId: string | null;
     setFeedbackId: (feedbackId: string | null) => void;
-    searchInputRef: React.RefObject<HTMLInputElement>;
+    searchInputRef: React.RefObject<HTMLInputElement | null>;
+
     productosAgrupados: ProductoAgrupado[];
     cargando: boolean;
     totalItems: number;

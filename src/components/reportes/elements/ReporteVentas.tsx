@@ -1,15 +1,12 @@
 import {
-  DollarSign,
   TrendingUp,
   Receipt,
   CreditCard,
   ShoppingBag,
   Calendar,
-  RefreshCw,
-  FileSpreadsheet,
-  Layers,
-  ArrowUpRight
+  RefreshCw
 } from "lucide-react";
+
 
 type Props = {
   reporte: any;

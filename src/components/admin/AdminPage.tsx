@@ -76,33 +76,30 @@ export default function AdminPage() {
         <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0 self-start sm:self-auto">
           <button
             onClick={() => handleTabChange("usuarios")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              activeTab === "usuarios"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "usuarios"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
-            }`}
+              }`}
           >
             <Users className="w-4 h-4" />
             <span>Usuarios ({usuarios.length})</span>
           </button>
           <button
             onClick={() => handleTabChange("roles")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              activeTab === "roles"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "roles"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
-            }`}
+              }`}
           >
             <Shield className="w-4 h-4" />
             <span>Roles & Permisos</span>
           </button>
           <button
             onClick={() => handleTabChange("sucursales")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
-              activeTab === "sucursales"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "sucursales"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
-            }`}
+              }`}
           >
             <Store className="w-4 h-4" />
             <span>Sucursales ({sucursales.length})</span>
@@ -133,7 +130,6 @@ export default function AdminPage() {
       {activeTab === "roles" && (
         <RolesAdmin
           roles={roles}
-          loading={loading}
         />
       )}
 

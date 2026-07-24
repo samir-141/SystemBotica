@@ -8,9 +8,9 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Eye
 } from "lucide-react";
+
 import type { Cliente } from "../types";
 
 type Props = {

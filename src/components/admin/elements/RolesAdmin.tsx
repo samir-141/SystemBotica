@@ -3,7 +3,7 @@ import type { RolItem } from "../hooks/useAdmin";
 
 type Props = {
   roles: RolItem[];
-  loading: boolean;
+  loading?: boolean;
 };
 
 const MODULOS_SISTEMA = [
@@ -14,7 +14,7 @@ const MODULOS_SISTEMA = [
   { nombre: "Administración & ERP", desc: "Gestión de usuarios, roles, permisos y sucursales" },
 ];
 
-export default function RolesAdmin({ roles, loading }: Props) {
+export default function RolesAdmin({ roles }: Props) {
   return (
     <div className="space-y-6">
       {/* Roles Cards Grid */}
@@ -72,8 +72,8 @@ export default function RolesAdmin({ roles, loading }: Props) {
                   </td>
                   {roles.map((r) => {
                     const esAdmin = r.nombre.toLowerCase().includes("admin");
-                    const esVendedor = r.nombre.toLowerCase().includes("vendedor") || r.nombre.toLowerCase().includes("cajero");
                     const esAdminOModulo = esAdmin || (!m.nombre.includes("Administración") && !m.nombre.includes("Reportes"));
+
 
                     return (
                       <td key={r.id} className="py-3 px-4 text-center">

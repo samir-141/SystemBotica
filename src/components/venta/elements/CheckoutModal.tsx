@@ -148,9 +148,11 @@ export default function CheckoutModal({
 
   const handleConsultarPadron = async (numeroDoc: string, tipoDocOverride?: string) => {
     const tipoDoc = tipoDocOverride || (tipoComprobante === "BOLETA" ? "DNI" : tipoComprobante === "FACTURA" ? "RUC" : "DNI");
-    if (!numeroDoc || (tipoDoc === "DNI" && numeroDoc.length !== 8) && (tipoDoc === "RUC" && numeroDoc.length !== 11)) {
+    const esValido = (tipoDoc === "DNI" && numeroDoc.length === 8) || (tipoDoc === "RUC" && numeroDoc.length === 11);
+    if (!numeroDoc || !esValido) {
       return;
     }
+
 
     setConsultandoPadron(true);
     setOrigenBadge(null);

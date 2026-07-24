@@ -5,9 +5,8 @@ import {
   Plus,
   RefreshCw,
   X,
-  Filter,
-  ChevronDown
 } from "lucide-react";
+
 import type { Cliente, FormMode } from "./types";
 import { useClientes } from "./hooks/useClientes";
 import ClienteTable from "./elements/ClienteTable";

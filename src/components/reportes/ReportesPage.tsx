@@ -5,9 +5,9 @@ import {
   BarChart3,
   Package,
   Store,
-  Sparkles,
-  Layers
+  Sparkles
 } from "lucide-react";
+
 import { useReportes } from "./hooks/useReportes";
 import { useAuth } from "../../hooks/useAuth";
 import ReporteVentas from "./elements/ReporteVentas";

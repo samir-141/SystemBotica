@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Save, Loader2, User, Hash, MapPin, Phone, Mail, FileText } from "lucide-react";
+import { X, Save, Loader2, User, Hash, MapPin, Phone, Mail } from "lucide-react";
 import type { Cliente, ClienteFormData, FormMode, TipoDocumento } from "../types";
 
 type Props = {
@@ -55,9 +55,11 @@ export default function ClienteForm({
 
   const handleConsultarPadron = async (numeroDoc: string, tipoDocOverride?: TipoDocumento) => {
     const tipoDoc = tipoDocOverride || form.tipo_documento;
-    if (!numeroDoc || (tipoDoc === "DNI" && numeroDoc.length !== 8) && (tipoDoc === "RUC" && numeroDoc.length !== 11)) {
+    const esValido = (tipoDoc === "DNI" && numeroDoc.length === 8) || (tipoDoc === "RUC" && numeroDoc.length === 11);
+    if (!numeroDoc || !esValido) {
       return;
     }
+
 
     setConsultandoPadron(true);
     setOrigenBadge(null);

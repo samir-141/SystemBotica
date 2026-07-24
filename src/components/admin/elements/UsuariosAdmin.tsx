@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Users, Plus, Edit2, Trash2, Shield, Mail, Lock, CheckCircle2, XCircle, Search, RefreshCw, X, Save, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Shield, CheckCircle2, XCircle, Search, RefreshCw, X, Save, Loader2 } from "lucide-react";
 import type { UsuarioItem, RolItem } from "../hooks/useAdmin";
+
 
 type Props = {
   usuarios: UsuarioItem[];

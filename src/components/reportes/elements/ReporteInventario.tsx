@@ -1,8 +1,6 @@
 import {
   Package,
-  AlertOctagon,
   Clock,
-  CheckCircle2,
   DollarSign,
   Layers,
   AlertTriangle,
@@ -12,10 +10,11 @@ import {
 type Props = {
   reporte: any;
   loading: boolean;
-  onRefresh: () => void;
+  onRefresh?: () => void;
 };
 
-export default function ReporteInventario({ reporte, loading, onRefresh }: Props) {
+export default function ReporteInventario({ reporte, loading }: Props) {
+
   const val = reporte?.valorizacion;
   const fefo = reporte?.control_vencimientos;
   const listaFefo = fefo?.lista || [];

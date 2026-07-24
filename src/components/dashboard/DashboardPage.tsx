@@ -8,7 +8,6 @@ import {
     RefreshCw,
     Award,
     Calendar,
-    ArrowUpRight,
     Store,
     Sparkles,
     BarChart3
@@ -18,7 +17,8 @@ import { useAuth } from "../../hooks/useAuth";
 
 export default function DashboardPage() {
     const { resumen, cargando, error, refetch } = useDashboard();
-    const { sucursalActual, user } = useAuth();
+    const { sucursalActual } = useAuth();
+
 
     const kpis = resumen?.kpis;
     const maxVenta7Dias = Math.max(...(resumen?.grafico_7_dias.map(g => g.total) || [1]));
