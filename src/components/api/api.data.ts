@@ -157,9 +157,39 @@ export const posApi = {
         return data;
     },
 
+    reabastecerStock: async (payload: {
+        producto_comercial_id: string;
+        sucursal_id?: string;
+        numero_lote: string;
+        fecha_vencimiento: string;
+        stock_adicional: number;
+        precio_compra_base: number;
+    }): Promise<any> => {
+        const { data } = await api.post('/productos/reabastecer', payload);
+        return data;
+    },
+
+    actualizarPresentaciones: async (
+        productoId: string,
+        presentaciones: Array<{ unidad_presentacion_id?: string; nombre?: string; cantidad_unidad_base: number; precio_actual: number; codigo_barras?: string }>
+    ): Promise<any> => {
+        const { data } = await api.post(`/productos/${productoId}/presentaciones`, { presentaciones });
+        return data;
+    },
+
+    buscarPorIdentificador: async (valor: string): Promise<any> => {
+        const { data } = await api.get('/productos/buscar/identificador', { params: { valor } });
+        return data;
+    },
+
     // --- VENTAS ---
     registrarVenta: async (payload: Record<string, unknown>): Promise<any> => {
         const { data } = await api.post('/ventas', payload);
+        return data;
+    },
+
+    anularVenta: async (id: string): Promise<any> => {
+        const { data } = await api.post(`/ventas/${id}/anular`);
         return data;
     },
 

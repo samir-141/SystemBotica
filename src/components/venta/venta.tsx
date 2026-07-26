@@ -1,10 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+// src/components/venta/venta.tsx
+import { useState, useEffect, useCallback } from "react";
 import Item from "./elements/item";
 import { useAuth } from "../../hooks/useAuth";
 import MosProducto from "./elements/productos.muestra";
-import { formatMoney } from "./utils";
 import CartSummary from "./elements/CartSummary";
+import { formatMoney } from "./utils";
+import BarcodeCameraModal from "./elements/BarcodeCameraModal";
+import RemoteScannerModal from "./elements/RemoteScannerModal";
 import { useProductos } from "./hooks/useProductos";
+import { usePerifericosStatus } from "./hooks/usePerifericosStatus";
+import { useCamaraScanner } from "./hooks/useCamaraScanner";
+import { useRemoteScannerSocket } from "../../hooks/useRemoteScannerSocket";
 import type { ItemCarrito, ModoPrecio, TipoPago, ProductoAgrupado } from "./types";
 
 export default function VentaPos() {
@@ -26,18 +32,75 @@ export default function VentaPos() {
     const [showCartMobile, setShowCartMobile] = useState(false);
     const [feedbackId, setFeedbackId] = useState<string | null>(null);
 
-    const searchInputRef = useRef<HTMLInputElement>(null);
+    // --- Modal Escáner Celular Remoto (Puente) ---
+    const [showRemoteScannerModal, setShowRemoteScannerModal] = useState(false);
+    const [ultimoCodigoRemoto, setUltimoCodigoRemoto] = useState<string | null>(null);
 
-    // Auto-focus en el campo de búsqueda
-    useEffect(() => {
-        searchInputRef.current?.focus();
-    }, []);
+    // --- IGV dinámico ---
+    const [incluyeIGV, setIncluyeIGV] = useState(true);
+
+    // --- Periféricos ---
+    const perifericosStatus = usePerifericosStatus();
 
     // --- Feedback de adición ---
     const triggerFeedback = useCallback((id: string) => {
         setFeedbackId(id);
         setTimeout(() => setFeedbackId(null), 400);
     }, []);
+
+    // --- Agregar al Carrito por código (usado por lector USB, cámara y celular remoto) ---
+    const agregarPorCodigo = useCallback((codigo: string) => {
+        const encontrado = productosRaw.find(
+            (p) => p.codigo_barras === codigo || p.sku === codigo
+        );
+        if (!encontrado) {
+            setBusqueda(codigo);
+            return;
+        }
+        const agrupado = productosAgrupados.find(
+            (g) => g.producto_comercial_id === encontrado.producto_comercial_id
+        );
+        if (agrupado) {
+            agregarAlCarrito(
+                agrupado,
+                encontrado.cantidad_unidad_base || 1,
+                encontrado.presentacion_nombre || "Unidad",
+                encontrado.precio_actual
+            );
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [productosRaw, productosAgrupados]);
+
+    // --- Hook de Cámara para celulares ---
+    const camaraScanner = useCamaraScanner(agregarPorCodigo);
+
+    // --- Hook de Escáner Remoto por WebSockets (Latencia ultra-baja <10ms) ---
+    const handleBarcodeFromSocket = useCallback((codigo: string) => {
+        if (!codigo) return;
+        setUltimoCodigoRemoto(codigo);
+        agregarPorCodigo(codigo);
+    }, [agregarPorCodigo]);
+
+    const remoteSocket = useRemoteScannerSocket(handleBarcodeFromSocket, null, "pc");
+
+    // --- Fallback secundario: Escuchar BroadcastChannel / LocalStorage ---
+    useEffect(() => {
+        const handleStorage = (e: StorageEvent) => {
+            if (e.key === "pos_remote_barcode_event" && e.newValue) {
+                try {
+                    const parsed = JSON.parse(e.newValue);
+                    if (parsed?.barcode) {
+                        handleBarcodeFromSocket(parsed.barcode);
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+        };
+
+        window.addEventListener("storage", handleStorage);
+        return () => window.removeEventListener("storage", handleStorage);
+    }, [handleBarcodeFromSocket]);
 
     // --- Agregar al Carrito ---
     const agregarAlCarrito = useCallback((
@@ -93,7 +156,7 @@ export default function VentaPos() {
         });
     }, [triggerFeedback]);
 
-    // --- 1. LECTURA CONTINUA POR CÓDIGO DE BARRAS (Scanner) ---
+    // --- Lectura de escáner USB (teclado HID) ---
     useEffect(() => {
         let bufferBarcode = "";
         let lastKeyTime = Date.now();
@@ -107,22 +170,7 @@ export default function VentaPos() {
             lastKeyTime = currentTime;
 
             if (e.key === "Enter" && bufferBarcode.length >= 3) {
-                const encontrado = productosRaw.find(
-                    (p) => p.codigo_barras === bufferBarcode || p.sku === bufferBarcode
-                );
-                if (encontrado) {
-                    const agrupado = productosAgrupados.find(
-                        (g) => g.producto_comercial_id === encontrado.producto_comercial_id
-                    );
-                    if (agrupado) {
-                        agregarAlCarrito(
-                            agrupado,
-                            encontrado.cantidad_unidad_base || 1,
-                            encontrado.presentacion_nombre || "Unidad",
-                            encontrado.precio_actual
-                        );
-                    }
-                }
+                agregarPorCodigo(bufferBarcode);
                 bufferBarcode = "";
             } else if (e.key.length === 1) {
                 bufferBarcode += e.key;
@@ -131,7 +179,29 @@ export default function VentaPos() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [productosRaw, productosAgrupados, agregarAlCarrito]);
+    }, [agregarPorCodigo]);
+
+    // --- Teclas de Acceso Rápido (Shortcuts de Cajero: F2, F4, F9, ESC) ---
+    useEffect(() => {
+        const handleShortcuts = (e: KeyboardEvent) => {
+            if (e.key === "F2") {
+                e.preventDefault();
+                document.getElementById("pos-busqueda-producto")?.focus();
+            } else if (e.key === "F4") {
+                e.preventDefault();
+                setShowRemoteScannerModal(true);
+            } else if (e.key === "F9") {
+                e.preventDefault();
+                const btnCobrar = document.getElementById("btn-abrir-checkout-modal");
+                if (btnCobrar) btnCobrar.click();
+            } else if (e.key === "Escape") {
+                setShowRemoteScannerModal(false);
+            }
+        };
+
+        window.addEventListener("keydown", handleShortcuts);
+        return () => window.removeEventListener("keydown", handleShortcuts);
+    }, []);
 
     const actualizarCantidad = useCallback((idCarrito: string, nuevaCantidad: number) => {
         if (nuevaCantidad <= 0) {
@@ -151,11 +221,11 @@ export default function VentaPos() {
         );
     }, []);
 
-    // --- 5. CÁLCULOS FINANCIEROS ---
+    // --- Cálculos Financieros ---
     const totalItems = carrito.reduce((acc, i) => acc + i.cantidad, 0);
     const montoBrutoFinal = carrito.reduce((acc, i) => acc + i.precio_unitario * i.cantidad, 0);
-    const baseImponible = montoBrutoFinal / 1.18;
-    const igvCalculado = montoBrutoFinal - baseImponible;
+    const baseImponible = incluyeIGV ? montoBrutoFinal / 1.18 : montoBrutoFinal;
+    const igvCalculado = incluyeIGV ? montoBrutoFinal - baseImponible : 0;
 
     return (
         <div className="flex flex-col md:flex-row h-full bg-slate-100 text-slate-800 font-sans antialiased overflow-hidden">
@@ -169,27 +239,50 @@ export default function VentaPos() {
                 setShowCartMobile={setShowCartMobile}
                 feedbackId={feedbackId}
                 setFeedbackId={setFeedbackId}
-                searchInputRef={searchInputRef}
                 productosAgrupados={productosAgrupados}
                 cargando={cargando}
                 totalItems={totalItems}
                 sucursalActual={sucursalActual}
                 agregarAlCarrito={agregarAlCarrito}
+                perifericosStatus={perifericosStatus}
+                onAbrirCamara={camaraScanner.abrirCamara}
+                onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
             />
             <CartSummary
                 carrito={carrito}
-                actualizarCantidad={actualizarCantidad}
                 totalItems={totalItems}
-                tipoPago={tipoPago}
-                setTipoPago={setTipoPago}
-                showCartMobile={showCartMobile}
-                setShowCartMobile={setShowCartMobile}
-                setCarrito={setCarrito}
                 montoBrutoFinal={montoBrutoFinal}
                 baseImponible={baseImponible}
                 igvCalculado={igvCalculado}
                 formatMoney={formatMoney}
+                tipoPago={tipoPago}
+                setTipoPago={setTipoPago}
+                showCartMobile={showCartMobile}
+                setShowCartMobile={setShowCartMobile}
+                actualizarCantidad={actualizarCantidad}
+                setCarrito={setCarrito}
+                incluyeIGV={incluyeIGV}
+                setIncluyeIGV={setIncluyeIGV}
+            />
+
+            {/* Modal Lector Cámara para Celulares */}
+            <BarcodeCameraModal
+                scanner={camaraScanner}
+                onClose={camaraScanner.cerrarCamara}
+            />
+
+            {/* Modal Escáner Celular Remoto (Puente WebSocket) */}
+            <RemoteScannerModal
+                open={showRemoteScannerModal}
+                onClose={() => setShowRemoteScannerModal(false)}
+                sessionCode={remoteSocket.sessionCode}
+                connected={remoteSocket.connected}
+                remoteDeviceConnected={remoteSocket.remoteDeviceConnected}
+                remoteDeviceName={remoteSocket.remoteDeviceName}
+                pingMs={remoteSocket.pingMs}
+                ultimoCodigoRemoto={ultimoCodigoRemoto}
+                onChangeSessionCode={remoteSocket.changeSessionCode}
             />
         </div>
     );
-}
+}

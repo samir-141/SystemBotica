@@ -16,6 +16,7 @@ import DashboardPage from './components/dashboard/DashboardPage';
 import ClientesPage from './components/clientes/ClientesPage';
 import ReportesPage from './components/reportes/ReportesPage';
 import AdminPage from './components/admin/AdminPage';
+import RemoteScannerPage from './pages/escanner/RemoteScannerPage';
 
 const App: React.FC = () => {
   return (
@@ -25,6 +26,7 @@ const App: React.FC = () => {
           <Routes>
             {/* Rutas públicas */}
             <Route path="/login" element={<LoginForm />} />
+            <Route path="/escanner-remoto" element={<RemoteScannerPage />} />
 
             {/* Rutas protegidas */}
             <Route element={<PrivateRoute />}>
@@ -39,11 +41,11 @@ const App: React.FC = () => {
                 <Route path="/clientes" element={<ClientesPage />} />
 
                 <Route path="/reportes/ventas" element={<ReportesPage />} />
+                <Route path="/reportes/comprobantes" element={<ReportesPage />} />
                 <Route path="/reportes/inventario" element={<ReportesPage />} />
                 <Route path="/admin/usuarios" element={<AdminPage />} />
                 <Route path="/admin/roles" element={<AdminPage />} />
                 <Route path="/admin/sucursales" element={<AdminPage />} />
-
 
 
                 {/* Redirección por defecto */}

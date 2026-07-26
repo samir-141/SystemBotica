@@ -3,10 +3,12 @@
 import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const rawUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000').trim();
+const cleanedUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+const baseURL = cleanedUrl.endsWith('/api') ? cleanedUrl : `${cleanedUrl}/api`;
 
 const api = axios.create({
-    baseURL: (API_URL ? API_URL : '') + "/api",
+    baseURL,
     headers: {
         'Content-Type': 'application/json',
     },

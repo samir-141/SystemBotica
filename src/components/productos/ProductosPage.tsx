@@ -5,9 +5,9 @@ import {
   Plus,
   Package,
   Filter,
-  X,
   RefreshCw,
   ChevronDown,
+  PackagePlus,
 } from "lucide-react";
 import type { ProductoPOS } from "../api/api.data";
 import type { FormMode, TipoCatalogo } from "./types";
@@ -15,17 +15,13 @@ import { useProductos } from "./hooks/useProductos";
 import { useCatalogos } from "./hooks/useCatalogos";
 import ProductoTable from "./elements/ProductoTable";
 import ProductoForm from "./elements/ProductoForm";
+import ReabastecerModal from "./elements/ReabastecerModal";
 
-/**
- * Página principal de gestión de productos.
- * Incluye toolbar, filtros colapsables, tabla y formulario slide-over.
- */
 export default function ProductosPage() {
   const {
     productos,
     meta,
     loading,
-    error,
     setBusqueda,
     setPage,
     setFiltro,
@@ -45,6 +41,10 @@ export default function ProductosPage() {
   const [productoEditar, setProductoEditar] = useState<ProductoPOS | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductoPOS | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  /* ── Modal Reabastecer Stock ────────────────────────── */
+  const [reabastecerOpen, setReabastecerOpen] = useState(false);
+  const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string } | null>(null);
 
   /* ── Handlers ───────────────────────────────────────── */
   const handleSearch = (value: string) => {
@@ -66,6 +66,19 @@ export default function ProductosPage() {
 
   const handleDelete = (producto: ProductoPOS) => {
     setDeleteTarget(producto);
+  };
+
+  const handleAbrirReabastecer = (producto?: ProductoPOS) => {
+    if (producto) {
+      setProductoReabastecer({
+        id: producto.producto_comercial_id,
+        nombre_comercial: producto.nombre_comercial,
+        sku: producto.sku,
+      });
+    } else {
+      setProductoReabastecer(null);
+    }
+    setReabastecerOpen(true);
   };
 
   const confirmDelete = async () => {
@@ -108,25 +121,36 @@ export default function ProductosPage() {
               <Package className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-slate-900">Productos</h1>
+              <h1 className="text-lg font-black text-slate-900">Productos & Inventario</h1>
               <p className="text-xs text-slate-400 font-medium">
                 {meta.total} producto{meta.total !== 1 ? "s" : ""} registrado{meta.total !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={refetch}
-              title="Refrescar"
-              className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
+              title="Refrescar Lista"
+              className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
+
+            {/* Botón Reabastecer Stock (+500 unidades) */}
+            <button
+              onClick={() => handleAbrirReabastecer()}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-bold shadow-sm transition active:scale-[0.98] cursor-pointer"
+              title="Reabastecer stock de un producto existente (ej. +500 unidades)"
+            >
+              <PackagePlus className="w-4 h-4" />
+              <span>Reabastecer Stock</span>
+            </button>
+
+            {/* Botón Nuevo Producto */}
             <button
               onClick={handleCreate}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700
-                text-white text-xs font-bold shadow-sm transition active:scale-[0.98]"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition active:scale-[0.98] cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Nuevo Producto</span>
@@ -144,18 +168,16 @@ export default function ProductosPage() {
               value={searchText}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Buscar por nombre, SKU, principio activo..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50
-                focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:bg-white
-                placeholder:text-slate-400 transition"
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:bg-white placeholder:text-slate-400 transition"
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition
-              ${showFilters
+            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              showFilters
                 ? "bg-teal-50 border-teal-300 text-teal-700"
                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+            }`}
           >
             <Filter className="w-3.5 h-3.5" />
             Filtros
@@ -174,15 +196,15 @@ export default function ProductosPage() {
                 </label>
                 <select
                   onChange={(e) => setFiltro("laboratorio_id", e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white
-                    focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition appearance-none"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition appearance-none"
                 >
                   <option value="">Todos</option>
-                  {catalogos["laboratorios"].map((l) => (
+                  {catalogos.laboratorios.map((l) => (
                     <option key={l.id} value={l.id}>{l.nombre}</option>
                   ))}
                 </select>
               </div>
+
               {/* Filtro por categoría */}
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
@@ -190,15 +212,15 @@ export default function ProductosPage() {
                 </label>
                 <select
                   onChange={(e) => setFiltro("categoria_id", e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white
-                    focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition appearance-none"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition appearance-none"
                 >
                   <option value="">Todas</option>
-                  {catalogos["categorias"].map((c) => (
+                  {catalogos.categorias.map((c) => (
                     <option key={c.id} value={c.id}>{c.nombre}</option>
                   ))}
                 </select>
               </div>
+
               {/* Filtro por principio activo */}
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
@@ -206,8 +228,7 @@ export default function ProductosPage() {
                 </label>
                 <select
                   onChange={(e) => setFiltro("principio_activo_id", e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white
-                    focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition appearance-none"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition appearance-none"
                 >
                   <option value="">Todos</option>
                   {catalogos["principios-activos"].map((p) => (
@@ -220,17 +241,7 @@ export default function ProductosPage() {
         )}
       </div>
 
-      {/* ═══ ERROR BANNER ════════════════════════════════ */}
-      {error && (
-        <div className="mx-4 mt-3 md:mx-6 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
-          <span className="font-bold">Error:</span> {error}
-          <button onClick={refetch} className="ml-auto text-rose-500 hover:text-rose-700 underline font-bold">
-            Reintentar
-          </button>
-        </div>
-      )}
-
-      {/* ═══ TABLE ═══════════════════════════════════════ */}
+      {/* ═══ BODY / TABLA DE PRODUCTOS ═══════════════════ */}
       <div className="flex-1 overflow-y-auto">
         <ProductoTable
           productos={productos}
@@ -238,11 +249,12 @@ export default function ProductosPage() {
           meta={meta}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onReabastecer={handleAbrirReabastecer}
           onPageChange={setPage}
         />
       </div>
 
-      {/* ═══ FORM SLIDE-OVER ════════════════════════════ */}
+      {/* ═══ SLIDE-OVER FORMULARIO ═══════════════════════ */}
       <ProductoForm
         open={formOpen}
         mode={formMode}
@@ -253,19 +265,28 @@ export default function ProductosPage() {
         onCatalogoRefresh={handleCatalogoRefresh}
       />
 
-      {/* ═══ DELETE CONFIRMATION MODAL ══════════════════ */}
+      {/* ═══ MODAL REABASTECER STOCK (+500 UNIDADES) ═════ */}
+      {reabastecerOpen && (
+        <ReabastecerModal
+          open={reabastecerOpen}
+          onClose={() => setReabastecerOpen(false)}
+          producto={productoReabastecer}
+          productosLista={productos.map((p) => ({
+            producto_comercial_id: p.producto_comercial_id,
+            nombre_comercial: p.nombre_comercial,
+            sku: p.sku,
+          }))}
+          onSuccess={() => refetch()}
+        />
+      )}
+
+      {/* ═══ MODAL DE CONFIRMACIÓN DE ELIMINACIÓN ════════ */}
       {deleteTarget && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={() => setDeleteTarget(null)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn"
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-slate-200 animate-scaleIn">
             <div className="p-6 text-center">
-              <div className="w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
-                <X className="w-7 h-7 text-rose-500" />
+              <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
+                <Package className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-slate-800 mb-1">¿Eliminar Producto?</h3>
               <p className="text-xs text-slate-500 mb-1">
@@ -276,17 +297,14 @@ export default function ProductosPage() {
             <div className="px-6 pb-5 flex gap-2">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200
-                  rounded-xl hover:bg-slate-50 transition"
+                className="flex-1 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700
-                  disabled:bg-slate-200 disabled:text-slate-400 rounded-xl shadow-sm transition
-                  active:scale-[0.98]"
+                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 rounded-xl shadow-sm transition active:scale-[0.98] cursor-pointer"
               >
                 {deleting ? "Eliminando..." : "Sí, Eliminar"}
               </button>

@@ -5,15 +5,17 @@ import {
   BarChart3,
   Package,
   Store,
-  Sparkles
+  Sparkles,
+  FileCode,
 } from "lucide-react";
 
 import { useReportes } from "./hooks/useReportes";
 import { useAuth } from "../../hooks/useAuth";
 import ReporteVentas from "./elements/ReporteVentas";
 import ReporteInventario from "./elements/ReporteInventario";
+import ReporteComprobantes from "./elements/ReporteComprobantes";
 
-type TabType = "ventas" | "inventario";
+type TabType = "ventas" | "inventario" | "comprobantes";
 
 export default function ReportesPage() {
   const location = useLocation();
@@ -21,7 +23,10 @@ export default function ReportesPage() {
   const { sucursalActual } = useAuth();
 
   // Determinar pestaña activa por ruta o estado
-  const initialTab: TabType = location.pathname.includes("inventario") ? "inventario" : "ventas";
+  let initialTab: TabType = "ventas";
+  if (location.pathname.includes("inventario")) initialTab = "inventario";
+  if (location.pathname.includes("comprobantes") || location.pathname.includes("boletas")) initialTab = "comprobantes";
+
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
   const {
@@ -41,6 +46,8 @@ export default function ReportesPage() {
     setActiveTab(tab);
     if (tab === "inventario") {
       navigate("/reportes/inventario");
+    } else if (tab === "comprobantes") {
+      navigate("/reportes/comprobantes");
     } else {
       navigate("/reportes/ventas");
     }
@@ -56,9 +63,9 @@ export default function ReportesPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Centro de Reportes POS</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Centro de Reportes & SUNAT</h1>
               <span className="bg-purple-50 text-purple-700 text-xs px-2.5 py-0.5 rounded-full font-bold border border-purple-200/60 hidden sm:inline-flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-purple-500" /> Analítica
+                <Sparkles className="w-3 h-3 text-purple-500" /> Analítica & Comprobantes
               </span>
             </div>
             <p className="text-xs text-slate-400 font-medium mt-0.5 flex items-center gap-1.5">
@@ -69,10 +76,10 @@ export default function ReportesPage() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0 self-start sm:self-auto">
+        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0 flex-wrap sm:flex-nowrap gap-1">
           <button
             onClick={() => handleTabChange("ventas")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
               activeTab === "ventas"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
@@ -82,8 +89,19 @@ export default function ReportesPage() {
             <span>Ventas & Finanzas</span>
           </button>
           <button
+            onClick={() => handleTabChange("comprobantes")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
+              activeTab === "comprobantes"
+                ? "bg-white text-indigo-700 shadow-sm font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <FileCode className="w-4 h-4 text-indigo-600" />
+            <span>Comprobantes & Modelos XML</span>
+          </button>
+          <button
             onClick={() => handleTabChange("inventario")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
               activeTab === "inventario"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
@@ -96,7 +114,7 @@ export default function ReportesPage() {
       </div>
 
       {/* ═══ CONTENIDO DE LA PESTAÑA ACTIVA ═══════════════════════════ */}
-      {activeTab === "ventas" ? (
+      {activeTab === "ventas" && (
         <ReporteVentas
           reporte={reporteVentas}
           loading={loadingVentas}
@@ -106,7 +124,21 @@ export default function ReportesPage() {
           setFechaFin={setFechaFin}
           onRefresh={refetchVentas}
         />
-      ) : (
+      )}
+
+      {activeTab === "comprobantes" && (
+        <ReporteComprobantes
+          ventasLista={reporteVentas?.ventas_lista}
+          loading={loadingVentas}
+          onRefresh={refetchVentas}
+          fechaInicio={fechaInicio}
+          setFechaInicio={setFechaInicio}
+          fechaFin={fechaFin}
+          setFechaFin={setFechaFin}
+        />
+      )}
+
+      {activeTab === "inventario" && (
         <ReporteInventario
           reporte={reporteInventario}
           loading={loadingInventario}

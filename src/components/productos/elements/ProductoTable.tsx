@@ -1,4 +1,3 @@
-// src/components/productos/elements/ProductoTable.tsx
 import {
   Edit3,
   Trash2,
@@ -7,7 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Pill,
-  FlaskConical,
+  PackagePlus,
 } from "lucide-react";
 import type { ProductoPOS } from "../../api/api.data";
 
@@ -17,19 +16,17 @@ type Props = {
   meta: { total: number; page: number; limit: number; totalPages: number };
   onEdit: (producto: ProductoPOS) => void;
   onDelete: (producto: ProductoPOS) => void;
+  onReabastecer?: (producto: ProductoPOS) => void;
   onPageChange: (page: number) => void;
 };
 
-/**
- * Tabla responsive de productos.
- * Mobile: cards apiladas. Desktop: tabla con columnas.
- */
 export default function ProductoTable({
   productos,
   loading,
   meta,
   onEdit,
   onDelete,
+  onReabastecer,
   onPageChange,
 }: Props) {
   /* ── Skeleton loader ────────────────────────────────── */
@@ -78,47 +75,41 @@ export default function ProductoTable({
                 </div>
                 <div className="flex items-center gap-1 mt-1.5 text-xs text-slate-500">
                   <Pill className="w-3 h-3" />
-                  <span className="truncate">{p.principio_activo}</span>
-                </div>
-                <div className="flex items-center gap-1 mt-0.5 text-xs text-slate-400">
-                  <FlaskConical className="w-3 h-3" />
-                  <span className="truncate">{p.laboratorio}</span>
+                  <span>Presentación: {p.presentacion_nombre}</span>
                 </div>
               </div>
 
-              {/* Precio + stock */}
               <div className="text-right shrink-0">
-                <p className="text-sm font-black text-slate-900">
+                <span className="text-sm font-black text-slate-900 block">
                   S/ {p.precio_actual.toFixed(2)}
-                </p>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1
-                    ${p.stock_total > 0
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-rose-50 text-rose-600"
-                    }`}
-                >
-                  {p.stock_total > 0 ? `${p.stock_total} en stock` : "Sin stock"}
+                </span>
+                <span className={`text-[10px] font-extrabold ${p.stock_total <= 5 ? "text-rose-600" : "text-emerald-600"}`}>
+                  {p.stock_total} disp.
                 </span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-              <span className="text-[10px] font-mono text-slate-400 flex-1 truncate">
-                {p.sku}
-              </span>
+            <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-slate-100">
+              {onReabastecer && (
+                <button
+                  onClick={() => onReabastecer(p)}
+                  className="px-2.5 py-1 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg flex items-center gap-1"
+                >
+                  <PackagePlus size={13} />
+                  <span>+Stock</span>
+                </button>
+              )}
               <button
                 onClick={() => onEdit(p)}
-                className="p-2 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-teal-50 transition"
+                className="p-1.5 text-slate-400 hover:text-teal-600 rounded-lg"
               >
-                <Edit3 className="w-4 h-4" />
+                <Edit3 size={15} />
               </button>
               <button
                 onClick={() => onDelete(p)}
-                className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 size={15} />
               </button>
             </div>
           </div>
@@ -127,68 +118,66 @@ export default function ProductoTable({
 
       {/* ═══ DESKTOP: Tabla ══════════════════════════════ */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-              <th className="text-left px-4 py-3">SKU</th>
-              <th className="text-left px-4 py-3">Producto</th>
-              <th className="text-left px-4 py-3">Principio Activo</th>
-              <th className="text-left px-4 py-3">Laboratorio</th>
-              <th className="text-left px-4 py-3">Presentación</th>
-              <th className="text-right px-4 py-3">Precio</th>
-              <th className="text-right px-4 py-3">Stock</th>
-              <th className="text-center px-4 py-3">Acciones</th>
+        <table className="w-full text-left text-xs font-sans">
+          <thead className="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
+            <tr>
+              <th className="py-3 px-4">Producto / P.A.</th>
+              <th className="py-3 px-4">Forma & Concentración</th>
+              <th className="py-3 px-4">Laboratorio</th>
+              <th className="py-3 px-4">Presentación</th>
+              <th className="py-3 px-4 text-right">Precio (S/)</th>
+              <th className="py-3 px-4 text-right">Stock Base</th>
+              <th className="py-3 px-4 text-center">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 text-slate-700">
             {productos.map((p) => (
-              <tr
-                key={`${p.producto_comercial_id}-${p.presentacion_id}`}
-                className="hover:bg-slate-50/80 transition-colors"
-              >
-                <td className="px-4 py-3">
-                  <span className="font-mono text-xs text-slate-500">{p.sku}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <div>
-                    <p className="font-bold text-slate-800 truncate max-w-[200px]">
-                      {p.nombre_comercial}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {p.forma_farmaceutica} — {p.concentracion}{p.unidad_concentracion}
-                    </p>
+              <tr key={`${p.producto_comercial_id}-${p.presentacion_id}`} className="hover:bg-slate-50/70 transition">
+                <td className="py-3 px-4 font-bold text-slate-900">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <div className="text-slate-900 font-black">{p.nombre_comercial}</div>
+                      <span className="text-[10px] text-slate-400 font-mono">SKU: {p.sku || "N/A"}</span>
+                    </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-slate-600 text-xs">{p.principio_activo}</td>
-                <td className="px-4 py-3 text-slate-600 text-xs">{p.laboratorio}</td>
-                <td className="px-4 py-3">
-                  <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                <td className="py-3 px-4">
+                  <div className="font-semibold text-slate-800">{p.forma_farmaceutica}</div>
+                  <div className="text-[10px] text-slate-400">{p.principio_activo}</div>
+                </td>
+                <td className="py-3 px-4 font-medium text-slate-600">{p.laboratorio}</td>
+                <td className="py-3 px-4">
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-bold text-[10px]">
                     {p.presentacion_nombre}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right font-bold text-slate-900">
+                <td className="py-3 px-4 text-right font-black text-teal-700 text-sm">
                   S/ {p.precio_actual.toFixed(2)}
                 </td>
-                <td className="px-4 py-3 text-right">
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded-full
-                      ${p.stock_total > 0
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-rose-50 text-rose-600"
-                      }`}
-                  >
+                <td className="py-3 px-4 text-right font-bold">
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] ${p.stock_total <= 5 ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700"}`}>
                     {p.stock_total > 0 ? p.stock_total : (
-                      <span className="flex items-center gap-1 justify-end">
+                      <span className="inline-flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" /> 0
                       </span>
                     )}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-1">
+                    {onReabastecer && (
+                      <button
+                        onClick={() => onReabastecer(p)}
+                        title="Reabastecer Stock / Lote (+500 u)"
+                        className="px-2 py-1 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 transition font-bold text-[10px] flex items-center gap-1"
+                      >
+                        <PackagePlus className="w-3.5 h-3.5" />
+                        <span>+Stock</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => onEdit(p)}
-                      title="Editar"
+                      title="Editar Producto & Presentaciones"
                       className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition"
                     >
                       <Edit3 className="w-4 h-4" />
@@ -222,23 +211,21 @@ export default function ProductoTable({
             <button
               disabled={meta.page <= 1}
               onClick={() => onPageChange(meta.page - 1)}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white
-                disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            {/* Page numbers */}
             {Array.from({ length: Math.min(meta.totalPages, 5) }).map((_, i) => {
               const pageNum = getPageNumber(meta.page, meta.totalPages, i);
               return (
                 <button
                   key={pageNum}
                   onClick={() => onPageChange(pageNum)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition
-                    ${pageNum === meta.page
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
+                    pageNum === meta.page
                       ? "bg-teal-600 text-white shadow-sm"
                       : "text-slate-600 hover:bg-white border border-slate-200"
-                    }`}
+                  }`}
                 >
                   {pageNum}
                 </button>
@@ -247,8 +234,7 @@ export default function ProductoTable({
             <button
               disabled={meta.page >= meta.totalPages}
               onClick={() => onPageChange(meta.page + 1)}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white
-                disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -259,10 +245,9 @@ export default function ProductoTable({
   );
 }
 
-/* Utilidad: calcula el número de página para el botón i-ésimo */
 function getPageNumber(current: number, total: number, index: number): number {
-  const maxVisible = Math.min(total, 5);
-  let start = Math.max(1, current - Math.floor(maxVisible / 2));
-  if (start + maxVisible - 1 > total) start = total - maxVisible + 1;
-  return start + index;
+  if (total <= 5) return index + 1;
+  if (current <= 3) return index + 1;
+  if (current >= total - 2) return total - 4 + index;
+  return current - 2 + index;
 }

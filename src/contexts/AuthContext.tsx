@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSucursales(data.sucursales_disponibles);
 
             // Redirigir al dashboard
-            window.location.href = '/dashboard';
+            window.location.href = '/';
         } catch (error: any) {
             throw new Error(error.response?.data?.message || 'Error al iniciar sesión');
         }

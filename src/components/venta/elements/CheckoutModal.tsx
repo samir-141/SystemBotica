@@ -13,14 +13,15 @@ import {
   ChevronLeft,
   CheckCircle2,
   Printer,
-  Store,
   Hash,
   User,
   MapPin,
   Calculator,
   Sparkles,
   Loader2,
+  FileCode,
 } from "lucide-react";
+import ImpresionComprobanteModal, { type ComprobanteData } from "../../reportes/elements/ImpresionComprobanteModal";
 import type {
   ItemCarrito,
   TipoComprobante,
@@ -41,6 +42,8 @@ type Props = {
   igvCalculado: number;
   tipoPago: "CONTADO" | "ABONO" | "ANTICIPO";
   onVentaExitosa?: () => void;
+  /** Si los precios incluyen IGV (true) o la operación es exonerada/inafecta (false) */
+  incluyeIGV?: boolean;
 };
 
 /* ─── constants ─────────────────────────────────────── */
@@ -90,7 +93,7 @@ const METODOS_PAGO: {
   { key: "TRANSFERENCIA", label: "Transferencia", icon: Landmark, color: "text-orange-600" },
 ];
 
-const PASO_LABELS = ["Comprobante", "Datos y Pago", "Ticket"];
+const PASO_LABELS = ["Comprobante", "Datos y Pago", "Impresión"];
 
 /* ═══════════════════════════════════════════════════════
    COMPONENT
@@ -104,6 +107,7 @@ export default function CheckoutModal({
   igvCalculado,
   tipoPago,
   onVentaExitosa,
+  incluyeIGV = true,
 }: Props) {
   /* ── state ──────────────────────────────────────────── */
   const [paso, setPaso] = useState(0);
@@ -122,6 +126,9 @@ export default function CheckoutModal({
   const [errorVenta, setErrorVenta] = useState<string | null>(null);
   const [consultandoPadron, setConsultandoPadron] = useState(false);
   const [origenBadge, setOrigenBadge] = useState<string | null>(null);
+  const [showImpresionModal, setShowImpresionModal] = useState(false);
+  const [formatoSeleccionado, setFormatoSeleccionado] = useState<"80mm" | "58mm" | "A4" | "xml">("80mm");
+  const [comprobanteEmitidoSnapshot, setComprobanteEmitidoSnapshot] = useState<ComprobanteData | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +150,7 @@ export default function CheckoutModal({
       setErrorVenta(null);
       setConsultandoPadron(false);
       setOrigenBadge(null);
+      setComprobanteEmitidoSnapshot(null);
     }
   }, [open]);
 
@@ -190,8 +198,8 @@ export default function CheckoutModal({
         monto_recibido: montoRecibido ? parseFloat(montoRecibido) : montoBrutoFinal,
         vuelto: Math.max(vuelto, 0),
         datos_cliente: tipoComprobante !== "NOTA_VENTA" ? datosCliente : undefined,
-        subtotal: baseImponible,
-        igv: igvCalculado,
+        subtotal: incluyeIGV ? baseImponible : montoBrutoFinal,
+        igv: incluyeIGV ? igvCalculado : 0,
         total: montoBrutoFinal,
         items: carrito.map((item) => ({
           producto_comercial_id: item.producto_comercial_id,
@@ -201,12 +209,43 @@ export default function CheckoutModal({
         })),
       };
 
+      // 1. Enviar la transacción de venta a la API backend (NestJS)
       await posApi.registrarVenta(payload);
 
+      // 2. Guardar copia congelada de los datos del comprobante ANTES de vaciar el carrito
+      const snapshot: ComprobanteData = {
+        tipoComprobante: tipoComprobante || "BOLETA",
+        serieNumero,
+        fechaEmision: new Date().toISOString(),
+        cliente: {
+          nombre: datosCliente.nombre_razon_social || "CLIENTE VARIOS",
+          tipoDocumento: datosCliente.tipo_documento || "DNI",
+          numeroDocumento: datosCliente.numero_documento || "",
+          direccion: datosCliente.direccion,
+        },
+        items: carrito.map((i) => ({
+          descripcion: i.nombre_comercial,
+          presentacion: i.presentacion_nombre,
+          cantidad: i.cantidad,
+          precioUnitario: i.precio_unitario,
+          subtotal: i.precio_unitario * i.cantidad,
+        })),
+        subtotal: baseImponible,
+        igv: igvCalculado,
+        total: montoBrutoFinal,
+        metodoPago: metodoPago || "EFECTIVO",
+        montoRecibido: montoRecibido ? parseFloat(montoRecibido) : montoBrutoFinal,
+        vuelto: Math.max(vuelto, 0),
+      };
+      setComprobanteEmitidoSnapshot(snapshot);
+
       if (onVentaExitosa) {
-        onVentaExitosa();
+        onVentaExitosa(); // Limpia el carrito de fondo
       }
-      handleClose();
+      
+      // Pasar a la pantalla de impresión (Paso 2)
+      setSlideDir("left");
+      setPaso(2);
     } catch (err: any) {
       console.error("Error al registrar venta:", err);
       setErrorVenta(err.message || "Error al procesar la venta en el servidor");
@@ -284,7 +323,8 @@ export default function CheckoutModal({
      RENDER
      ═══════════════════════════════════════════════════════ */
   return (
-    <div
+    <>
+      <div
       className={`fixed inset-0 z-[100] flex items-center justify-center p-4
         transition-all duration-200
         ${animatingOut ? "bg-black/0 backdrop-blur-none" : "bg-black/60 backdrop-blur-sm"}`}
@@ -628,164 +668,99 @@ export default function CheckoutModal({
               </div>
             )}
 
-            {/* ═════════ PASO 2 — Preview del Ticket ═════════ */}
+            {/* PASO 2: IMPRESIÓN Y ÉXITO */}
             {paso === 2 && (
-              <div className="flex flex-col items-center">
-                <div className="w-full max-w-xs">
-                  {/* ticket container */}
-                  <div
-                    className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-5 shadow-inner
-                      font-mono text-[11px] text-slate-700 leading-relaxed relative overflow-hidden"
-                  >
-                    {/* Decorative top zigzag */}
-                    <div className="absolute top-0 left-0 right-0 h-3 bg-[repeating-linear-gradient(90deg,transparent,transparent_8px,white_8px,white_16px)] opacity-50" />
-
-                    {/* Header */}
-                    <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3 space-y-0.5">
-                      <div className="flex items-center justify-center gap-1.5 mb-1">
-                        <Store className="w-4 h-4 text-teal-600" />
-                        <span className="font-bold text-sm text-slate-900 tracking-wide">
-                          FARMACIA POS
-                        </span>
-                      </div>
-                      <p className="text-[9px] text-slate-500">RUC: 20612345678</p>
-                      <p className="text-[9px] text-slate-500">Av. Ejemplo 456, Lima — Perú</p>
-                      <p className="text-[9px] text-slate-500">Tel: (01) 234-5678</p>
-                    </div>
-
-                    {/* Tipo comprobante + serie */}
-                    <div className="text-center mb-3 space-y-0.5">
-                      <p className="font-bold text-xs text-slate-900 uppercase tracking-wider">
-                        {tipoComprobante === "BOLETA" && "BOLETA DE VENTA ELECTRÓNICA"}
-                        {tipoComprobante === "FACTURA" && "FACTURA ELECTRÓNICA"}
-                        {tipoComprobante === "NOTA_VENTA" && "NOTA DE VENTA"}
-                      </p>
-                      <p className="text-teal-600 font-bold">{serieNumero}</p>
-                    </div>
-
-                    {/* Datos cliente */}
-                    {tipoComprobante !== "NOTA_VENTA" && (
-                      <div className="border-b border-dashed border-slate-300 pb-2 mb-2 space-y-0.5 text-[10px]">
-                        <p>
-                          <span className="text-slate-400">
-                            {tipoComprobante === "BOLETA" ? "DNI:" : "RUC:"}
-                          </span>{" "}
-                          {datosCliente.numero_documento || "--------"}
-                        </p>
-                        <p>
-                          <span className="text-slate-400">Cliente:</span>{" "}
-                          {datosCliente.nombre_razon_social || "CLIENTE GENERAL"}
-                        </p>
-                        {tipoComprobante === "FACTURA" && datosCliente.direccion && (
-                          <p>
-                            <span className="text-slate-400">Dir:</span> {datosCliente.direccion}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Fecha / hora */}
-                    <div className="border-b border-dashed border-slate-300 pb-2 mb-2 text-[10px] flex justify-between text-slate-500">
-                      <span>
-                        {new Date().toLocaleDateString("es-PE", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })}
-                      </span>
-                      <span>
-                        {new Date().toLocaleTimeString("es-PE", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-
-                    {/* Items header */}
-                    <div className="flex justify-between text-[9px] text-slate-400 font-bold uppercase border-b border-dashed border-slate-200 pb-1 mb-1">
-                      <span className="flex-1">Descripción</span>
-                      <span className="w-8 text-center">Cant</span>
-                      <span className="w-14 text-right">P.Unit</span>
-                      <span className="w-16 text-right">Subtot</span>
-                    </div>
-
-                    {/* Items */}
-                    <div className="space-y-1 mb-3">
-                      {carrito.map((item) => (
-                        <div key={item.id_carrito} className="flex justify-between text-[10px]">
-                          <span className="flex-1 truncate pr-1">
-                            {item.nombre_comercial}
-                          </span>
-                          <span className="w-8 text-center font-bold">{item.cantidad}</span>
-                          <span className="w-14 text-right">{item.precio_unitario.toFixed(2)}</span>
-                          <span className="w-16 text-right font-bold">
-                            {(item.precio_unitario * item.cantidad).toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Totals */}
-                    <div className="border-t border-dashed border-slate-300 pt-2 space-y-0.5 text-[10px]">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Op. Grabada</span>
-                        <span>{formatMoney(baseImponible)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">IGV (18%)</span>
-                        <span>{formatMoney(igvCalculado)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm font-black text-slate-900 pt-1.5 border-t border-double border-slate-400 mt-1">
-                        <span>TOTAL</span>
-                        <span>{formatMoney(montoBrutoFinal)}</span>
-                      </div>
-                    </div>
-
-                    {/* Payment method */}
-                    <div className="border-t border-dashed border-slate-300 mt-2 pt-2 text-[10px] space-y-0.5">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Método</span>
-                        <span className="font-bold">
-                          {METODOS_PAGO.find((m) => m.key === metodoPago)?.label}
-                        </span>
-                      </div>
-                      {metodoPago === "EFECTIVO" && montoRecibido && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Recibido</span>
-                            <span>{formatMoney(parseFloat(montoRecibido))}</span>
-                          </div>
-                          <div className="flex justify-between font-bold text-emerald-700">
-                            <span>Vuelto</span>
-                            <span>{formatMoney(Math.max(vuelto, 0))}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="text-center mt-4 pt-2 border-t border-dashed border-slate-300 text-[9px] text-slate-400 space-y-1">
-                      <p className="font-bold">¡Gracias por su compra!</p>
-                      <p>Representación impresa del comprobante electrónico</p>
-                      <p>Autorizado mediante Res. N° 0340-2024/SUNAT</p>
-                      {/* barcode visual */}
-                      <div className="flex items-center justify-center gap-[1px] mt-2 opacity-60">
-                        {Array.from({ length: 30 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="bg-slate-700"
-                            style={{
-                              width: Math.random() > 0.5 ? "2px" : "1px",
-                              height: "20px",
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Decorative bottom zigzag */}
-                    <div className="absolute bottom-0 left-0 right-0 h-3 bg-[repeating-linear-gradient(90deg,transparent,transparent_8px,white_8px,white_16px)] opacity-50" />
+          <div
+            className={`animate-in slide-in-from-${slideDir === "left" ? "right" : "left"}-8 fade-in duration-300`}
+          >
+            <div className="flex flex-col items-center text-center p-6 space-y-6">
+                  
+                  {/* Success Icon */}
+                  <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
+                    <CheckCircle2 className="w-10 h-10" />
                   </div>
+                  
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">¡Venta Registrada!</h3>
+                    <p className="text-sm text-slate-500 font-medium mt-1">
+                      El comprobante se generó exitosamente. Selecciona un formato para imprimir.
+                    </p>
+                  </div>
+
+                  {/* Print Options */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-xl mt-4">
+                    {/* Ticket 58mm */}
+                    <button
+                      onClick={() => {
+                        setFormatoSeleccionado("58mm");
+                        setShowImpresionModal(true);
+                      }}
+                      className="group flex flex-col items-center gap-2 p-3 bg-white border-2 border-slate-200 hover:border-teal-500 rounded-2xl transition-all cursor-pointer shadow-sm hover:shadow-md"
+                    >
+                      <div className="w-10 h-10 bg-slate-100 group-hover:bg-teal-50 text-slate-500 group-hover:text-teal-600 rounded-xl flex items-center justify-center transition-colors">
+                        <Receipt className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="block font-bold text-xs text-slate-700 group-hover:text-teal-700">Ticket 58mm</span>
+                        <span className="text-[9px] text-slate-400 font-medium">Impresora pequeña</span>
+                      </div>
+                    </button>
+
+                    {/* Ticket 80mm */}
+                    <button
+                      onClick={() => {
+                        setFormatoSeleccionado("80mm");
+                        setShowImpresionModal(true);
+                      }}
+                      className="group flex flex-col items-center gap-2 p-3 bg-white border-2 border-slate-200 hover:border-teal-500 rounded-2xl transition-all cursor-pointer shadow-sm hover:shadow-md relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 bg-teal-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-bl-lg">
+                        POPULAR
+                      </div>
+                      <div className="w-10 h-10 bg-slate-100 group-hover:bg-teal-50 text-slate-500 group-hover:text-teal-600 rounded-xl flex items-center justify-center transition-colors">
+                        <Receipt className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="block font-bold text-xs text-slate-700 group-hover:text-teal-700">Ticket 80mm</span>
+                        <span className="text-[9px] text-slate-400 font-medium">Estándar POS</span>
+                      </div>
+                    </button>
+
+                    {/* A4 */}
+                    <button
+                      onClick={() => {
+                        setFormatoSeleccionado("A4");
+                        setShowImpresionModal(true);
+                      }}
+                      className="group flex flex-col items-center gap-2 p-3 bg-white border-2 border-slate-200 hover:border-teal-500 rounded-2xl transition-all cursor-pointer shadow-sm hover:shadow-md"
+                    >
+                      <div className="w-10 h-10 bg-slate-100 group-hover:bg-teal-50 text-slate-500 group-hover:text-teal-600 rounded-xl flex items-center justify-center transition-colors">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="block font-bold text-xs text-slate-700 group-hover:text-teal-700">Formato A4</span>
+                        <span className="text-[9px] text-slate-400 font-medium">Impresora clásica</span>
+                      </div>
+                    </button>
+
+                    {/* Modelo XML UBL 2.1 */}
+                    <button
+                      onClick={() => {
+                        setFormatoSeleccionado("xml");
+                        setShowImpresionModal(true);
+                      }}
+                      className="group flex flex-col items-center gap-2 p-3 bg-white border-2 border-indigo-200 hover:border-indigo-500 rounded-2xl transition-all cursor-pointer shadow-sm hover:shadow-md"
+                    >
+                      <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center transition-colors">
+                        <FileCode className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="block font-bold text-xs text-indigo-700">Modelo XML</span>
+                        <span className="text-[9px] text-indigo-500 font-medium">UBL 2.1 SUNAT</span>
+                      </div>
+                    </button>
+                  </div>
+                  
                 </div>
               </div>
             )}
@@ -794,57 +769,74 @@ export default function CheckoutModal({
 
         {/* ── FOOTER (navigation) ─────────────────────── */}
         <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
-          {paso > 0 ? (
-            <button
-              onClick={goBack}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-800
-                px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Atrás
-            </button>
+          {paso === 2 ? (
+            // Footer Especial para Paso 2 (Éxito)
+            <div className="w-full flex justify-end">
+              <button
+                onClick={handleClose}
+                className="flex items-center gap-2 text-sm font-bold text-slate-700 bg-slate-200 hover:bg-slate-300
+                  px-6 py-2.5 rounded-xl transition-colors cursor-pointer"
+              >
+                Cerrar y Continuar
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           ) : (
-            <button
-              onClick={handleClose}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700
-                px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition"
-            >
-              Cancelar
-            </button>
-          )}
-
-          {paso < 2 ? (
-            <button
-              onClick={goNext}
-              disabled={!canNext()}
-              className="flex items-center gap-1.5 text-xs font-bold text-white
-                px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200
-                disabled:text-slate-400 shadow-sm transition active:scale-[0.98]"
-            >
-              Siguiente
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={handleEmitirVenta}
-              disabled={procesando}
-              className="flex items-center gap-2 text-xs font-bold text-white
-                px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 shadow-md
-                shadow-emerald-500/20 transition active:scale-[0.98] cursor-pointer"
-            >
-              {procesando ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  PROCESANDO...
-                </>
+            // Footer Normal
+            <>
+              {paso > 0 ? (
+                <button
+                  onClick={goBack}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-800
+                    px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Atrás
+                </button>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  CONFIRMAR Y EMITIR
-                  <Printer className="w-4 h-4 ml-1 opacity-70" />
-                </>
+                <button
+                  onClick={handleClose}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-700
+                    px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
               )}
-            </button>
+
+              {paso < 1 ? (
+                <button
+                  onClick={goNext}
+                  disabled={!canNext()}
+                  className="flex items-center gap-1.5 text-xs font-bold text-white
+                    px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200
+                    disabled:text-slate-400 shadow-sm transition active:scale-[0.98] cursor-pointer"
+                >
+                  Siguiente
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleEmitirVenta}
+                  disabled={procesando}
+                  className="flex items-center gap-2 text-xs font-bold text-white
+                    px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 shadow-md
+                    shadow-emerald-500/20 transition active:scale-[0.98] cursor-pointer"
+                >
+                  {procesando ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      PROCESANDO...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      CONFIRMAR Y EMITIR
+                      <Printer className="w-4 h-4 ml-1 opacity-70" />
+                    </>
+                  )}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -861,5 +853,14 @@ export default function CheckoutModal({
         }
       `}</style>
     </div>
+
+    {/* Modal de Impresión / XML */}
+    <ImpresionComprobanteModal
+      open={showImpresionModal}
+      onClose={() => setShowImpresionModal(false)}
+      formatoInicial={formatoSeleccionado}
+      comprobante={comprobanteEmitidoSnapshot}
+    />
+    </>
   );
 }
