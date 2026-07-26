@@ -41,11 +41,13 @@ export function useCatalogos() {
         )
       );
 
-      const map = { ...catalogos };
-      results.forEach(({ tipo, items }) => {
-        map[tipo] = items;
+      setCatalogos((prev) => {
+        const map = { ...prev };
+        results.forEach(({ tipo, items }) => {
+          map[tipo] = items;
+        });
+        return map;
       });
-      setCatalogos(map);
     } finally {
       setLoading(false);
     }

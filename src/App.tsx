@@ -35,9 +35,9 @@ const App: React.FC = () => {
 
                 {/* Módulos */}
                 <Route path="/ventas/nueva" element={<VentaPosPage />} />
-                <Route path="/ventas/historial" element={<div>Historial de Ventas</div>} />
+                <Route path="/ventas/historial" element={<ReportesPage />} />
                 <Route path="/productos" element={<ProductosPageWrapper />} />
-                <Route path="/inventario/stock" element={<div>Stock</div>} />
+                <Route path="/inventario/stock" element={<ProductosPageWrapper />} />
                 <Route path="/clientes" element={<ClientesPage />} />
 
                 <Route path="/reportes/ventas" element={<ReportesPage />} />

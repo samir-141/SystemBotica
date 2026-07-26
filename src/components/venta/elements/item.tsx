@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Check, Package, FileText, Layers, AlertCircle } from "lucide-react";
+import { Check, Package, Layers, AlertCircle, ShieldAlert, BellRing, ShoppingCart } from "lucide-react";
 
 export interface PresentacionOption {
     id: string;
@@ -20,6 +20,7 @@ export interface ProductoItemProps {
         presentacionNombre: string,
         precioUnitario: number
     ) => void;
+    onSolicitarReceta?: (producto: any, presentacionSel: PresentacionOption) => void;
     feedbackActive?: boolean;
     feedbackId?: string | null;
     modoPrecio?: string;
@@ -32,18 +33,19 @@ export default function Item({
     monedaActivaIdx = 0,
     onAgregar,
     agregarAlCarrito,
+    onSolicitarReceta,
     feedbackActive = false,
     feedbackId = null,
 }: ProductoItemProps) {
     const targetItem = item || producto;
-    if (!targetItem) return null;
 
-    const isFeedback = feedbackActive || (feedbackId ? feedbackId === targetItem.producto_comercial_id : false);
+    const isFeedback = targetItem ? (feedbackActive || (feedbackId ? feedbackId === targetItem.producto_comercial_id : false)) : false;
     const monedaActual = monedas[monedaActivaIdx] || { simbolo: "S/" };
-    const unidadBase = targetItem.unidad_base_nombre || "unid";
+    const unidadBase = targetItem?.unidad_base_nombre || "unid";
 
     // --- 1. Filtrar Presentaciones que TENGAN Stock Suficiente ---
     const presentacionesValidas = useMemo(() => {
+        if (!targetItem) return [];
         if (!targetItem.presentaciones || targetItem.presentaciones.length === 0) {
             return [
                 {
@@ -61,7 +63,7 @@ export default function Item({
             const paquetesDisponibles = Math.floor((targetItem.stock_total || 0) / equiv);
             return paquetesDisponibles >= 1;
         });
-    }, [targetItem.presentaciones, targetItem.stock_total, targetItem.precio_actual, targetItem.producto_comercial_id]);
+    }, [targetItem]);
 
     // Estado local para la opción seleccionada por el usuario
     const [presentacionSel, setPresentacionSel] = useState<PresentacionOption | null>(
@@ -77,10 +79,36 @@ export default function Item({
         }
     }, [presentacionesValidas]);
 
-    const sinStockTotal = (targetItem.stock_total || 0) <= 0;
+    if (!targetItem) return null;
+
+    const stockTotal = targetItem.stock_total || 0;
+    const sinStockTotal = stockTotal <= 0;
+    const requiereReceta = Boolean(targetItem.requiere_receta);
+
+    // --- Control FEFO de Vencimiento ---
+    let vencePronto = false;
+    let loteVencido = false;
+    if (targetItem.lote_fefo_vencimiento) {
+        const hoy = new Date();
+        const venc = new Date(targetItem.lote_fefo_vencimiento);
+        const diffMeses = (venc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+        if (venc < hoy) {
+            loteVencido = true;
+        } else if (diffMeses <= 3) {
+            vencePronto = true;
+        }
+    }
+
+    const disabledAction = sinStockTotal || loteVencido || isFeedback;
 
     const handleAgregarClick = () => {
-        if (!presentacionSel) return;
+        if (!presentacionSel || disabledAction) return;
+
+        if (requiereReceta && onSolicitarReceta) {
+            onSolicitarReceta(targetItem, presentacionSel);
+            return;
+        }
+
         if (onAgregar) {
             onAgregar(presentacionSel, presentacionSel.cantidad_unidad_base);
         } else if (agregarAlCarrito) {
@@ -93,55 +121,77 @@ export default function Item({
         }
     };
 
+    // --- Semáforo de Stock de Color ---
+    const getStockBadgeStyle = () => {
+        if (sinStockTotal) return "bg-slate-100 text-slate-400 border-slate-200 line-through";
+        if (stockTotal > 20) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (stockTotal > 5) return "bg-amber-50 text-amber-800 border-amber-200";
+        return "bg-red-50 text-red-700 border-red-200 font-black animate-pulse";
+    };
+
     return (
         <article
             className={`
-        w-full bg-white rounded-2xl border p-3.5 sm:p-4 shadow-sm transition-all duration-200
+        w-full bg-white rounded-2xl border p-3.5 sm:p-4 shadow-xs transition-all duration-200
         flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4
+        ${requiereReceta ? "border-l-4 border-l-red-500" : ""}
         ${isFeedback
-                    ? "border-teal-500 ring-2 ring-teal-500/20 bg-teal-50/10 scale-[0.99]"
-                    : "border-slate-200 hover:border-teal-400 hover:shadow-md"
+                    ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/10 scale-[0.99]"
+                    : "border-slate-200 hover:border-emerald-400 hover:shadow-md"
                 }
-        ${sinStockTotal ? "opacity-60 bg-slate-50 cursor-not-allowed" : ""}
+        ${disabledAction ? "bg-slate-50 opacity-75" : ""}
       `}
         >
             {/* ════════ BLOQUE 1: INFORMACIÓN DEL MEDICAMENTO ════════ */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1 text-[11px] font-medium flex-wrap">
-                    <span className="font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold uppercase tracking-wider">
-                        {targetItem.sku || "SIN SKU"}
-                    </span>
                     {targetItem.laboratorio && (
-                        <span className="text-slate-400 truncate max-w-[130px]">
+                        <span className="text-slate-500 font-semibold truncate max-w-[130px]">
                             {targetItem.laboratorio}
                         </span>
                     )}
-                    {targetItem.requiere_receta && (
-                        <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md text-[10px] font-bold border border-amber-200/60">
-                            <FileText size={12} /> Receta
+                    {requiereReceta && (
+                        <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-md text-[10px] font-extrabold border border-red-200">
+                            <ShieldAlert size={12} className="text-red-600" /> RECETA OBLIGATORIA
                         </span>
                     )}
-                    {targetItem.lote_fefo_vencimiento && (
-                        <span className="inline-flex items-center gap-1 text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded-md text-[10px] font-bold border border-orange-200/60" title="Control FEFO: Vencimiento de lote asignado">
-                            <AlertCircle size={11} /> Lote {targetItem.lote_fefo_numero || "FEFO"}: {targetItem.lote_fefo_vencimiento}
+                    {vencePronto && !loteVencido && (
+                        <span className="inline-flex items-center gap-1 text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md text-[10px] font-bold border border-amber-200">
+                            <BellRing size={11} className="text-amber-600" /> Vence pronto ({targetItem.lote_fefo_vencimiento})
+                        </span>
+                    )}
+                    {loteVencido && (
+                        <span className="inline-flex items-center gap-1 text-red-800 bg-red-100 px-2 py-0.5 rounded-md text-[10px] font-black border border-red-300">
+                            <AlertCircle size={11} className="text-red-700" /> LOTE VENCIDO
                         </span>
                     )}
                 </div>
 
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight flex items-center gap-2">
                     {targetItem.nombre_comercial}
                 </h3>
 
-                {/* Stock Total en Unidades Base */}
-                <div className="flex items-center gap-2.5 mt-1 text-xs text-slate-500 flex-wrap">
+                {/* Principio activo y Semáforo de stock */}
+                <div className="flex items-center gap-2.5 mt-1.5 text-xs text-slate-500 flex-wrap">
                     {targetItem.principio_activo && (
-                        <p className="truncate">
-                            P.A: <span className="font-medium text-slate-700">{targetItem.principio_activo}</span>
+                        <p className="truncate text-slate-600">
+                            P.A: <span className="font-semibold text-slate-800">{targetItem.principio_activo}</span>
                         </p>
                     )}
-                    <div className={`flex items-center gap-1 font-bold ${sinStockTotal ? "text-rose-500" : "text-emerald-600"}`}>
-                        <Package size={14} />
-                        <span>{sinStockTotal ? "Sin Stock" : `${targetItem.stock_total || 0} ${unidadBase}(s) disp.`}</span>
+                    <div
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-xs font-bold ${getStockBadgeStyle()}`}
+                        title={`Lote FEFO: ${targetItem.lote_fefo_numero || "STD"} - Vence: ${targetItem.lote_fefo_vencimiento || "N/A"}`}
+                    >
+                        <Package size={13} />
+                        <span>
+                            {sinStockTotal
+                                ? "Sin stock"
+                                : stockTotal > 20
+                                    ? `${stockTotal} ${unidadBase}(s)`
+                                    : stockTotal > 5
+                                        ? `Stock Bajo (${stockTotal})`
+                                        : `Crítico (${stockTotal})`}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -159,15 +209,15 @@ export default function Item({
                             <select
                                 value={presentacionSel.id}
                                 onChange={(e) => {
-                                    const encontrado = presentacionesValidas.find((p) => p.id === e.target.value);
+                                    const encontrado = presentacionesValidas.find((p: PresentacionOption) => p.id === e.target.value);
                                     if (encontrado) setPresentacionSel(encontrado);
                                 }}
-                                disabled={sinStockTotal}
-                                className="w-full h-10 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white cursor-pointer transition-all"
+                                disabled={disabledAction}
+                                className="w-full h-10 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white cursor-pointer transition-all disabled:opacity-50"
                             >
-                                {presentacionesValidas.map((p) => {
+                                {presentacionesValidas.map((p: PresentacionOption) => {
                                     const cantBase = p.cantidad_unidad_base || 1;
-                                    const paquetesDisponibles = Math.floor((targetItem.stock_total || 0) / cantBase);
+                                    const paquetesDisponibles = Math.floor((stockTotal) / cantBase);
 
                                     return (
                                         <option key={p.id} value={p.id}>
@@ -178,31 +228,33 @@ export default function Item({
                             </select>
                         </div>
 
-                        {/* Fila inferior para móvil: Precio + Botón */}
+                        {/* Fila para Precio + Botón Prominente */}
                         <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
 
-                            {/* Precio de la presentación elegida */}
-                            <div className="text-left sm:text-right min-w-[75px]">
+                            {/* Precio destacado */}
+                            <div className="text-left sm:text-right min-w-[85px]">
                                 <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Precio</span>
-                                <span className="text-base sm:text-lg font-black text-teal-700">
-                                    <span className="text-xs text-teal-500 font-semibold mr-0.5">
+                                <span className="text-lg sm:text-xl font-black text-slate-900">
+                                    <span className="text-xs text-slate-500 font-semibold mr-0.5">
                                         {monedaActual.simbolo}
                                     </span>
                                     {presentacionSel.precio.toFixed(2)}
                                 </span>
                             </div>
 
-                            {/* Botón de Agregar */}
+                            {/* Botón de Agregar Prominente */}
                             <button
                                 type="button"
                                 onClick={handleAgregarClick}
-                                disabled={sinStockTotal || isFeedback}
+                                disabled={disabledAction}
                                 className={`
-                  h-11 sm:h-10 px-5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5
-                  transition-all duration-200 shrink-0 shadow-sm active:scale-95 cursor-pointer
+                  h-11 sm:h-10 px-5 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2
+                  transition-all duration-200 shrink-0 shadow-md active:scale-95 cursor-pointer
                   ${isFeedback
                                         ? "bg-emerald-500 text-white shadow-emerald-500/20"
-                                        : "bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white shadow-teal-600/20"
+                                        : disabledAction
+                                            ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                                            : "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-emerald-600/25"
                                     }
                 `}
                             >
@@ -213,8 +265,8 @@ export default function Item({
                                     </>
                                 ) : (
                                     <>
-                                        <Plus size={18} strokeWidth={2.5} />
-                                        <span>Añadir</span>
+                                        <ShoppingCart size={18} strokeWidth={2.5} />
+                                        <span>{sinStockTotal ? "Sin stock" : "Añadir"}</span>
                                     </>
                                 )}
                             </button>
@@ -222,10 +274,10 @@ export default function Item({
                         </div>
                     </>
                 ) : (
-                    /* Si no alcanza el stock para armar ni 1 unidad */
+                    /* Si no alcanza el stock */
                     <div className="flex items-center justify-center gap-1.5 text-xs text-rose-500 font-semibold bg-rose-50 p-2.5 rounded-xl w-full">
                         <AlertCircle size={16} />
-                        <span>Sin paquetes suficientes disponibles</span>
+                        <span>Sin stock disponible</span>
                     </div>
                 )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { Camera, CheckCircle2, Wifi, ArrowLeft, RefreshCw, Activity, Smartphone } from "lucide-react";
@@ -26,7 +26,7 @@ export default function RemoteScannerPage() {
   );
 
   // Transmitir código escaneado mediante WebSocket instantáneo
-  const transmitirAlPOS = (codigo: string) => {
+  const transmitirAlPOS = useCallback((codigo: string) => {
     sendBarcode(codigo);
 
     // Vibración hápida del celular
@@ -38,7 +38,7 @@ export default function RemoteScannerPage() {
     setUltimoEscaneo(codigo);
     setContadorTotal((prev) => prev + 1);
     setHistorial((prev) => [{ codigo, hora }, ...prev.slice(0, 15)]);
-  };
+  }, [sendBarcode]);
 
   // Inicializar lector ZXing en bucle continuo
   useEffect(() => {
@@ -90,7 +90,7 @@ export default function RemoteScannerPage() {
     return () => {
       reader.reset();
     };
-  }, [escaneando]);
+  }, [escaneando, transmitirAlPOS]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans flex flex-col justify-between select-none">

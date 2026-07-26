@@ -4,14 +4,16 @@ import Item from "./elements/item";
 import { useAuth } from "../../hooks/useAuth";
 import MosProducto from "./elements/productos.muestra";
 import CartSummary from "./elements/CartSummary";
-import { formatMoney } from "./utils";
 import BarcodeCameraModal from "./elements/BarcodeCameraModal";
 import RemoteScannerModal from "./elements/RemoteScannerModal";
+import RecetaModal from "./elements/RecetaModal";
+import BarraAtajos from "./elements/BarraAtajos";
 import { useProductos } from "./hooks/useProductos";
 import { usePerifericosStatus } from "./hooks/usePerifericosStatus";
 import { useCamaraScanner } from "./hooks/useCamaraScanner";
+import { useCart } from "./hooks/useCart";
 import { useRemoteScannerSocket } from "../../hooks/useRemoteScannerSocket";
-import type { ItemCarrito, ModoPrecio, TipoPago, ProductoAgrupado } from "./types";
+import type { ModoPrecio, TipoPago, ProductoAgrupado } from "./types";
 
 export default function VentaPos() {
     const { sucursalActual } = useAuth();
@@ -23,8 +25,18 @@ export default function VentaPos() {
         productosAgrupados
     } = useProductos();
 
-    // --- Estados de Datos ---
-    const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+    // --- Estado del Carrito con Persistencia IndexedDB y Sincronización Multi-pestaña ---
+    const {
+        carrito,
+        setCarrito,
+        agregarAlCarrito: agregarAlCarritoHook,
+        actualizarCantidad,
+        totalItems,
+        montoBrutoFinal,
+        baseImponible: baseImpCalculada,
+        igvCalculado: igvCalcHook,
+        formatMoney,
+    } = useCart();
 
     // --- Opciones Visuales / Configuración ---
     const [modoPrecio, setModoPrecio] = useState<ModoPrecio>("CON_IGV");
@@ -32,9 +44,13 @@ export default function VentaPos() {
     const [showCartMobile, setShowCartMobile] = useState(false);
     const [feedbackId, setFeedbackId] = useState<string | null>(null);
 
-    // --- Modal Escáner Celular Remoto (Puente) ---
+    // --- Modal Escáner Celular Remoto ---
     const [showRemoteScannerModal, setShowRemoteScannerModal] = useState(false);
     const [ultimoCodigoRemoto, setUltimoCodigoRemoto] = useState<string | null>(null);
+
+    // --- Modal de Verificación de Receta Médica ---
+    const [recetaModalOpen, setRecetaModalOpen] = useState(false);
+    const [productoParaReceta, setProductoParaReceta] = useState<{ producto: any; presentacionSel: any } | null>(null);
 
     // --- IGV dinámico ---
     const [incluyeIGV, setIncluyeIGV] = useState(true);
@@ -47,6 +63,48 @@ export default function VentaPos() {
         setFeedbackId(id);
         setTimeout(() => setFeedbackId(null), 400);
     }, []);
+
+    // --- Abrir Modal de Receta Médica Obligatoria ---
+    const handleSolicitarReceta = useCallback((producto: any, presentacionSel: any) => {
+        setProductoParaReceta({ producto, presentacionSel });
+        setRecetaModalOpen(true);
+    }, []);
+
+    const handleConfirmarReceta = (numeroReceta: string) => {
+        if (productoParaReceta) {
+            const { producto, presentacionSel } = productoParaReceta;
+            triggerFeedback(producto.producto_comercial_id);
+            agregarAlCarritoHook(
+                producto,
+                presentacionSel.cantidad_unidad_base,
+                presentacionSel.nombre,
+                presentacionSel.precio,
+                numeroReceta
+            );
+        }
+        setRecetaModalOpen(false);
+        setProductoParaReceta(null);
+    };
+
+    // --- Agregar al Carrito ---
+    const agregarAlCarrito = useCallback(
+        (
+            producto: ProductoAgrupado | any,
+            equivBase = 1,
+            presentacionNombre = "Unidad",
+            precio = producto.precio_actual || 0,
+            numeroReceta?: string
+        ) => {
+            if (producto.requiere_receta && !numeroReceta) {
+                handleSolicitarReceta(producto, { id: "std", nombre: presentacionNombre, cantidad_unidad_base: equivBase, precio });
+                return;
+            }
+            const prodId = producto.producto_comercial_id;
+            triggerFeedback(prodId);
+            agregarAlCarritoHook(producto, equivBase, presentacionNombre, precio, numeroReceta);
+        },
+        [agregarAlCarritoHook, triggerFeedback, handleSolicitarReceta]
+    );
 
     // --- Agregar al Carrito por código (usado por lector USB, cámara y celular remoto) ---
     const agregarPorCodigo = useCallback((codigo: string) => {
@@ -61,6 +119,15 @@ export default function VentaPos() {
             (g) => g.producto_comercial_id === encontrado.producto_comercial_id
         );
         if (agrupado) {
+            if (agrupado.requiere_receta) {
+                handleSolicitarReceta(agrupado, {
+                    id: "std",
+                    nombre: encontrado.presentacion_nombre || "Unidad",
+                    cantidad_unidad_base: encontrado.cantidad_unidad_base || 1,
+                    precio: encontrado.precio_actual
+                });
+                return;
+            }
             agregarAlCarrito(
                 agrupado,
                 encontrado.cantidad_unidad_base || 1,
@@ -68,93 +135,31 @@ export default function VentaPos() {
                 encontrado.precio_actual
             );
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [productosRaw, productosAgrupados]);
+    }, [productosRaw, productosAgrupados, agregarAlCarrito, setBusqueda, handleSolicitarReceta]);
 
     // --- Hook de Cámara para celulares ---
     const camaraScanner = useCamaraScanner(agregarPorCodigo);
 
-    // --- Hook de Escáner Remoto por WebSockets (Latencia ultra-baja <10ms) ---
+    // --- Hook de Escáner Remoto por WebSockets ---
     const handleBarcodeFromSocket = useCallback((codigo: string) => {
         if (!codigo) return;
         setUltimoCodigoRemoto(codigo);
         agregarPorCodigo(codigo);
     }, [agregarPorCodigo]);
 
-    const remoteSocket = useRemoteScannerSocket(handleBarcodeFromSocket, null, "pc");
+    const remoteSocket = useRemoteScannerSocket(handleBarcodeFromSocket);
 
-    // --- Fallback secundario: Escuchar BroadcastChannel / LocalStorage ---
+    // --- Sincronizar lectura del escáner remoto ---
     useEffect(() => {
         const handleStorage = (e: StorageEvent) => {
-            if (e.key === "pos_remote_barcode_event" && e.newValue) {
-                try {
-                    const parsed = JSON.parse(e.newValue);
-                    if (parsed?.barcode) {
-                        handleBarcodeFromSocket(parsed.barcode);
-                    }
-                } catch {
-                    // ignore
-                }
+            if (e.key === "pos_remote_scanned_code" && e.newValue) {
+                handleBarcodeFromSocket(e.newValue);
             }
         };
 
         window.addEventListener("storage", handleStorage);
         return () => window.removeEventListener("storage", handleStorage);
     }, [handleBarcodeFromSocket]);
-
-    // --- Agregar al Carrito ---
-    const agregarAlCarrito = useCallback((
-        producto: ProductoAgrupado | any,
-        equivBase = 1,
-        presentacionNombre = "Unidad",
-        precio = producto.precio_actual || 0
-    ) => {
-        const prodId = producto.producto_comercial_id;
-        triggerFeedback(prodId);
-        const idCarrito = `${prodId}_${presentacionNombre}`;
-
-        setCarrito((prev) => {
-            const unidadesAnteriores = prev
-                .filter((i) => i.producto_comercial_id === prodId)
-                .reduce((acc, i) => acc + i.unidades_base_totales, 0);
-
-            if (unidadesAnteriores + equivBase > producto.stock_total) {
-                alert(
-                    `Stock insuficiente. Disponible: ${producto.stock_total} ${producto.unidad_base_nombre || "unidades"}`
-                );
-                return prev;
-            }
-
-            const existe = prev.find((i) => i.id_carrito === idCarrito);
-            if (existe) {
-                return prev.map((i) =>
-                    i.id_carrito === idCarrito
-                        ? {
-                            ...i,
-                            cantidad: i.cantidad + 1,
-                            unidades_base_totales: (i.cantidad + 1) * equivBase,
-                        }
-                        : i
-                );
-            }
-
-            return [
-                ...prev,
-                {
-                    id_carrito: idCarrito,
-                    producto_comercial_id: prodId,
-                    nombre_comercial: producto.nombre_comercial,
-                    presentacion_nombre: presentacionNombre,
-                    precio_unitario: precio,
-                    cantidad: 1,
-                    unidades_base_por_pack: equivBase,
-                    unidades_base_totales: equivBase,
-                    lote_fefo_numero: producto.lote_fefo_numero || "LOTE-STD",
-                    lote_fefo_vencimiento: producto.lote_fefo_vencimiento || "",
-                },
-            ];
-        });
-    }, [triggerFeedback]);
 
     // --- Lectura de escáner USB (teclado HID) ---
     useEffect(() => {
@@ -181,21 +186,27 @@ export default function VentaPos() {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [agregarPorCodigo]);
 
-    // --- Teclas de Acceso Rápido (Shortcuts de Cajero: F2, F4, F9, ESC) ---
+    // --- Teclas de Acceso Rápido (Shortcuts de Cajero: F2, F3, F4, F5, F6, ESC) ---
     useEffect(() => {
         const handleShortcuts = (e: KeyboardEvent) => {
             if (e.key === "F2") {
                 e.preventDefault();
+                document.getElementById("btn-procesar-venta")?.click();
+            } else if (e.key === "F3") {
+                e.preventDefault();
                 document.getElementById("pos-busqueda-producto")?.focus();
             } else if (e.key === "F4") {
                 e.preventDefault();
-                setShowRemoteScannerModal(true);
-            } else if (e.key === "F9") {
+                // Enfocar o abrir cliente
+            } else if (e.key === "F5") {
                 e.preventDefault();
-                const btnCobrar = document.getElementById("btn-abrir-checkout-modal");
-                if (btnCobrar) btnCobrar.click();
+                document.getElementById("btn-abrir-camara-scanner")?.click();
+            } else if (e.key === "F6") {
+                e.preventDefault();
+                setShowRemoteScannerModal(true);
             } else if (e.key === "Escape") {
                 setShowRemoteScannerModal(false);
+                setRecetaModalOpen(false);
             }
         };
 
@@ -203,32 +214,12 @@ export default function VentaPos() {
         return () => window.removeEventListener("keydown", handleShortcuts);
     }, []);
 
-    const actualizarCantidad = useCallback((idCarrito: string, nuevaCantidad: number) => {
-        if (nuevaCantidad <= 0) {
-            setCarrito((prev) => prev.filter((i) => i.id_carrito !== idCarrito));
-            return;
-        }
-        setCarrito((prev) =>
-            prev.map((i) =>
-                i.id_carrito === idCarrito
-                    ? {
-                        ...i,
-                        cantidad: nuevaCantidad,
-                        unidades_base_totales: nuevaCantidad * i.unidades_base_por_pack,
-                    }
-                    : i
-            )
-        );
-    }, []);
-
-    // --- Cálculos Financieros ---
-    const totalItems = carrito.reduce((acc, i) => acc + i.cantidad, 0);
-    const montoBrutoFinal = carrito.reduce((acc, i) => acc + i.precio_unitario * i.cantidad, 0);
-    const baseImponible = incluyeIGV ? montoBrutoFinal / 1.18 : montoBrutoFinal;
-    const igvCalculado = incluyeIGV ? montoBrutoFinal - baseImponible : 0;
+    // --- Cálculos Financieros finales según IGV ---
+    const baseImponible = incluyeIGV ? baseImpCalculada : montoBrutoFinal;
+    const igvCalculado = incluyeIGV ? igvCalcHook : 0;
 
     return (
-        <div className="flex flex-col md:flex-row h-full bg-slate-100 text-slate-800 font-sans antialiased overflow-hidden">
+        <div className="relative flex flex-col md:flex-row h-full bg-slate-100 text-slate-800 font-sans antialiased overflow-hidden">
             <MosProducto
                 Item={Item}
                 busqueda={busqueda}
@@ -244,6 +235,7 @@ export default function VentaPos() {
                 totalItems={totalItems}
                 sucursalActual={sucursalActual}
                 agregarAlCarrito={agregarAlCarrito}
+                onSolicitarReceta={handleSolicitarReceta}
                 perifericosStatus={perifericosStatus}
                 onAbrirCamara={camaraScanner.abrirCamara}
                 onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
@@ -263,6 +255,26 @@ export default function VentaPos() {
                 setCarrito={setCarrito}
                 incluyeIGV={incluyeIGV}
                 setIncluyeIGV={setIncluyeIGV}
+            />
+
+            {/* Barra Flotante de Atajos Rápidos */}
+            <BarraAtajos
+                onAbrirCheckout={() => document.getElementById("btn-procesar-venta")?.click()}
+                onEnfocarBusqueda={() => document.getElementById("pos-busqueda-producto")?.focus()}
+                onAbrirCliente={() => {}}
+                onAbrirCamara={camaraScanner.abrirCamara}
+                onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
+            />
+
+            {/* Modal Verificación Receta Médica Obligatoria */}
+            <RecetaModal
+                open={recetaModalOpen}
+                nombreProducto={productoParaReceta?.producto?.nombre_comercial || "Medicamento Regulado"}
+                onClose={() => {
+                    setRecetaModalOpen(false);
+                    setProductoParaReceta(null);
+                }}
+                onConfirm={handleConfirmarReceta}
             />
 
             {/* Modal Lector Cámara para Celulares */}

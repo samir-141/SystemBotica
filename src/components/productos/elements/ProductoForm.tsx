@@ -7,8 +7,6 @@ import {
   Package,
   Tag,
   Barcode,
-  DollarSign,
-  Beaker,
   ToggleLeft,
   ToggleRight,
   HelpCircle,
@@ -86,7 +84,7 @@ export default function ProductoForm({
       setForm({
         nombre_comercial: producto.nombre_comercial,
         sku: producto.sku,
-        codigo_interno: producto.codigo_interno,
+        codigo_interno: producto.codigo_interno || "",
         principio_activo_id: "",
         forma_farmaceutica_id: "",
         laboratorio_id: "",

@@ -7,16 +7,23 @@ export interface ResumenDashboard {
         total_ventas_hoy: number;
         ganancia_neta_hoy?: number;
         margen_ganancia_pct?: number;
+        costo_ventas_hoy?: number;
         operaciones_hoy: number;
         ticket_promedio: number;
         total_ventas_ayer: number;
         porcentaje_crecimiento: number;
+        recetas_dispensadas_hoy?: number;
+        lotes_vencer_90_dias_count?: number;
+        monto_vencer_90_dias?: number;
+        pct_generico_vs_marca?: number;
+        ultima_verificacion_stock?: string;
     };
     progreso_capital?: {
         meta_capital: number;
         recaudado: number;
         pendiente: number;
         porcentaje_completado: number;
+        fecha_inicio?: string;
     };
     grafico_7_dias: {
         fecha: string;
@@ -75,12 +82,13 @@ export function useDashboard() {
     const [resumen, setResumen] = useState<ResumenDashboard | null>(null);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [rangoFecha, setRangoFecha] = useState<string>("HOY");
 
     const fetchResumen = useCallback(async () => {
         setCargando(true);
         setError(null);
         try {
-            const data = await posApi.getDashboardResumen(sucursalActual?.id);
+            const data = await posApi.getDashboardResumen(sucursalActual?.id, rangoFecha);
             setResumen(data);
         } catch (err: any) {
             console.error("Error al obtener datos del dashboard:", err);
@@ -88,7 +96,7 @@ export function useDashboard() {
         } finally {
             setCargando(false);
         }
-    }, [sucursalActual?.id]);
+    }, [sucursalActual?.id, rangoFecha]);
 
     useEffect(() => {
         fetchResumen();
@@ -99,5 +107,7 @@ export function useDashboard() {
         cargando,
         error,
         refetch: fetchResumen,
+        rangoFecha,
+        setRangoFecha,
     };
 }

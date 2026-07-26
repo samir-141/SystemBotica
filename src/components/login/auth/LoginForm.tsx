@@ -31,7 +31,7 @@ export default function LoginForm({
         if (rememberMe) {
             setCorreo(localStorage.getItem("remembered_email") || "");
         }
-    }, [rememberMe]);
+    }, [rememberMe, setCorreo]);
 
     return (
         <div className="w-full max-w-md mx-auto bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100 transition-all">

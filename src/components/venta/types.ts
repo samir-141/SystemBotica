@@ -11,6 +11,8 @@ export interface ItemCarrito {
   unidades_base_totales: number;
   lote_fefo_numero: string;
   lote_fefo_vencimiento: string;
+  requiere_receta?: boolean;
+  numero_receta?: string;
 }
 
 export interface PresentacionOption {
