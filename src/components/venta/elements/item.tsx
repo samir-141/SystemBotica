@@ -23,7 +23,6 @@ export interface ProductoItemProps {
     onSolicitarReceta?: (producto: any, presentacionSel: PresentacionOption) => void;
     feedbackActive?: boolean;
     feedbackId?: string | null;
-    modoPrecio?: string;
 }
 
 export default function Item({

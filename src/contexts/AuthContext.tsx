@@ -26,7 +26,7 @@ interface AuthContextType {
     sucursales: Sucursal[];
     login: (credentials: LoginRequest) => Promise<void>;
     logout: () => void;
-    cambiarSucursal: (sucursalId: string) => void;
+    cambiarSucursal: (sucursalIdOrObj: string | Sucursal) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,11 +46,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedSucursales = localStorage.getItem('sucursales');
 
         if (storedToken && storedUser && storedSucursal) {
+            const parsedUser = JSON.parse(storedUser);
             setToken(storedToken);
-            setUser(JSON.parse(storedUser));
+            setUser(parsedUser);
             setSucursalActual(JSON.parse(storedSucursal));
             if (storedSucursales) {
                 setSucursales(JSON.parse(storedSucursales));
+            }
+
+            // Si el usuario es Administrador y sucursales tiene 1 o menos, cargar todas las sucursales del sistema
+            const rolUpper = String(parsedUser?.rol || '').toUpperCase();
+            const esAdmin = rolUpper.includes('ADMIN') || rolUpper.includes('PROPIETARIO') || rolUpper === 'GERENTE';
+            if (esAdmin) {
+                import('../components/api/api.data').then(({ posApi }) => {
+                    posApi.getSucursalesAdmin().then((data) => {
+                        if (Array.isArray(data) && data.length > 0) {
+                            const formatted = data.map((s: any) => ({
+                                id: s.id,
+                                nombre: s.nombre,
+                                empresa: s.empresa || 'FarmaPOS',
+                                es_principal: !!s.es_principal,
+                            }));
+                            setSucursales(formatted);
+                            localStorage.setItem('sucursales', JSON.stringify(formatted));
+                        }
+                    }).catch((err) => {
+                        console.warn('No se pudieron cargar sucursales administrativas adicionales:', err);
+                    });
+                });
             }
         }
         setIsLoading(false);
@@ -94,21 +117,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.location.href = '/login';
     };
 
-    const cambiarSucursal = (sucursalId: string) => {
-        const nuevaSucursal = sucursales.find(s => s.id === sucursalId);
+    const cambiarSucursal = (sucursalIdOrObj: string | Sucursal) => {
+        const targetId = typeof sucursalIdOrObj === 'string' ? sucursalIdOrObj : sucursalIdOrObj?.id;
+        const nuevaSucursal = sucursales.find(s => s.id === targetId) || (typeof sucursalIdOrObj === 'object' ? sucursalIdOrObj : null);
+        
         if (nuevaSucursal) {
             localStorage.setItem('sucursalActual', JSON.stringify(nuevaSucursal));
             localStorage.setItem('sucursalId', nuevaSucursal.id);
             setSucursalActual(nuevaSucursal);
 
-            // Recargar la página para actualizar datos
+            // Recargar la página para actualizar datos y peticiones
             window.location.reload();
         }
     };
 
     return (
         <AuthContext.Provider
-
             value={{
                 user,
                 token,

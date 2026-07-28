@@ -103,12 +103,12 @@ export default function RemoteScannerPage() {
           <div>
             <h1 className="font-extrabold text-xs flex items-center gap-1.5 text-teal-400">
               <Smartphone size={16} className="text-teal-400" />
-              <span>Escáner Remoto</span>
+              <span>Celular Asistente</span>
               <span className="bg-slate-800 text-teal-300 px-1.5 py-0.5 rounded text-[10px] font-mono">
                 {sessionCode}
               </span>
             </h1>
-            <p className="text-[10px] text-slate-400">Sincronizado con Caja POS</p>
+            <p className="text-[10px] text-slate-400">Rol: Asistente (Carrito Compartido con PC Principal)</p>
           </div>
         </div>
 

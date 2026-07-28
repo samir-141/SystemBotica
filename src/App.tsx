@@ -3,9 +3,11 @@ import React from 'react';
 import './css/Venta.css'
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { PrimeReactProvider } from 'primereact/api';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
+import { useSocketInvalidation } from './hooks/useSocketInvalidation';
 import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './components/login/common/PrivateRoute';
-
 
 import LoginForm from './pages/auth/Login';
 import VentaPosPage from './pages/ventapos/ventaPos';
@@ -18,9 +20,17 @@ import ReportesPage from './components/reportes/ReportesPage';
 import AdminPage from './components/admin/AdminPage';
 import RemoteScannerPage from './pages/escanner/RemoteScannerPage';
 
+// Componente interno para inicializar la escucha de WebSocket dentro del contexto de QueryClient
+const SocketSyncListener: React.FC = () => {
+  useSocketInvalidation();
+  return null;
+};
+
 const App: React.FC = () => {
   return (
-    <PrimeReactProvider>
+    <QueryClientProvider client={queryClient}>
+      <SocketSyncListener />
+      <PrimeReactProvider>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
@@ -62,6 +72,7 @@ const App: React.FC = () => {
         </AuthProvider>
       </BrowserRouter>
     </PrimeReactProvider>
+    </QueryClientProvider>
   );
 };
 

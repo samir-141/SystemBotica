@@ -5,6 +5,7 @@ import {
   Plus,
   RefreshCw,
   X,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import type { Cliente, FormMode } from "./types";
@@ -74,6 +75,48 @@ export default function ClientesPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (!clientes || clientes.length === 0) return;
+    const headers = [
+      "ID",
+      "Tipo Documento",
+      "Numero Documento",
+      "Nombre",
+      "Tipo Cliente",
+      "Condicion SUNAT",
+      "Telefono / WhatsApp",
+      "Email",
+      "Limite Credito (PEN)",
+      "Saldo Pendiente (PEN)",
+      "Total Compras",
+      "Monto Total Comprado (PEN)"
+    ];
+    const rows = clientes.map((c) => [
+      `"${c.id}"`,
+      `"${c.tipo_documento}"`,
+      `"${c.numero_documento}"`,
+      `"${c.nombre.replace(/"/g, '""')}"`,
+      `"${c.tipo_cliente || "NATURAL"}"`,
+      `"${c.condicion_contribuyente || "HABIDO"}"`,
+      `"${c.whatsapp || c.telefono || ""}"`,
+      `"${c.email || ""}"`,
+      (c.limite_credito || 0).toFixed(2),
+      (c.saldo_actual || 0).toFixed(2),
+      c.total_compras,
+      (c.monto_total_comprado || 0).toFixed(2)
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Clientes_FarmaPOS_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleSave = useCallback(
     async (data: Record<string, unknown>, mode: FormMode) => {
       if (mode === "editar" && clienteEditar) {
@@ -102,7 +145,7 @@ export default function ClientesPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={refetch}
               title="Refrescar Lista"
@@ -110,6 +153,16 @@ export default function ClientesPage() {
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-teal-600" : ""}`} />
             </button>
+
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition shadow-xs cursor-pointer"
+              title="Exportar directorio de clientes a CSV / Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Exportar Excel</span>
+            </button>
+
             <button
               onClick={handleCreate}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700

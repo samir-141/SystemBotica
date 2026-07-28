@@ -5,20 +5,18 @@ import {
   ShoppingCart,
   X,
   Printer,
-  Camera,
   Usb,
   Smartphone,
   Sparkles,
+  Monitor,
 } from "lucide-react";
-import type { ProductoAgrupado, ModoPrecio } from "../types";
+import type { ProductoAgrupado } from "../types";
 import type { EstadoPeriferico } from "../hooks/usePerifericosStatus";
 
 interface Props {
   Item: any;
   busqueda: string;
   setBusqueda: (busqueda: string) => void;
-  modoPrecio: ModoPrecio;
-  setModoPrecio: (modoPrecio: ModoPrecio) => void;
   showCartMobile: boolean;
   setShowCartMobile: (showCartMobile: boolean) => void;
   feedbackId: string | null;
@@ -35,7 +33,6 @@ interface Props {
   ) => void;
   onSolicitarReceta?: (producto: any, presentacionSel: any) => void;
   perifericosStatus: EstadoPeriferico;
-  onAbrirCamara: () => void;
   onAbrirEscannerRemoto?: () => void;
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
 }
@@ -44,8 +41,6 @@ export default function MosProducto({
   Item,
   busqueda,
   setBusqueda,
-  modoPrecio,
-  setModoPrecio,
   setShowCartMobile,
   feedbackId,
   productosAgrupados,
@@ -55,11 +50,10 @@ export default function MosProducto({
   agregarAlCarrito,
   onSolicitarReceta,
   perifericosStatus,
-  onAbrirCamara,
   onAbrirEscannerRemoto,
   searchInputRef,
 }: Props) {
-  const { scannerConectado, impresoraDisponible, esCelular } = perifericosStatus;
+  const { scannerConectado, impresoraDisponible, deviceInfo } = perifericosStatus;
   const internalSearchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -113,50 +107,6 @@ export default function MosProducto({
 
         {/* Controles derechos */}
         <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
-          {/* Toggle modo precio */}
-          <div className="flex bg-slate-200/80 p-1 rounded-xl text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setModoPrecio("CON_IGV")}
-              className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-                modoPrecio === "CON_IGV"
-                  ? "bg-white text-emerald-800 shadow-2xs font-bold"
-                  : "text-slate-600 hover:text-slate-800"
-              }`}
-            >
-              Inc. IGV
-            </button>
-            <button
-              type="button"
-              onClick={() => setModoPrecio("SIN_IGV")}
-              className={`px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-                modoPrecio === "SIN_IGV"
-                  ? "bg-white text-emerald-800 shadow-2xs font-bold"
-                  : "text-slate-600 hover:text-slate-800"
-              }`}
-            >
-              Sin IGV
-            </button>
-          </div>
-
-          {/* Botón Escanear Cámara */}
-          {onAbrirCamara && (
-            <button
-              type="button"
-              id="btn-abrir-camara-scanner"
-              onClick={onAbrirCamara}
-              title="Escanear código de barras con la cámara"
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-extrabold text-xs transition-all cursor-pointer shadow-2xs active:scale-95 ${
-                esCelular
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
-                  : "bg-teal-600 hover:bg-teal-700 text-white shadow-teal-600/20"
-              }`}
-            >
-              <Camera size={16} />
-              <span>Cámara</span>
-            </button>
-          )}
-
           {/* Botón Celular Escáner Remoto */}
           {onAbrirEscannerRemoto && (
             <button
@@ -201,6 +151,21 @@ export default function MosProducto({
 
         {/* Fila Discreta de Iconos Periféricos con Tooltips */}
         <div className="flex items-center gap-2">
+          {/* Badge Dispositivo Detectado */}
+          {deviceInfo && (
+            <div
+              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-200"
+              title={`Sistema Operativo detectado: ${deviceInfo.os} (${deviceInfo.esMovil ? "Dispositivo Móvil" : "Computadora PC"})`}
+            >
+              {deviceInfo.esMovil ? (
+                <Smartphone size={13} className="text-indigo-600" />
+              ) : (
+                <Monitor size={13} className="text-slate-600" />
+              )}
+              <span className="text-[11px] font-semibold">{deviceInfo.os}</span>
+            </div>
+          )}
+
           {/* Lector USB */}
           <div
             className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-all border ${
@@ -255,7 +220,6 @@ export default function MosProducto({
               <Item
                 key={producto.producto_comercial_id}
                 producto={producto}
-                modoPrecio={modoPrecio}
                 feedbackId={feedbackId}
                 agregarAlCarrito={agregarAlCarrito}
                 onSolicitarReceta={onSolicitarReceta}

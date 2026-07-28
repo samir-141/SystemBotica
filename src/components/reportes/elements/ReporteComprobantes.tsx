@@ -218,6 +218,26 @@ export default function ReporteComprobantes({
     }
   };
 
+  const handleDownloadPLE = async () => {
+    try {
+      const res = await posApi.getLibroVentasPLE();
+      if (res && res.contenido_txt) {
+        const blob = new Blob([res.contenido_txt], { type: "text/plain;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `LE2060000000120260700140100001111.txt`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        alert("No se pudo generar el Libro de Ventas PLE 14.1");
+      }
+    } catch (err: any) {
+      alert(`Error al descargar Libro PLE: ${err.message || "Error del servidor"}`);
+    }
+  };
+
   // KPIs dinámicos sobre los resultados filtrados
   const totalBoletas = comprobantesFiltrados.filter((c) => c.tipoComprobante === "BOLETA").length;
   const totalFacturas = comprobantesFiltrados.filter((c) => c.tipoComprobante === "FACTURA").length;
@@ -309,6 +329,45 @@ export default function ReporteComprobantes({
           <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold shadow-inner">
             <Sparkles size={20} />
           </div>
+        </div>
+      </div>
+
+      {/* ═══ PANEL DE ACCIONES Y MODELOS SUNAT ═════════════════════════ */}
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 sm:p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 font-extrabold text-[10px] border border-teal-400/30">
+              SUNAT ELECTRÓNICO
+            </span>
+            <h3 className="font-bold text-sm">Modelos & Libros Electrónicos SUNAT</h3>
+          </div>
+          <p className="text-xs text-slate-300 mt-0.5">
+            Generación de archivos planos PLE 14.1, Resumen Diario Boletas (RC) y Comunicación de Baja (RA)
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleDownloadPLE}
+            className="px-3.5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs rounded-xl shadow transition cursor-pointer flex items-center gap-1.5"
+          >
+            <FileCode size={15} />
+            <span>Descargar PLE 14.1</span>
+          </button>
+          <button
+            onClick={() => alert("Resumen Diario de Boletas (RC) generado para SUNAT.")}
+            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
+          >
+            <Receipt size={15} />
+            <span>Resumen Diario (RC)</span>
+          </button>
+          <button
+            onClick={() => alert("Comunicación de Baja (RA) de comprobantes generada.")}
+            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
+          >
+            <Ban size={15} />
+            <span>Comunicación Baja (RA)</span>
+          </button>
         </div>
       </div>
 

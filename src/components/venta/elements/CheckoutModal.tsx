@@ -28,6 +28,7 @@ import type {
   MetodoPago,
   DatosCliente,
 } from "../types";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatMoney } from "../utils";
 import { posApi } from "../../api/api.data";
 
@@ -109,6 +110,7 @@ export default function CheckoutModal({
   onVentaExitosa,
   incluyeIGV = true,
 }: Props) {
+  const queryClient = useQueryClient();
   /* ── state ──────────────────────────────────────────── */
   const [paso, setPaso] = useState(0);
   const [tipoComprobante, setTipoComprobante] = useState<TipoComprobante | null>(null);
@@ -211,6 +213,9 @@ export default function CheckoutModal({
 
       // 1. Enviar la transacción de venta a la API backend (NestJS)
       await posApi.registrarVenta(payload);
+
+      // Invalidador de cache TanStack Query para refrescar el stock de productos de inmediato en la UI
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
 
       // 2. Guardar copia congelada de los datos del comprobante ANTES de vaciar el carrito
       const snapshot: ComprobanteData = {

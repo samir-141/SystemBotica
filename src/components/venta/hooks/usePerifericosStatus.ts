@@ -1,7 +1,8 @@
 // src/components/venta/hooks/usePerifericosStatus.ts
-// Detecta: escáner USB/HID, disponibilidad de impresora, y si el dispositivo es móvil
+// Detecta: escáner USB/HID, disponibilidad de impresora, y sistema operativo / tipo de dispositivo
 
 import { useState, useEffect } from "react";
+import { detectDevice, type DeviceInfo } from "../../../utils/deviceDetector";
 
 export interface EstadoPeriferico {
     /** Escáner HID/USB detectado vía WebHID API */
@@ -10,16 +11,12 @@ export interface EstadoPeriferico {
     hidSoportado: boolean;
     /** Impresora disponible (via window.print heuristic) */
     impresoraDisponible: boolean;
-    /** El dispositivo actual es un móvil/tablet */
+    /** El dispositivo actual es un móvil/tablet (iOS o Android) */
     esCelular: boolean;
+    /** Información detallada del SO y tipo de dispositivo */
+    deviceInfo: DeviceInfo;
     /** Cámara trasera disponible en el dispositivo */
     camaraDisponible: boolean;
-}
-
-function detectarEsCelular(): boolean {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-    ) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
 }
 
 async function detectarCamara(): Promise<boolean> {
@@ -41,7 +38,8 @@ function detectarImpresoraHeuristica(): boolean {
 
 export function usePerifericosStatus(): EstadoPeriferico {
     const hidSoportado = typeof (navigator as any).hid !== "undefined";
-    const esCelular = detectarEsCelular();
+    const deviceInfo = detectDevice();
+    const esCelular = deviceInfo.esMovil;
 
     const [scannerConectado, setScannerConectado] = useState(false);
     const [camaraDisponible, setCamaraDisponible] = useState(true);
@@ -126,6 +124,7 @@ export function usePerifericosStatus(): EstadoPeriferico {
         hidSoportado,
         impresoraDisponible,
         esCelular,
+        deviceInfo,
         camaraDisponible,
     };
 }

@@ -1,49 +1,62 @@
 // src/components/venta/hooks/useProductos.ts
-import { useState, useEffect, useCallback, useMemo } from "react";
+// Hook de productos refactorizado con TanStack Query v5 + IndexedDB Cache
+// (Secciones 7, 8, 11 y 21 del Documento de Arquitectura)
+
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import type { ProductoPOS, PaginatedResponse } from "../../api/api.data";
 import type { PresentacionOption } from "../types";
+import { CACHE_STALE_TIMES, indexedDbPersister } from "../../../lib/queryClient";
 
 export const useProductos = () => {
-  const [productosRaw, setProductosRaw] = useState<ProductoPOS[]>([]);
   const [busqueda, setBusqueda] = useState("");
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [busquedaDebounced, setBusquedaDebounced] = useState("");
 
-  // Fetch function
-  const fetchProductos = useCallback(async (termino: string) => {
-    setCargando(true);
-    setError(null);
-    try {
-      const { data } = await api.get<PaginatedResponse<ProductoPOS>>("/productos", {
-        params: {
-          buscar: termino || undefined,
-          limit: 20,
-          orden: "nombre_asc",
-        },
-      });
-      const soloConStock = (data.data || []).filter(p => p.stock_total > 0);
-      setProductosRaw(soloConStock);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Error al conectar con el inventario de la sucursal");
-    } finally {
-      setCargando(false);
-    }
-  }, []);
-
-  // Debounced search effect (250ms)
+  // Debounced search (200ms)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchProductos(busqueda);
-    }, 250);
+    const timer = setTimeout(() => setBusquedaDebounced(busqueda), 200);
     return () => clearTimeout(timer);
-  }, [busqueda, fetchProductos]);
+  }, [busqueda]);
+
+  // Consulta administrada por TanStack Query v5 + fallback IndexedDB
+  const {
+    data: productosRaw = [],
+    isLoading: cargando,
+    error: errorQuery,
+    refetch: fetchProductos,
+  } = useQuery<ProductoPOS[]>({
+    queryKey: ["productos", busquedaDebounced],
+    queryFn: async () => {
+      const cacheKey = `productos_${busquedaDebounced.trim().toLowerCase()}`;
+      try {
+        const { data } = await api.get<PaginatedResponse<ProductoPOS>>("/productos", {
+          params: {
+            buscar: busquedaDebounced || undefined,
+            limit: 30,
+            orden: "nombre_asc",
+          },
+        });
+        const soloConStock = (data.data || []).filter((p) => p.stock_total > 0);
+        // Persistir en IndexedDB para funcionamiento offline/cache pesado
+        await indexedDbPersister.persistQuery(cacheKey, soloConStock);
+        return soloConStock;
+      } catch (err) {
+        // En caso de fallo de red, intentar recuperar de IndexedDB cache
+        const offlineData = await indexedDbPersister.getQuery(cacheKey, CACHE_STALE_TIMES.PRODUCTOS);
+        if (offlineData) return offlineData;
+        throw err;
+      }
+    },
+    staleTime: CACHE_STALE_TIMES.PRODUCTOS, // 10 minutos
+  });
+
+  const error = errorQuery ? (errorQuery as Error).message || "Error al conectar con el inventario" : null;
 
   // Agrupación y presentación de productos
   const productosAgrupados = useMemo(() => {
     const mapa = new Map<string, any>();
-    productosRaw.forEach(prod => {
+    productosRaw.forEach((prod) => {
       const key = prod.sku || prod.producto_comercial_id;
       if (!mapa.has(key)) {
         mapa.set(key, {
@@ -77,7 +90,6 @@ export const useProductos = () => {
 
   return {
     productosRaw,
-    setProductosRaw,
     busqueda,
     setBusqueda,
     cargando,

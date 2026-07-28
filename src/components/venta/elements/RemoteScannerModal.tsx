@@ -8,7 +8,9 @@ import {
   Check,
   Zap,
   Activity,
+  Monitor,
 } from "lucide-react";
+import { detectDevice } from "../../../utils/deviceDetector";
 
 interface Props {
   open: boolean;
@@ -35,12 +37,11 @@ export default function RemoteScannerModal({
   const [copiado, setCopiado] = useState(false);
   const [urlEscanner, setUrlEscanner] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const device = detectDevice();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const host = window.location.host;
-      const protocol = window.location.protocol;
-      const url = `${protocol}//${host}/escanner-remoto?session=${sessionCode}`;
+      const url = `${window.location.origin}/escanner-remoto?session=${sessionCode}`;
       setUrlEscanner(url);
 
       // Generar imagen DataURL de código QR 2D real scaneable por cualquier celular
@@ -81,7 +82,13 @@ export default function RemoteScannerModal({
                   {sessionCode}
                 </span>
               </h3>
-              <p className="text-[11px] text-indigo-300">Sincronización WebSockets Real-Time</p>
+              <p className="text-[11px] text-indigo-300 flex items-center gap-1">
+                <span>Sincronización Real-Time</span>
+                <span>•</span>
+                <span className="font-bold text-teal-300">
+                  {device.esMovil ? `Móvil (${device.os})` : `PC (${device.os})`}
+                </span>
+              </p>
             </div>
           </div>
           <button
@@ -98,20 +105,19 @@ export default function RemoteScannerModal({
           <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
             <div className="flex items-center gap-2">
               <div
-                className={`w-2.5 h-2.5 rounded-full ${
-                  remoteDeviceConnected
-                    ? "bg-emerald-500 animate-ping"
-                    : connected
+                className={`w-2.5 h-2.5 rounded-full ${remoteDeviceConnected
+                  ? "bg-emerald-500 animate-ping"
+                  : connected
                     ? "bg-amber-500 animate-pulse"
                     : "bg-slate-400"
-                }`}
+                  }`}
               />
               <span className="font-bold text-slate-800">
                 {remoteDeviceConnected
                   ? `VINCULADO: ${remoteDeviceName || "Smartphone Remoto"}`
                   : connected
-                  ? "Esperando escáner de smartphone..."
-                  : "Conectando con WebSocket..."}
+                    ? "Esperando escáner de smartphone..."
+                    : "Conectando con WebSocket..."}
               </span>
             </div>
             {pingMs !== null && pingMs !== undefined && (
@@ -162,23 +168,45 @@ export default function RemoteScannerModal({
           )}
 
           {/* Acciones */}
-          <div className="flex items-center justify-center gap-2 pt-1">
-            <button
-              onClick={handleCopiarUrl}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-            >
-              {copiado ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
-              <span>{copiado ? "Copiado!" : "Copiar Enlace"}</span>
-            </button>
-            <a
-              href={urlEscanner}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
-            >
-              <Smartphone size={15} />
-              <span>Abrir Modo Celular</span>
-            </a>
+          <div className="flex flex-col items-center gap-2 pt-1">
+            <div className="flex items-center justify-center gap-2 w-full">
+              <button
+                type="button"
+                onClick={handleCopiarUrl}
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                {copiado ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                <span>{copiado ? "Copiado!" : "Copiar Enlace"}</span>
+              </button>
+
+              {device.esMovil ? (
+                <a
+                  href={urlEscanner}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm active:scale-95"
+                >
+                  <Smartphone size={15} />
+                  <span>Abrir Modo Celular</span>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title={`Función no disponible en PC (${device.os}). Abre este enlace desde tu celular iOS o Android.`}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl text-xs font-bold cursor-not-allowed opacity-75"
+                >
+                  <Monitor size={15} className="text-slate-400" />
+                  <span>Modo Celular (Inactivo en PC)</span>
+                </button>
+              )}
+            </div>
+
+            {!device.esMovil && (
+              <p className="text-[10px] text-slate-400 font-medium">
+                💻 Estás en una computadora (<strong>{device.os}</strong>). Para usar el modo escáner en celular, escanea el QR superior usando la cámara de tu móvil iOS o Android.
+              </p>
+            )}
           </div>
         </div>
       </div>

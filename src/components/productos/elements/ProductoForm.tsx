@@ -48,6 +48,7 @@ const EMPTY_FORM: ProductoFormData = {
   cantidad_unidad_base: 1,
   precio_actual: "",
   codigo_barras: "",
+  registro_sanitario: "",
 };
 
 export default function ProductoForm({
@@ -97,7 +98,8 @@ export default function ProductoForm({
         presentacion_id: producto.presentacion_id,
         cantidad_unidad_base: producto.cantidad_unidad_base,
         precio_actual: producto.precio_actual,
-        codigo_barras: "",
+        codigo_barras: producto.codigo_barras || "",
+        registro_sanitario: producto.registro_sanitario || "",
       });
     } else {
       setForm(EMPTY_FORM);
@@ -116,8 +118,8 @@ export default function ProductoForm({
     setError(null);
     try {
       const res = await posApi.buscarPorIdentificador(searchVal.trim());
-      if (res.encontrado && res.producto) {
-        const p = res.producto;
+      if (res.encontrado) {
+        const p = res;
         setForm((prev) => ({
           ...prev,
           nombre_comercial: p.nombre_comercial,
@@ -262,7 +264,7 @@ export default function ProductoForm({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
                       SKU / Código Unificado
@@ -286,6 +288,19 @@ export default function ProductoForm({
                       onChange={(e) => set("codigo_interno", e.target.value)}
                       disabled={foundProduct}
                       placeholder="ej. INT-0091"
+                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                      REG. SANITARIO (DIGEMID)
+                    </label>
+                    <input
+                      type="text"
+                      value={form.registro_sanitario}
+                      onChange={(e) => set("registro_sanitario", e.target.value)}
+                      disabled={foundProduct}
+                      placeholder="ej. N-29381"
                       className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
                     />
                   </div>
@@ -425,7 +440,7 @@ export default function ProductoForm({
                     <p>💉 <strong>Ampollas:</strong> Unidad Base = Ampolla (1). Caja = 5.</p>
                   </div>
                   <p className="text-[11px] text-teal-300">
-                     Al realizar una venta en el POS, el cajero puede elegir cualquier presentación y el sistema descontará automáticamente el stock exacto en unidades base de tus lotes FEFO.
+                    Al realizar una venta en el POS, el cajero puede elegir cualquier presentación y el sistema descontará automáticamente el stock exacto en unidades base de tus lotes FEFO.
                   </p>
                 </div>
               )}

@@ -1,12 +1,11 @@
 // src/components/venta/elements/BarraAtajos.tsx
 import { useState } from "react";
-import { Keyboard, ChevronDown, ChevronUp, Search, DollarSign, UserCheck, Camera, Smartphone } from "lucide-react";
+import { Keyboard, ChevronDown, ChevronUp, Search, DollarSign, UserCheck, Smartphone } from "lucide-react";
 
 interface Props {
   onAbrirCheckout: () => void;
   onEnfocarBusqueda: () => void;
   onAbrirCliente: () => void;
-  onAbrirCamara: () => void;
   onAbrirEscannerRemoto: () => void;
 }
 
@@ -14,7 +13,6 @@ export default function BarraAtajos({
   onAbrirCheckout,
   onEnfocarBusqueda,
   onAbrirCliente,
-  onAbrirCamara,
   onAbrirEscannerRemoto,
 }: Props) {
   const [colapsado, setColapsado] = useState(false);
@@ -29,7 +27,7 @@ export default function BarraAtajos({
         title={colapsado ? "Expandir barra de atajos" : "Minimizar barra de atajos"}
       >
         <Keyboard className="w-3 h-3 text-emerald-400" />
-        <span>Atajos (F1 - F6)</span>
+        <span>Atajos (F2 - F6)</span>
         {colapsado ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
       </button>
 
@@ -63,16 +61,6 @@ export default function BarraAtajos({
           >
             <span className="bg-slate-700 text-slate-200 font-bold px-1.5 py-0.5 rounded text-[10px]">F4</span>
             <span className="flex items-center gap-1"><UserCheck className="w-3 h-3" /> Cliente</span>
-          </button>
-
-          {/* F5: Cámara */}
-          <button
-            type="button"
-            onClick={onAbrirCamara}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition-all cursor-pointer"
-          >
-            <span className="bg-slate-700 text-slate-200 font-bold px-1.5 py-0.5 rounded text-[10px]">F5</span>
-            <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> Cámara</span>
           </button>
 
           {/* F6: Celular Remoto */}

@@ -16,6 +16,7 @@ import { useCatalogos } from "./hooks/useCatalogos";
 import ProductoTable from "./elements/ProductoTable";
 import ProductoForm from "./elements/ProductoForm";
 import ReabastecerModal from "./elements/ReabastecerModal";
+import MovimientosModal from "./elements/MovimientosModal";
 
 export default function ProductosPage() {
   const {
@@ -45,6 +46,10 @@ export default function ProductosPage() {
   /* ── Modal Reabastecer Stock ────────────────────────── */
   const [reabastecerOpen, setReabastecerOpen] = useState(false);
   const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string } | null>(null);
+
+  /* ── Modal Movimientos & Lotes ──────────────────────── */
+  const [movimientosOpen, setMovimientosOpen] = useState(false);
+  const [productoMovimientos, setProductoMovimientos] = useState<ProductoPOS | null>(null);
 
   /* ── Handlers ───────────────────────────────────────── */
   const handleSearch = (value: string) => {
@@ -250,6 +255,10 @@ export default function ProductosPage() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onReabastecer={handleAbrirReabastecer}
+          onVerMovimientos={(prod) => {
+            setProductoMovimientos(prod);
+            setMovimientosOpen(true);
+          }}
           onPageChange={setPage}
         />
       </div>
@@ -264,6 +273,15 @@ export default function ProductosPage() {
         onSave={handleSave}
         onCatalogoRefresh={handleCatalogoRefresh}
       />
+
+      {/* ═══ MODAL VER LOTES & MOVIMIENTOS FEFO ══════════ */}
+      {movimientosOpen && (
+        <MovimientosModal
+          open={movimientosOpen}
+          producto={productoMovimientos}
+          onClose={() => setMovimientosOpen(false)}
+        />
+      )}
 
       {/* ═══ MODAL REABASTECER STOCK (+500 UNIDADES) ═════ */}
       {reabastecerOpen && (

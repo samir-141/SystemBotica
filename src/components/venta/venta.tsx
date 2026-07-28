@@ -4,16 +4,14 @@ import Item from "./elements/item";
 import { useAuth } from "../../hooks/useAuth";
 import MosProducto from "./elements/productos.muestra";
 import CartSummary from "./elements/CartSummary";
-import BarcodeCameraModal from "./elements/BarcodeCameraModal";
 import RemoteScannerModal from "./elements/RemoteScannerModal";
 import RecetaModal from "./elements/RecetaModal";
 import BarraAtajos from "./elements/BarraAtajos";
 import { useProductos } from "./hooks/useProductos";
 import { usePerifericosStatus } from "./hooks/usePerifericosStatus";
-import { useCamaraScanner } from "./hooks/useCamaraScanner";
 import { useCart } from "./hooks/useCart";
 import { useRemoteScannerSocket } from "../../hooks/useRemoteScannerSocket";
-import type { ModoPrecio, TipoPago, ProductoAgrupado } from "./types";
+import type { TipoPago, ProductoAgrupado } from "./types";
 
 export default function VentaPos() {
     const { sucursalActual } = useAuth();
@@ -39,7 +37,6 @@ export default function VentaPos() {
     } = useCart();
 
     // --- Opciones Visuales / Configuración ---
-    const [modoPrecio, setModoPrecio] = useState<ModoPrecio>("CON_IGV");
     const [tipoPago, setTipoPago] = useState<TipoPago>("CONTADO");
     const [showCartMobile, setShowCartMobile] = useState(false);
     const [feedbackId, setFeedbackId] = useState<string | null>(null);
@@ -137,9 +134,6 @@ export default function VentaPos() {
         }
     }, [productosRaw, productosAgrupados, agregarAlCarrito, setBusqueda, handleSolicitarReceta]);
 
-    // --- Hook de Cámara para celulares ---
-    const camaraScanner = useCamaraScanner(agregarPorCodigo);
-
     // --- Hook de Escáner Remoto por WebSockets ---
     const handleBarcodeFromSocket = useCallback((codigo: string) => {
         if (!codigo) return;
@@ -186,7 +180,7 @@ export default function VentaPos() {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [agregarPorCodigo]);
 
-    // --- Teclas de Acceso Rápido (Shortcuts de Cajero: F2, F3, F4, F5, F6, ESC) ---
+    // --- Teclas de Acceso Rápido (Shortcuts de Cajero: F2, F3, F4, F6, ESC) ---
     useEffect(() => {
         const handleShortcuts = (e: KeyboardEvent) => {
             if (e.key === "F2") {
@@ -198,9 +192,6 @@ export default function VentaPos() {
             } else if (e.key === "F4") {
                 e.preventDefault();
                 // Enfocar o abrir cliente
-            } else if (e.key === "F5") {
-                e.preventDefault();
-                document.getElementById("btn-abrir-camara-scanner")?.click();
             } else if (e.key === "F6") {
                 e.preventDefault();
                 setShowRemoteScannerModal(true);
@@ -224,8 +215,6 @@ export default function VentaPos() {
                 Item={Item}
                 busqueda={busqueda}
                 setBusqueda={setBusqueda}
-                modoPrecio={modoPrecio}
-                setModoPrecio={setModoPrecio}
                 showCartMobile={showCartMobile}
                 setShowCartMobile={setShowCartMobile}
                 feedbackId={feedbackId}
@@ -237,7 +226,6 @@ export default function VentaPos() {
                 agregarAlCarrito={agregarAlCarrito}
                 onSolicitarReceta={handleSolicitarReceta}
                 perifericosStatus={perifericosStatus}
-                onAbrirCamara={camaraScanner.abrirCamara}
                 onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
             />
             <CartSummary
@@ -262,7 +250,6 @@ export default function VentaPos() {
                 onAbrirCheckout={() => document.getElementById("btn-procesar-venta")?.click()}
                 onEnfocarBusqueda={() => document.getElementById("pos-busqueda-producto")?.focus()}
                 onAbrirCliente={() => {}}
-                onAbrirCamara={camaraScanner.abrirCamara}
                 onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
             />
 
@@ -275,12 +262,6 @@ export default function VentaPos() {
                     setProductoParaReceta(null);
                 }}
                 onConfirm={handleConfirmarReceta}
-            />
-
-            {/* Modal Lector Cámara para Celulares */}
-            <BarcodeCameraModal
-                scanner={camaraScanner}
-                onClose={camaraScanner.cerrarCamara}
             />
 
             {/* Modal Escáner Celular Remoto (Puente WebSocket) */}

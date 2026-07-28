@@ -50,6 +50,7 @@ export interface ProductoPOS {
     stock_total: number;
     lote_fefo_numero: string;
     lote_fefo_vencimiento: string;
+    registro_sanitario?: string | null;
 }
 
 export interface QueryParamsProductos {
@@ -179,7 +180,9 @@ export const posApi = {
 
     buscarPorIdentificador: async (valor: string): Promise<any> => {
         const { data } = await api.get('/productos/buscar/identificador', { params: { valor } });
+        console.log(data);
         return data;
+
     },
 
     // --- VENTAS ---
@@ -267,6 +270,11 @@ export const posApi = {
         return data;
     },
 
+    getLibroVentasPLE: async (params?: { fecha_inicio?: string; fecha_fin?: string }): Promise<any> => {
+        const { data } = await api.get('/reportes/ple-libro-ventas', { params });
+        return data;
+    },
+
     // --- ADMINISTRACIÓN & ERP ---
     getUsuarios: async (): Promise<any> => {
         const { data } = await api.get('/usuarios');
@@ -306,4 +314,4 @@ export const posApi = {
 
 
 
-
+

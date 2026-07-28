@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, User, Phone, Mail, MapPin, Calendar, Receipt, Loader2 } from "lucide-react";
+import { X, User, Phone, Mail, MapPin, Calendar, Receipt, Loader2, FileCheck } from "lucide-react";
 import { posApi } from "../../api/api.data";
-
 import type { Cliente } from "../types";
 
 type Props = {
@@ -25,6 +24,9 @@ export default function ClienteDetailModal({ open, cliente, onClose }: Props) {
 
   if (!open || !cliente) return null;
 
+  const esJuridico = cliente.tipo_cliente === "JURIDICO" || cliente.tipo_documento === "RUC";
+  const esHabido = cliente.condicion_contribuyente === "HABIDO" || !cliente.condicion_contribuyente;
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all"
@@ -41,8 +43,13 @@ export default function ClienteDetailModal({ open, cliente, onClose }: Props) {
               <User className="w-5 h-5 text-teal-400" />
             </div>
             <div>
-              <h2 className="font-bold text-sm">{cliente.nombre}</h2>
-              <p className="text-[10px] text-teal-400 font-mono">
+              <h2 className="font-extrabold text-base tracking-wide flex items-center gap-2">
+                {cliente.nombre}
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-bold border border-teal-400/30">
+                  {cliente.tipo_cliente || (esJuridico ? "JURÍDICO" : "NATURAL")}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400 font-mono">
                 {cliente.tipo_documento}: {cliente.numero_documento}
               </p>
             </div>
@@ -54,34 +61,64 @@ export default function ClienteDetailModal({ open, cliente, onClose }: Props) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Info cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Contacto</span>
-              <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-teal-600" /> {cliente.telefono || "Sin teléfono"}
-              </p>
-              <p className="text-[11px] text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
-                <Mail className="w-3.5 h-3.5 text-slate-400" /> {cliente.email || "Sin email"}
-              </p>
-            </div>
-
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Dirección</span>
-              <p className="text-xs font-semibold text-slate-700 flex items-start gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                <span className="truncate">{cliente.direccion || "Sin dirección registrada"}</span>
-              </p>
-            </div>
-
-            <div className="bg-teal-50/70 p-3 rounded-xl border border-teal-100">
-              <span className="text-[10px] font-bold uppercase text-teal-700 block mb-1">Resumen Compras</span>
-              <p className="text-sm font-black text-teal-800">
-                S/ {(cliente.monto_total_comprado || 0).toFixed(2)}
-              </p>
-              <span className="text-[10px] font-bold text-teal-600 block mt-0.5">
-                {cliente.total_compras} ventas procesadas
+          {/* Status & SUNAT bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Condición SUNAT</span>
+              <span className={`font-bold flex items-center gap-1 ${esHabido ? 'text-emerald-700' : 'text-rose-700'}`}>
+                <FileCheck className="w-3.5 h-3.5" />
+                {cliente.condicion_contribuyente || "HABIDO"}
               </span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Estado ERP</span>
+              <span className="font-bold text-slate-800">
+                {cliente.estado || "ACTIVO"}
+              </span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Límite Crédito</span>
+              <span className="font-bold font-mono text-slate-900">
+                S/ {(cliente.limite_credito || 0).toFixed(2)}
+              </span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Deuda Pendiente</span>
+              <span className={`font-bold font-mono ${(cliente.saldo_actual || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                S/ {(cliente.saldo_actual || 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Info cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1 text-xs">
+              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Contacto & Redes</span>
+              <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-teal-600" /> {cliente.whatsapp || cliente.telefono || "Sin teléfono"}
+              </p>
+              <p className="text-slate-500 truncate flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-slate-400" /> {cliente.email || "Sin email registrado"}
+              </p>
+              <p className="text-slate-600 flex items-start gap-1.5 pt-1">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                <span>{cliente.direccion || "Sin dirección registrada"}</span>
+              </p>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1 text-xs">
+              <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Empresa & B2B</span>
+              <p className="font-medium text-slate-700">
+                <strong>Representante:</strong> {cliente.representante_legal || "N/A"}
+              </p>
+              <p className="font-medium text-slate-700">
+                <strong>Contacto Principal:</strong> {cliente.contacto_principal || "N/A"} {cliente.cargo_contacto ? `(${cliente.cargo_contacto})` : ""}
+              </p>
+              {cliente.observaciones && (
+                <p className="text-slate-500 italic pt-1 border-t border-slate-200 mt-1">
+                  "{cliente.observaciones}"
+                </p>
+              )}
             </div>
           </div>
 
@@ -108,7 +145,7 @@ export default function ClienteDetailModal({ open, cliente, onClose }: Props) {
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-slate-800">Venta #{v.id.slice(0, 8)}</span>
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md">
-                          {v.estado}
+                          {v.estado || "COMPLETADO"}
                         </span>
                       </div>
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">

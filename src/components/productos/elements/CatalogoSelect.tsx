@@ -1,6 +1,6 @@
 // src/components/productos/elements/CatalogoSelect.tsx
 import { useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { TipoCatalogo, ItemCatalogo } from "../types";
 import { CATALOGO_LABELS } from "../types";
 import CatalogoModal from "./CatalogoModal";
@@ -73,7 +73,7 @@ export default function CatalogoSelect({
             ))}
             {!disabled && (
               <option value="__CREAR_NUEVO__" className="font-bold text-teal-700">
-                <Plus className="w-4 h-4 mr-2" /> Crear nuevo {label.toLowerCase()}...
+                ＋ Crear nuevo {label.toLowerCase()}...
               </option>
             )}
           </select>
