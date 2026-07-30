@@ -85,6 +85,11 @@ export function useAdmin() {
     await fetchAll();
   };
 
+  const actualizarRolPermisos = async (rolId: string, permisosIds: string[]) => {
+    await posApi.actualizarRolPermisos(rolId, permisosIds);
+    await fetchAll();
+  };
+
   return {
     usuarios,
     roles,
@@ -95,6 +100,7 @@ export function useAdmin() {
     actualizarUsuario,
     eliminarUsuario,
     crearSucursal,
+    actualizarRolPermisos,
     refetch: fetchAll,
   };
 }

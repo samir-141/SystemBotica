@@ -267,6 +267,10 @@ export const posApi = {
         const { data } = await api.get('/usuarios/roles');
         return data;
     },
+    actualizarRolPermisos: async (rolId: string, permisosIds: string[]): Promise<any> => {
+        const { data } = await api.put(`/usuarios/roles/${rolId}/permisos`, { permisosIds });
+        return data;
+    },
     getSucursalesAdmin: async (): Promise<any> => {
         const { data } = await api.get('/usuarios/sucursales');
         return data;

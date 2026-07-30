@@ -40,6 +40,7 @@ export default function AdminPage() {
     actualizarUsuario,
     eliminarUsuario,
     crearSucursal,
+    actualizarRolPermisos,
     refetch,
   } = useAdmin();
 
@@ -186,6 +187,7 @@ export default function AdminPage() {
       {activeTab === "roles" && (
         <RolesAdmin
           roles={roles}
+          onUpdatePermisos={actualizarRolPermisos}
         />
       )}
 
