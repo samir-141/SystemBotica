@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   Users,
   Search,
@@ -7,14 +7,17 @@ import {
   X,
   FileSpreadsheet,
 } from "lucide-react";
-
+import { Toast } from "primereact/toast";
 import type { Cliente, FormMode } from "./types";
 import { useClientes } from "./hooks/useClientes";
 import ClienteTable from "./elements/ClienteTable";
 import ClienteForm from "./elements/ClienteForm";
 import ClienteDetailModal from "./elements/ClienteDetailModal";
+import { exportToCSV } from "../../utils/csvExport";
+import type { CreateClienteDto, UpdateClienteDto } from "../../types/dto";
 
 export default function ClientesPage() {
+  const toast = useRef<Toast>(null);
   const {
     clientes,
     meta,
@@ -69,7 +72,7 @@ export default function ClientesPage() {
       await eliminarCliente(deleteTarget.id);
       setDeleteTarget(null);
     } catch (err: any) {
-      alert(err.message || "Error al eliminar el cliente");
+      toast.current?.show({ severity: "error", summary: "Error", detail: err.message || "Error al eliminar el cliente", life: 3000 });
     } finally {
       setDeleting(false);
     }
@@ -102,23 +105,15 @@ export default function ClientesPage() {
       `"${c.email || ""}"`,
       (c.limite_credito || 0).toFixed(2),
       (c.saldo_actual || 0).toFixed(2),
-      c.total_compras,
+      String(c.total_compras || 0),
       (c.monto_total_comprado || 0).toFixed(2)
     ]);
 
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Clientes_FarmaPOS_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCSV(`Clientes_FarmaPOS_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
   };
 
   const handleSave = useCallback(
-    async (data: Record<string, unknown>, mode: FormMode) => {
+    async (data: CreateClienteDto | UpdateClienteDto, mode: FormMode) => {
       if (mode === "editar" && clienteEditar) {
         await actualizarCliente(clienteEditar.id, data);
       } else {
@@ -290,6 +285,7 @@ export default function ClientesPage() {
           </div>
         </div>
       )}
+      <Toast ref={toast} />
     </div>
   );
 }

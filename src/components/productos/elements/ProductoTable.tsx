@@ -5,20 +5,20 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  Pill,
   PackagePlus,
   Calendar,
-  Clock,
   Layers,
   FileCheck,
+  ChevronDown,
 } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
 import type { ProductoPOS } from "../../api/api.data";
 
 type Props = {
   productos: ProductoPOS[];
   loading: boolean;
   meta: { total: number; page: number; limit: number; totalPages: number };
-  onEdit: (producto: ProductoPOS) => void;
+  onEdit: (producto: ProductoPOS, presentaciones?: ProductoPOS[]) => void;
   onDelete: (producto: ProductoPOS) => void;
   onReabastecer?: (producto: ProductoPOS) => void;
   onVerMovimientos?: (producto: ProductoPOS) => void;
@@ -35,6 +35,18 @@ export default function ProductoTable({
   onVerMovimientos,
   onPageChange,
 }: Props) {
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const productosAgrupados = useMemo(() => {
+    const grupos = new Map<string, ProductoPOS[]>();
+    productos.forEach((p) => {
+      const grupo = grupos.get(p.producto_comercial_id) || [];
+      grupo.push(p); grupos.set(p.producto_comercial_id, grupo);
+    });
+    return Array.from(grupos.values()).map((items) => ({ principal: items[0], presentaciones: items.sort((a, b) => a.cantidad_unidad_base - b.cantidad_unidad_base) }));
+  }, [productos]);
+  const toggleExpandido = (id: string) => setExpandidos((prev) => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
   /* ── Helper de cálculo de días para vencimiento ──────── */
   const calcularDiasVencimiento = (fechaStr: string) => {
     if (!fechaStr) return null;
@@ -68,118 +80,6 @@ export default function ProductoTable({
 
   return (
     <div>
-      {/* ═══ MOBILE: Cards ═══════════════════════════════ */}
-      <div className="md:hidden space-y-3 p-4">
-        {productos.map((p) => {
-          const diasVenc = calcularDiasVencimiento(p.lote_fefo_vencimiento);
-
-          return (
-            <div
-              key={`${p.producto_comercial_id}-${p.presentacion_id}`}
-              className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="text-sm font-bold text-slate-800 truncate">
-                      {p.nombre_comercial}
-                    </p>
-                    {p.requiere_receta && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-black bg-rose-50 text-rose-700 border border-rose-200 rounded-md">
-                        💊 Receta
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-                      {p.forma_farmaceutica}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-medium">
-                      {p.concentracion}{p.unidad_concentracion}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-1.5 text-xs text-slate-500">
-                    <Pill className="w-3 h-3" />
-                    <span>Presentación: {p.presentacion_nombre}</span>
-                  </div>
-                  {p.registro_sanitario && (
-                    <div className="text-[10px] text-slate-400 mt-1 font-mono">
-                      DIGEMID: {p.registro_sanitario}
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-right shrink-0">
-                  <span className="text-sm font-black text-slate-900 block">
-                    S/ {p.precio_actual.toFixed(2)}
-                  </span>
-                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full inline-block mt-1 ${
-                    p.stock_total === 0
-                      ? "bg-rose-100 text-rose-800 border border-rose-200"
-                      : p.stock_total <= 10
-                      ? "bg-amber-50 text-amber-700 border border-amber-200"
-                      : "bg-emerald-50 text-emerald-700"
-                  }`}>
-                    {p.stock_total} disp.
-                  </span>
-                </div>
-              </div>
-
-              {/* Vencimiento en Móvil */}
-              {p.lote_fefo_vencimiento && (
-                <div className="mt-2 text-[11px] text-slate-500 flex items-center gap-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                  <Clock className="w-3 h-3 text-slate-400" />
-                  <span>Vence lote <strong>{p.lote_fefo_numero}</strong>:</span>
-                  <span className={`font-bold ${
-                    diasVenc !== null && diasVenc <= 30
-                      ? "text-rose-600 font-extrabold"
-                      : diasVenc !== null && diasVenc <= 90
-                      ? "text-amber-600 font-extrabold"
-                      : "text-slate-700"
-                  }`}>
-                    {new Date(p.lote_fefo_vencimiento).toLocaleDateString()}
-                    {diasVenc !== null && ` (${diasVenc} d)`}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-slate-100">
-                {onVerMovimientos && (
-                  <button
-                    onClick={() => onVerMovimientos(p)}
-                    className="px-2 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1"
-                  >
-                    <Layers size={13} />
-                    <span>Lotes</span>
-                  </button>
-                )}
-                {onReabastecer && (
-                  <button
-                    onClick={() => onReabastecer(p)}
-                    className="px-2.5 py-1 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg flex items-center gap-1"
-                  >
-                    <PackagePlus size={13} />
-                    <span>+Stock</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => onEdit(p)}
-                  className="p-1.5 text-slate-400 hover:text-teal-600 rounded-lg"
-                >
-                  <Edit3 size={15} />
-                </button>
-                <button
-                  onClick={() => onDelete(p)}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       {/* ═══ DESKTOP: Tabla ══════════════════════════════ */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left text-xs font-sans">
@@ -195,11 +95,13 @@ export default function ProductoTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {productos.map((p) => {
+            {productosAgrupados.map(({ principal: p, presentaciones }) => {
               const diasVenc = calcularDiasVencimiento(p.lote_fefo_vencimiento);
+              const expandido = expandidos.has(p.producto_comercial_id);
 
               return (
-                <tr key={`${p.producto_comercial_id}-${p.presentacion_id}`} className="hover:bg-slate-50/70 transition">
+                <Fragment key={p.producto_comercial_id}>
+                <tr key={p.producto_comercial_id} className="hover:bg-slate-50/70 transition">
                   {/* Producto / Nombre */}
                   <td className="py-3 px-4 font-bold text-slate-900">
                     <div className="flex items-center gap-2">
@@ -240,9 +142,9 @@ export default function ProductoTable({
                   {/* Laboratorio */}
                   <td className="py-3 px-4 font-medium text-slate-600">
                     <div>{p.laboratorio}</div>
-                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-bold inline-block mt-0.5">
-                      {p.presentacion_nombre}
-                    </span>
+                    <button type="button" onClick={() => toggleExpandido(p.producto_comercial_id)} className="mt-1 text-[10px] font-bold text-indigo-700 inline-flex items-center gap-1 hover:text-indigo-900">
+                      <Layers className="w-3 h-3" /> {presentaciones.length} presentaciones <ChevronDown className={`w-3 h-3 transition ${expandido ? "rotate-180" : ""}`} />
+                    </button>
                   </td>
 
                   {/* Vencimiento FEFO con Semáforo */}
@@ -277,8 +179,15 @@ export default function ProductoTable({
                   </td>
 
                   {/* Precio */}
-                  <td className="py-3 px-4 text-right font-black text-teal-700 text-sm">
-                    S/ {p.precio_actual.toFixed(2)}
+                  <td className="py-3 px-4 text-right">
+                    <div className="space-y-0.5">
+                      {presentaciones.map((pres) => (
+                        <div key={pres.presentacion_id} className="text-[11px] leading-tight">
+                          <span className="font-semibold text-slate-500">{pres.presentacion_nombre}:</span>{" "}
+                          <span className="font-black text-teal-700">S/ {pres.precio_actual.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </td>
 
                   {/* Stock Base con Semáforo Tricolor */}
@@ -296,7 +205,7 @@ export default function ProductoTable({
                           <span>AGOTADO</span>
                         </>
                       ) : (
-                        <span>{p.stock_total} {p.unidad_abreviatura || "u."}</span>
+                        <span>{p.stock_total} unidades base</span>
                       )}
                     </span>
                   </td>
@@ -324,7 +233,7 @@ export default function ProductoTable({
                         </button>
                       )}
                       <button
-                        onClick={() => onEdit(p)}
+                        onClick={() => onEdit(p, presentaciones)}
                         title="Editar Producto"
                         className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition"
                       >
@@ -340,10 +249,65 @@ export default function ProductoTable({
                     </div>
                   </td>
                 </tr>
+                {expandido && <tr key={`${p.producto_comercial_id}-presentaciones`} className="bg-indigo-50/40"><td colSpan={7} className="px-4 py-3"><div className="grid grid-cols-1 sm:grid-cols-3 gap-2">{presentaciones.map((pres) => { const disponibles = Math.floor(p.stock_total / Math.max(1, pres.cantidad_unidad_base)); return <div key={pres.presentacion_id} className="bg-white border border-indigo-100 rounded-xl px-3 py-2 text-xs"><p className="font-black text-slate-800">{pres.presentacion_nombre} <span className="text-slate-400">×{pres.cantidad_unidad_base}</span></p><p className="text-teal-700 font-bold">S/ {pres.precio_actual.toFixed(2)} · Disponibles: {disponibles}</p><p className="text-[10px] text-slate-400">Código: {pres.codigo_barras || "sin código"}</p></div>; })}</div></td></tr>}
+                </Fragment>
               );
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* ═══ VISTA MÓVIL (CARDS) ══════════════════════════════════ */}
+      <div className="md:hidden divide-y divide-slate-100">
+        {productosAgrupados.map(({ principal: p, presentaciones }) => (
+          <div key={p.producto_comercial_id} className="p-3 bg-white space-y-2">
+            <div className="text-xs font-bold text-slate-800">{p.nombre_comercial}</div>
+            <div className="text-[10px] text-slate-500">
+              SKU: {p.sku || "N/A"}
+            </div>
+            <div className="text-[10px] text-slate-500">
+              {p.laboratorio}
+            </div>
+            <div className="text-[10px] text-slate-500">
+              {p.categoria || "Sin categoría"}
+            </div>
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-slate-500">Stock base: {p.stock_total}</span>
+              <span className="font-black text-slate-900">{presentaciones.length} presentaciones</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 text-[10px]">{presentaciones.map((pres) => <span key={pres.presentacion_id} className="p-1.5 rounded bg-indigo-50 text-indigo-800 font-bold">{pres.presentacion_nombre} ×{pres.cantidad_unidad_base}<br/>S/ {pres.precio_actual.toFixed(2)} · Disp. {Math.floor(p.stock_total / Math.max(1, pres.cantidad_unidad_base))}</span>)}</div>
+            <div className="flex items-center gap-2 pt-1">
+              {onVerMovimientos && (
+                <button
+                  onClick={() => onVerMovimientos(p)}
+                  className="px-2 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                >
+                  Ver lotes
+                </button>
+              )}
+              {onReabastecer && (
+                <button
+                  onClick={() => onReabastecer(p)}
+                  className="px-2 py-1 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg"
+                >
+                  Reabastecer
+                </button>
+              )}
+              <button
+                onClick={() => onEdit(p, presentaciones)}
+                className="p-1.5 text-slate-400 hover:text-teal-600 rounded-lg"
+              >
+                <Edit3 size={15} />
+              </button>
+              <button
+                onClick={() => onDelete(p)}
+                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ═══ PAGINACIÓN ══════════════════════════════════ */}

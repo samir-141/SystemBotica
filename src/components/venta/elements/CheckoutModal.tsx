@@ -20,6 +20,7 @@ import {
   Sparkles,
   Loader2,
   FileCode,
+  AlertTriangle,
 } from "lucide-react";
 import ImpresionComprobanteModal, { type ComprobanteData } from "../../reportes/elements/ImpresionComprobanteModal";
 import type {
@@ -29,11 +30,10 @@ import type {
   DatosCliente,
 } from "../types";
 import { useQueryClient } from "@tanstack/react-query";
-import { formatMoney } from "../utils";
+import { formatMoney } from "../utils/calculosVenta";
 import { posApi } from "../../api/api.data";
 
 
-/* ─── props ─────────────────────────────────────────── */
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -45,9 +45,10 @@ type Props = {
   onVentaExitosa?: () => void;
   /** Si los precios incluyen IGV (true) o la operación es exonerada/inafecta (false) */
   incluyeIGV?: boolean;
+  /** Cliente preseleccionado desde el POS (F4) */
+  clientePreseleccionado?: { nombre: string; tipo_documento: string; numero_documento: string; direccion?: string } | null;
 };
 
-/* ─── constants ─────────────────────────────────────── */
 const COMPROBANTES: {
   key: TipoComprobante;
   label: string;
@@ -96,9 +97,87 @@ const METODOS_PAGO: {
 
 const PASO_LABELS = ["Comprobante", "Datos y Pago", "Impresión"];
 
-/* ═══════════════════════════════════════════════════════
-   COMPONENT
-   ═══════════════════════════════════════════════════════ */
+function buildVentaPayload(opts: {
+  tipoComprobante: TipoComprobante | null;
+  tipoPago: "CONTADO" | "ABONO" | "ANTICIPO";
+  metodoPago: MetodoPago;
+  montoRecibido: string;
+  montoBrutoFinal: number;
+  baseImponible: number;
+  igvCalculado: number;
+  incluyeIGV: boolean;
+  datosCliente: DatosCliente;
+  carrito: ItemCarrito[];
+}): any {
+  const vuelto = Math.max(
+    opts.metodoPago === "EFECTIVO" && opts.montoRecibido
+      ? parseFloat(opts.montoRecibido) - opts.montoBrutoFinal
+      : 0,
+    0
+  );
+  return {
+    tipo_comprobante: opts.tipoComprobante,
+    tipo_pago: opts.tipoPago,
+    metodo_pago: opts.metodoPago,
+    monto_recibido: opts.montoRecibido ? parseFloat(opts.montoRecibido) : opts.montoBrutoFinal,
+    vuelto,
+    datos_cliente: opts.tipoComprobante !== "NOTA_VENTA" ? opts.datosCliente : undefined,
+    subtotal: opts.incluyeIGV ? opts.baseImponible : opts.montoBrutoFinal,
+    igv: opts.incluyeIGV ? opts.igvCalculado : 0,
+    total: opts.montoBrutoFinal,
+    items: opts.carrito.map((item) => ({
+      producto_comercial_id: item.producto_comercial_id,
+      presentacion_nombre: item.presentacion_nombre,
+      unidades_base_por_pack: item.unidades_base_por_pack,
+      cantidad: item.cantidad,
+      precio_unitario: item.precio_unitario,
+    })),
+  };
+}
+
+function buildComprobanteSnapshot(opts: {
+  tipoComprobante: TipoComprobante | null;
+  serieNumero: string;
+  datosCliente: DatosCliente;
+  carrito: ItemCarrito[];
+  baseImponible: number;
+  igvCalculado: number;
+  montoBrutoFinal: number;
+  metodoPago: MetodoPago;
+  montoRecibido: string;
+}): ComprobanteData {
+  const vuelto = Math.max(
+    opts.metodoPago === "EFECTIVO" && opts.montoRecibido
+      ? parseFloat(opts.montoRecibido) - opts.montoBrutoFinal
+      : 0,
+    0
+  );
+  return {
+    tipoComprobante: opts.tipoComprobante || "BOLETA",
+    serieNumero: opts.serieNumero,
+    fechaEmision: new Date().toISOString(),
+    cliente: {
+      nombre: opts.datosCliente.nombre_razon_social || "CLIENTE VARIOS",
+      tipoDocumento: opts.datosCliente.tipo_documento || "DNI",
+      numeroDocumento: opts.datosCliente.numero_documento || "",
+      direccion: opts.datosCliente.direccion,
+    },
+    items: opts.carrito.map((i) => ({
+      descripcion: i.nombre_comercial,
+      presentacion: i.presentacion_nombre,
+      cantidad: i.cantidad,
+      precioUnitario: i.precio_unitario,
+      subtotal: i.precio_unitario * i.cantidad,
+    })),
+    subtotal: opts.baseImponible,
+    igv: opts.igvCalculado,
+    total: opts.montoBrutoFinal,
+    metodoPago: opts.metodoPago || "EFECTIVO",
+    montoRecibido: opts.montoRecibido ? parseFloat(opts.montoRecibido) : opts.montoBrutoFinal,
+    vuelto,
+  };
+}
+
 export default function CheckoutModal({
   open,
   onClose,
@@ -109,9 +188,9 @@ export default function CheckoutModal({
   tipoPago,
   onVentaExitosa,
   incluyeIGV = true,
+  clientePreseleccionado,
 }: Props) {
   const queryClient = useQueryClient();
-  /* ── state ──────────────────────────────────────────── */
   const [paso, setPaso] = useState(0);
   const [tipoComprobante, setTipoComprobante] = useState<TipoComprobante | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
@@ -134,19 +213,27 @@ export default function CheckoutModal({
 
   const panelRef = useRef<HTMLDivElement>(null);
 
-  /* reset on open */
   useEffect(() => {
     if (open) {
       setPaso(0);
       setTipoComprobante(null);
       setMetodoPago("EFECTIVO");
       setMontoRecibido("");
-      setDatosCliente({
-        tipo_documento: "NINGUNO",
-        numero_documento: "",
-        nombre_razon_social: "",
-        direccion: "",
-      });
+      if (clientePreseleccionado) {
+        setDatosCliente({
+          tipo_documento: clientePreseleccionado.tipo_documento as any,
+          numero_documento: clientePreseleccionado.numero_documento,
+          nombre_razon_social: clientePreseleccionado.nombre,
+          direccion: clientePreseleccionado.direccion || "",
+        });
+      } else {
+        setDatosCliente({
+          tipo_documento: "NINGUNO",
+          numero_documento: "",
+          nombre_razon_social: "",
+          direccion: "",
+        });
+      }
       setAnimatingOut(false);
       setProcesando(false);
       setErrorVenta(null);
@@ -154,7 +241,7 @@ export default function CheckoutModal({
       setOrigenBadge(null);
       setComprobanteEmitidoSnapshot(null);
     }
-  }, [open]);
+  }, [open, clientePreseleccionado]);
 
   const handleConsultarPadron = async (numeroDoc: string, tipoDocOverride?: string) => {
     const tipoDoc = tipoDocOverride || (tipoComprobante === "BOLETA" ? "DNI" : tipoComprobante === "FACTURA" ? "RUC" : "DNI");
@@ -189,66 +276,102 @@ export default function CheckoutModal({
 
   const handleEmitirVenta = async () => {
     if (!tipoComprobante) return;
+
+    // Pre-validaciones por normativa SUNAT
+    if (tipoComprobante === "FACTURA") {
+      const ruc = (datosCliente.numero_documento || "").trim();
+      if (!ruc || ruc.length !== 11) {
+        setErrorVenta("Para Factura Electrónica es obligatorio un RUC de 11 dígitos.");
+        setProcesando(false);
+        return;
+      }
+    }
+
+    if (tipoComprobante === "BOLETA" && montoBrutoFinal >= 700) {
+      const numDoc = (datosCliente.numero_documento || "").trim();
+      if (!numDoc || numDoc.length < 8) {
+        setErrorVenta("Por normativa SUNAT, para Boletas iguales o mayores a S/ 700.00 es obligatorio ingresar DNI (8 dígitos) o CE del cliente.");
+        setProcesando(false);
+        return;
+      }
+    }
+
     setProcesando(true);
     setErrorVenta(null);
 
     try {
-      const payload = {
-        tipo_comprobante: tipoComprobante,
-        tipo_pago: tipoPago,
-        metodo_pago: metodoPago,
-        monto_recibido: montoRecibido ? parseFloat(montoRecibido) : montoBrutoFinal,
-        vuelto: Math.max(vuelto, 0),
-        datos_cliente: tipoComprobante !== "NOTA_VENTA" ? datosCliente : undefined,
-        subtotal: incluyeIGV ? baseImponible : montoBrutoFinal,
-        igv: incluyeIGV ? igvCalculado : 0,
-        total: montoBrutoFinal,
-        items: carrito.map((item) => ({
-          producto_comercial_id: item.producto_comercial_id,
-          presentacion_nombre: item.presentacion_nombre,
-          cantidad: item.cantidad,
-          precio_unitario: item.precio_unitario,
-        })),
-      };
+      const payload = buildVentaPayload({
+        tipoComprobante,
+        tipoPago,
+        metodoPago,
+        montoRecibido,
+        montoBrutoFinal,
+        baseImponible,
+        igvCalculado,
+        incluyeIGV,
+        datosCliente,
+        carrito,
+      });
 
-      // 1. Enviar la transacción de venta a la API backend (NestJS)
       await posApi.registrarVenta(payload);
 
-      // Invalidador de cache TanStack Query para refrescar el stock de productos de inmediato en la UI
-      queryClient.invalidateQueries({ queryKey: ["productos"] });
+      await queryClient.invalidateQueries({ queryKey: ["productos"] });
 
-      // 2. Guardar copia congelada de los datos del comprobante ANTES de vaciar el carrito
-      const snapshot: ComprobanteData = {
-        tipoComprobante: tipoComprobante || "BOLETA",
+      if (tipoComprobante !== "NOTA_VENTA") {
+        try {
+          const facturacionPayload = {
+            tipoDocumento: tipoComprobante === "FACTURA" ? "01" : "03",
+            serie: tipoComprobante === "FACTURA" ? "F001" : "B001",
+            correlativo: 1,
+            fechaEmision: new Date().toISOString(),
+            moneda: "PEN",
+            cliente: {
+              tipoDocumento: datosCliente.tipo_documento === "RUC" ? "6" : datosCliente.tipo_documento === "DNI" ? "1" : "0",
+              numeroDocumento: datosCliente.numero_documento,
+              razonSocial: datosCliente.nombre_razon_social || "CLIENTE VARIOS",
+              direccion: datosCliente.direccion,
+            },
+            items: carrito.map((item) => ({
+              codigoProducto: item.producto_comercial_id,
+              descripcion: item.nombre_comercial,
+              unidadMedida: "NIU",
+              cantidad: item.cantidad,
+              valorUnitario: item.precio_unitario / 1.18,
+              precioUnitario: item.precio_unitario,
+              subtotal: item.precio_unitario * item.cantidad / 1.18,
+              igv: item.precio_unitario * item.cantidad - item.precio_unitario * item.cantidad / 1.18,
+              total: item.precio_unitario * item.cantidad,
+              tipoAfectacionIgv: "10",
+            })),
+            totalGravadas: incluyeIGV ? baseImponible : 0,
+            totalExoneradas: 0,
+            totalInafectas: 0,
+            totalIgv: incluyeIGV ? igvCalculado : 0,
+            importeTotal: montoBrutoFinal,
+          };
+          await posApi.emitirComprobante(facturacionPayload);
+        } catch (factErr) {
+          console.warn("Facturacion stub no disponible:", factErr);
+        }
+      }
+
+      const snapshot = buildComprobanteSnapshot({
+        tipoComprobante,
         serieNumero,
-        fechaEmision: new Date().toISOString(),
-        cliente: {
-          nombre: datosCliente.nombre_razon_social || "CLIENTE VARIOS",
-          tipoDocumento: datosCliente.tipo_documento || "DNI",
-          numeroDocumento: datosCliente.numero_documento || "",
-          direccion: datosCliente.direccion,
-        },
-        items: carrito.map((i) => ({
-          descripcion: i.nombre_comercial,
-          presentacion: i.presentacion_nombre,
-          cantidad: i.cantidad,
-          precioUnitario: i.precio_unitario,
-          subtotal: i.precio_unitario * i.cantidad,
-        })),
-        subtotal: baseImponible,
-        igv: igvCalculado,
-        total: montoBrutoFinal,
-        metodoPago: metodoPago || "EFECTIVO",
-        montoRecibido: montoRecibido ? parseFloat(montoRecibido) : montoBrutoFinal,
-        vuelto: Math.max(vuelto, 0),
-      };
+        datosCliente,
+        carrito,
+        baseImponible,
+        igvCalculado,
+        montoBrutoFinal,
+        metodoPago,
+        montoRecibido,
+      });
       setComprobanteEmitidoSnapshot(snapshot);
 
       if (onVentaExitosa) {
-        onVentaExitosa(); // Limpia el carrito de fondo
+        onVentaExitosa();
       }
       
-      // Pasar a la pantalla de impresión (Paso 2)
       setSlideDir("left");
       setPaso(2);
     } catch (err: any) {
@@ -259,8 +382,6 @@ export default function CheckoutModal({
     }
   };
 
-
-  /* close with animation */
   const handleClose = () => {
     setAnimatingOut(true);
     setTimeout(() => {
@@ -269,19 +390,27 @@ export default function CheckoutModal({
     }, 200);
   };
 
-  /* ── derived ────────────────────────────────────────── */
   const vuelto =
     metodoPago === "EFECTIVO" && montoRecibido
       ? parseFloat(montoRecibido) - montoBrutoFinal
-      : 0;
+       : 0;
 
-  /* ── navigation ─────────────────────────────────────── */
   const canNext = (): boolean => {
     if (paso === 0) return tipoComprobante !== null;
     if (paso === 1) {
-      if (tipoComprobante === "BOLETA" && datosCliente.numero_documento.length !== 8) return false;
-      if (tipoComprobante === "FACTURA" && datosCliente.numero_documento.length !== 11) return false;
-      if (tipoComprobante === "FACTURA" && !datosCliente.nombre_razon_social.trim()) return false;
+      // Boleta: DNI/CE obligatorio solo cuando monto >= 700
+      if (tipoComprobante === "BOLETA" && montoBrutoFinal >= 700) {
+        const numDoc = datosCliente.numero_documento.trim();
+        // Acepta DNI (8 dígitos) o CE (7-12 chars)
+        const esValido = numDoc.length === 8 || (numDoc.length >= 7 && numDoc.length <= 12 && datosCliente.tipo_documento === "CE");
+        if (!esValido) return false;
+      }
+      // Factura: RUC obligatorio siempre
+      if (tipoComprobante === "FACTURA") {
+        if (datosCliente.numero_documento.length !== 11) return false;
+        if (!datosCliente.nombre_razon_social.trim()) return false;
+      }
+      // Efectivo: monto recibido debe ser >= total
       if (metodoPago === "EFECTIVO" && (!montoRecibido || parseFloat(montoRecibido) < montoBrutoFinal)) return false;
       return true;
     }
@@ -324,10 +453,7 @@ export default function CheckoutModal({
         ? "F001-00001247"
         : "NV01-00009103";
 
-  /* ═══════════════════════════════════════════════════════
-     RENDER
-     ═══════════════════════════════════════════════════════ */
-  return (
+   return (
     <>
       <div
       className={`fixed inset-0 z-[100] flex items-center justify-center p-4
@@ -342,7 +468,6 @@ export default function CheckoutModal({
           transition-all duration-200 origin-center
           ${animatingOut ? "scale-95 opacity-0" : "scale-100 opacity-100"}`}
       >
-        {/* ── HEADER ──────────────────────────────────── */}
         <div className="px-5 py-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
@@ -365,7 +490,6 @@ export default function CheckoutModal({
           </button>
         </div>
 
-        {/* ── STEPPER ─────────────────────────────────── */}
         <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 shrink-0">
           <div className="flex items-center justify-between">
             {PASO_LABELS.map((label, i) => (
@@ -405,7 +529,6 @@ export default function CheckoutModal({
         )}
 
 
-        {/* ── BODY (steps) ────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
           <div
             key={paso}
@@ -415,8 +538,7 @@ export default function CheckoutModal({
               "--slide-from": slideDir === "left" ? "24px" : "-24px",
             }}
           >
-            {/* ═════════ PASO 0 — Tipo de Comprobante ═════════ */}
-            {paso === 0 && (
+                {paso === 0 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-bold text-slate-800 mb-1">
@@ -462,7 +584,6 @@ export default function CheckoutModal({
                   })}
                 </div>
 
-                {/* Quick summary */}
                 <div className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500 font-medium">
@@ -476,10 +597,8 @@ export default function CheckoutModal({
               </div>
             )}
 
-            {/* ═════════ PASO 1 — Datos + Método de Pago ═════════ */}
             {paso === 1 && (
               <div className="space-y-5">
-                {/* Datos del cliente */}
                 {tipoComprobante !== "NOTA_VENTA" && (
                   <div className="space-y-3">
                     <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -487,7 +606,16 @@ export default function CheckoutModal({
                       Datos del Cliente
                     </h3>
 
-                    {/* Nro Documento */}
+                    {tipoComprobante === "BOLETA" && montoBrutoFinal >= 700 && (
+                      <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 font-medium flex items-start gap-2.5 shadow-sm">
+                        <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          <strong className="font-extrabold text-amber-950 block">Normativa SUNAT (Monto ≥ S/ 700.00):</strong>
+                          <span>Para Boletas de venta de S/ 700.00 a más, es obligatorio identificar al cliente con su DNI (8 dígitos) o CE.</span>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
@@ -535,7 +663,6 @@ export default function CheckoutModal({
                     </div>
 
 
-                    {/* Nombre / Razón Social */}
                     <div>
                       <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
                         {tipoComprobante === "BOLETA" ? "Nombre Completo" : "Razón Social"}
@@ -563,7 +690,6 @@ export default function CheckoutModal({
                       </div>
                     </div>
 
-                    {/* Dirección (solo factura) */}
                     {tipoComprobante === "FACTURA" && (
                       <div>
                         <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
@@ -598,13 +724,12 @@ export default function CheckoutModal({
                   </div>
                 )}
 
-                {/* Método de pago */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                     <CreditCard className="w-4 h-4 text-slate-400" />
                     Método de Pago
                   </h3>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {METODOS_PAGO.map((m) => {
                       const Icon = m.icon;
                       const selected = metodoPago === m.key;
@@ -633,7 +758,6 @@ export default function CheckoutModal({
                   </div>
                 </div>
 
-                {/* Monto recibido (solo efectivo) */}
                 {metodoPago === "EFECTIVO" && (
                   <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-3">
                     <div>
@@ -673,14 +797,12 @@ export default function CheckoutModal({
               </div>
             )}
 
-            {/* PASO 2: IMPRESIÓN Y ÉXITO */}
             {paso === 2 && (
           <div
             className={`animate-in slide-in-from-${slideDir === "left" ? "right" : "left"}-8 fade-in duration-300`}
           >
-            <div className="flex flex-col items-center text-center p-6 space-y-6">
+                <div className="flex flex-col items-center text-center p-6 space-y-6">
                   
-                  {/* Success Icon */}
                   <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center shadow-inner">
                     <CheckCircle2 className="w-10 h-10" />
                   </div>
@@ -692,9 +814,7 @@ export default function CheckoutModal({
                     </p>
                   </div>
 
-                  {/* Print Options */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-xl mt-4">
-                    {/* Ticket 58mm */}
                     <button
                       onClick={() => {
                         setFormatoSeleccionado("58mm");
@@ -711,7 +831,6 @@ export default function CheckoutModal({
                       </div>
                     </button>
 
-                    {/* Ticket 80mm */}
                     <button
                       onClick={() => {
                         setFormatoSeleccionado("80mm");
@@ -731,7 +850,6 @@ export default function CheckoutModal({
                       </div>
                     </button>
 
-                    {/* A4 */}
                     <button
                       onClick={() => {
                         setFormatoSeleccionado("A4");
@@ -748,7 +866,6 @@ export default function CheckoutModal({
                       </div>
                     </button>
 
-                    {/* Modelo XML UBL 2.1 */}
                     <button
                       onClick={() => {
                         setFormatoSeleccionado("xml");
@@ -772,10 +889,8 @@ export default function CheckoutModal({
           </div>
         </div>
 
-        {/* ── FOOTER (navigation) ─────────────────────── */}
         <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
           {paso === 2 ? (
-            // Footer Especial para Paso 2 (Éxito)
             <div className="w-full flex justify-end">
               <button
                 onClick={handleClose}
@@ -787,7 +902,6 @@ export default function CheckoutModal({
               </button>
             </div>
           ) : (
-            // Footer Normal
             <>
               {paso > 0 ? (
                 <button
@@ -847,7 +961,6 @@ export default function CheckoutModal({
       </div>
 
 
-      {/* slide animation style */}
       <style>{`
         @keyframes slideIn {
           from { opacity: 0; transform: translateX(var(--slide-from, 24px)); }
@@ -859,7 +972,6 @@ export default function CheckoutModal({
       `}</style>
     </div>
 
-    {/* Modal de Impresión / XML */}
     <ImpresionComprobanteModal
       open={showImpresionModal}
       onClose={() => setShowImpresionModal(false)}

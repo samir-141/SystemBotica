@@ -11,6 +11,7 @@ import {
   FileText,
 } from "lucide-react";
 import type { ProductoPOS } from "../../api/api.data";
+import { posApi } from "../../api/api.data";
 
 type Props = {
   open: boolean;
@@ -22,32 +23,41 @@ interface LoteDetalle {
   id: string;
   numero_lote: string;
   fecha_vencimiento: string;
+  fecha_ingreso?: string | null;
   stock_actual: number;
   precio_compra_unidad_base: number;
+}
+
+interface PresentacionDetalle {
+  id: string;
+  cantidad_unidad_base: number;
+  precio_actual: number;
+  unidad_presentacion: { nombre: string; abreviatura: string };
 }
 
 export default function MovimientosModal({ open, producto, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [lotes, setLotes] = useState<LoteDetalle[]>([]);
+  const [presentaciones, setPresentaciones] = useState<PresentacionDetalle[]>([]);
 
   useEffect(() => {
     if (!open || !producto) return;
+    let activo = true;
     setLoading(true);
-
-    if (producto.lote_fefo_numero) {
-      setLotes([
-        {
-          id: "lote-fefo-1",
-          numero_lote: producto.lote_fefo_numero,
-          fecha_vencimiento: producto.lote_fefo_vencimiento,
-          stock_actual: producto.stock_total,
-          precio_compra_unidad_base: 0,
-        },
-      ]);
-    } else {
-      setLotes([]);
-    }
-    setLoading(false);
+    posApi.getProductoDetalle(producto.producto_comercial_id)
+      .then((detalle) => {
+        if (!activo) return;
+        setLotes(detalle.lotes || []);
+        setPresentaciones(detalle.presentaciones || []);
+      })
+      .catch(() => {
+        if (activo) {
+          setLotes([]);
+          setPresentaciones([]);
+        }
+      })
+      .finally(() => activo && setLoading(false));
+    return () => { activo = false; };
   }, [open, producto]);
 
   if (!open || !producto) return null;
@@ -168,6 +178,16 @@ export default function MovimientosModal({ open, producto, onClose }: Props) {
                       <p className="text-xs text-slate-500 flex items-center gap-2">
                         <span>Vence: <strong className="text-slate-700">{lote.fecha_vencimiento ? new Date(lote.fecha_vencimiento).toLocaleDateString() : 'N/A'}</strong></span>
                       </p>
+                      <p className="text-[10px] text-slate-400">
+                        Ingreso: {lote.fecha_ingreso ? new Date(lote.fecha_ingreso).toLocaleDateString() : 'sin fecha'} · Costo base: S/ {Number(lote.precio_compra_unidad_base).toFixed(4)}
+                      </p>
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {presentaciones.map((pres) => (
+                          <span key={pres.id} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                            {pres.unidad_presentacion.nombre}: {Math.floor(lote.stock_actual / Math.max(1, pres.cantidad_unidad_base))}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="text-right">

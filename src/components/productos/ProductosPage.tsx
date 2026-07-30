@@ -1,5 +1,5 @@
 // src/components/productos/ProductosPage.tsx
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   Search,
   Plus,
@@ -9,6 +9,7 @@ import {
   ChevronDown,
   PackagePlus,
 } from "lucide-react";
+import { Toast } from "primereact/toast";
 import type { ProductoPOS } from "../api/api.data";
 import type { FormMode, TipoCatalogo } from "./types";
 import { useProductos } from "./hooks/useProductos";
@@ -17,8 +18,10 @@ import ProductoTable from "./elements/ProductoTable";
 import ProductoForm from "./elements/ProductoForm";
 import ReabastecerModal from "./elements/ReabastecerModal";
 import MovimientosModal from "./elements/MovimientosModal";
+import type { CreateProductoDto, UpdateProductoDto } from "../../types/dto";
 
 export default function ProductosPage() {
+  const toast = useRef<Toast>(null);
   const {
     productos,
     meta,
@@ -34,37 +37,37 @@ export default function ProductosPage() {
 
   const { catalogos, refreshCatalogo } = useCatalogos();
 
-  /* ── Estado UI ──────────────────────────────────────── */
   const [searchText, setSearchText] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<FormMode>("crear");
   const [productoEditar, setProductoEditar] = useState<ProductoPOS | null>(null);
+  const [presentacionesEditar, setPresentacionesEditar] = useState<ProductoPOS[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ProductoPOS | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* ── Modal Reabastecer Stock ────────────────────────── */
   const [reabastecerOpen, setReabastecerOpen] = useState(false);
   const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string } | null>(null);
 
-  /* ── Modal Movimientos & Lotes ──────────────────────── */
   const [movimientosOpen, setMovimientosOpen] = useState(false);
   const [productoMovimientos, setProductoMovimientos] = useState<ProductoPOS | null>(null);
+  const totalProductosUnicos = new Set(productos.map((p) => p.producto_comercial_id)).size;
 
-  /* ── Handlers ───────────────────────────────────────── */
   const handleSearch = (value: string) => {
     setSearchText(value);
     setBusqueda(value);
   };
 
-  const handleEdit = (producto: ProductoPOS) => {
+  const handleEdit = (producto: ProductoPOS, presentaciones: ProductoPOS[] = [producto]) => {
     setProductoEditar(producto);
+    setPresentacionesEditar(presentaciones);
     setFormMode("editar");
     setFormOpen(true);
   };
 
   const handleCreate = () => {
     setProductoEditar(null);
+    setPresentacionesEditar([]);
     setFormMode("crear");
     setFormOpen(true);
   };
@@ -93,14 +96,14 @@ export default function ProductosPage() {
       await eliminarProducto(deleteTarget.producto_comercial_id);
       setDeleteTarget(null);
     } catch (err: any) {
-      alert(err.message ?? "Error al eliminar");
+      toast.current?.show({ severity: "error", summary: "Error", detail: err.message ?? "Error al eliminar", life: 3000 });
     } finally {
       setDeleting(false);
     }
   };
 
   const handleSave = useCallback(
-    async (data: Record<string, unknown>, mode: FormMode) => {
+    async (data: CreateProductoDto | UpdateProductoDto, mode: FormMode) => {
       if (mode === "editar" && productoEditar) {
         await actualizarProducto(productoEditar.producto_comercial_id, data);
       } else {
@@ -117,9 +120,7 @@ export default function ProductosPage() {
 
   return (
     <div className="h-full flex flex-col bg-slate-100">
-      {/* ═══ HEADER / TOOLBAR ════════════════════════════ */}
       <div className="shrink-0 bg-white border-b border-slate-200 shadow-sm">
-        {/* Top bar */}
         <div className="px-4 py-4 md:px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
@@ -128,7 +129,7 @@ export default function ProductosPage() {
             <div>
               <h1 className="text-lg font-black text-slate-900">Productos & Inventario</h1>
               <p className="text-xs text-slate-400 font-medium">
-                {meta.total} producto{meta.total !== 1 ? "s" : ""} registrado{meta.total !== 1 ? "s" : ""}
+                {totalProductosUnicos} producto{totalProductosUnicos !== 1 ? "s" : ""} registrado{totalProductosUnicos !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
@@ -142,7 +143,6 @@ export default function ProductosPage() {
               <RefreshCw className="w-4 h-4" />
             </button>
 
-            {/* Botón Reabastecer Stock (+500 unidades) */}
             <button
               onClick={() => handleAbrirReabastecer()}
               className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-bold shadow-sm transition active:scale-[0.98] cursor-pointer"
@@ -152,7 +152,6 @@ export default function ProductosPage() {
               <span>Reabastecer Stock</span>
             </button>
 
-            {/* Botón Nuevo Producto */}
             <button
               onClick={handleCreate}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-sm transition active:scale-[0.98] cursor-pointer"
@@ -164,7 +163,6 @@ export default function ProductosPage() {
           </div>
         </div>
 
-        {/* Search + filter toggle */}
         <div className="px-4 pb-3 md:px-6 flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -190,14 +188,12 @@ export default function ProductosPage() {
           </button>
         </div>
 
-        {/* Collapsible filters */}
-        {showFilters && (
-          <div className="px-4 pb-4 md:px-6 border-t border-slate-100 pt-3 animate-fadeDown">
+      {showFilters && (
+        <div className="px-4 pb-4 md:px-6 border-t border-slate-100 pt-3 animate-fadeDown">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Filtro por laboratorio */}
-              <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                  Laboratorio
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                    Laboratorio
                 </label>
                 <select
                   onChange={(e) => setFiltro("laboratorio_id", e.target.value)}
@@ -210,10 +206,9 @@ export default function ProductosPage() {
                 </select>
               </div>
 
-              {/* Filtro por categoría */}
-              <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                  Categoría
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                    Categoría
                 </label>
                 <select
                   onChange={(e) => setFiltro("categoria_id", e.target.value)}
@@ -226,10 +221,9 @@ export default function ProductosPage() {
                 </select>
               </div>
 
-              {/* Filtro por principio activo */}
-              <div>
-                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                  Principio Activo
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                    Principio Activo
                 </label>
                 <select
                   onChange={(e) => setFiltro("principio_activo_id", e.target.value)}
@@ -246,7 +240,6 @@ export default function ProductosPage() {
         )}
       </div>
 
-      {/* ═══ BODY / TABLA DE PRODUCTOS ═══════════════════ */}
       <div className="flex-1 overflow-y-auto">
         <ProductoTable
           productos={productos}
@@ -263,18 +256,17 @@ export default function ProductosPage() {
         />
       </div>
 
-      {/* ═══ SLIDE-OVER FORMULARIO ═══════════════════════ */}
       <ProductoForm
         open={formOpen}
         mode={formMode}
         producto={productoEditar}
+        presentaciones={presentacionesEditar}
         catalogos={catalogos}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
         onCatalogoRefresh={handleCatalogoRefresh}
       />
 
-      {/* ═══ MODAL VER LOTES & MOVIMIENTOS FEFO ══════════ */}
       {movimientosOpen && (
         <MovimientosModal
           open={movimientosOpen}
@@ -283,7 +275,6 @@ export default function ProductosPage() {
         />
       )}
 
-      {/* ═══ MODAL REABASTECER STOCK (+500 UNIDADES) ═════ */}
       {reabastecerOpen && (
         <ReabastecerModal
           open={reabastecerOpen}
@@ -293,12 +284,15 @@ export default function ProductosPage() {
             producto_comercial_id: p.producto_comercial_id,
             nombre_comercial: p.nombre_comercial,
             sku: p.sku,
+            codigo_barras: p.codigo_barras,
+            presentacion_id: p.presentacion_id,
+            presentacion_nombre: p.presentacion_nombre,
+            cantidad_unidad_base: p.cantidad_unidad_base,
           }))}
           onSuccess={() => refetch()}
         />
       )}
 
-      {/* ═══ MODAL DE CONFIRMACIÓN DE ELIMINACIÓN ════════ */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full overflow-hidden border border-slate-200 animate-scaleIn">
@@ -344,6 +338,7 @@ export default function ProductosPage() {
         }
         .animate-scaleIn { animation: scaleIn 0.2s ease-out both; }
       `}</style>
+      <Toast ref={toast} />
     </div>
   );
 }

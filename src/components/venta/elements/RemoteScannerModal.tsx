@@ -41,7 +41,14 @@ export default function RemoteScannerModal({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const url = `${window.location.origin}/escanner-remoto?session=${sessionCode}`;
+      // En desarrollo el POS puede abrirse en localhost, pero el teléfono no
+      // puede resolverlo. En ese caso usamos la IP/host configurado para la API.
+      const apiUrl = String(import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
+      const apiHost = apiUrl ? new URL(apiUrl).hostname : "";
+      const origin = window.location.hostname === "localhost" && apiHost
+        ? `${window.location.protocol}//${apiHost}:${window.location.port || "5173"}`
+        : window.location.origin;
+      const url = `${origin}/escanner-remoto?session=${encodeURIComponent(sessionCode)}`;
       setUrlEscanner(url);
 
       // Generar imagen DataURL de código QR 2D real scaneable por cualquier celular

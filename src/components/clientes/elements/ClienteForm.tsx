@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { X, Save, Loader2, User, Hash, CheckCircle2 } from "lucide-react";
 import type { Cliente, ClienteFormData, FormMode, TipoDocumento, TipoCliente, CondicionContribuyente } from "../types";
+import type { CreateClienteDto, UpdateClienteDto } from "../../../types/dto";
 
 type Props = {
   open: boolean;
   mode: FormMode;
   cliente: Cliente | null;
   onClose: () => void;
-  onSave: (data: Record<string, unknown>, mode: FormMode) => Promise<void>;
+  onSave: (data: CreateClienteDto | UpdateClienteDto, mode: FormMode) => Promise<void>;
 };
 
 const EMPTY_FORM: ClienteFormData = {
@@ -139,10 +140,18 @@ export default function ClienteForm({
       setError("El nombre o razón social es obligatorio.");
       return;
     }
+    if (!form.tipo_cliente) {
+      setError("El tipo de cliente es obligatorio.");
+      return;
+    }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setError("El correo electrónico no tiene un formato válido.");
+      return;
+    }
 
     setSaving(true);
     try {
-      await onSave(form as any, mode);
+      await onSave(form as CreateClienteDto, mode);
       onClose();
     } catch (err: any) {
       console.error(err);
@@ -163,7 +172,6 @@ export default function ClienteForm({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col overflow-hidden animate-slideLeft"
       >
-        {/* Header */}
         <div className="px-5 py-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center">
@@ -183,7 +191,6 @@ export default function ClienteForm({
           </button>
         </div>
 
-        {/* Tabs de Secciones */}
         <div className="bg-slate-100 px-5 pt-3 pb-0 border-b border-slate-200 flex gap-2 shrink-0">
           <button
             type="button"
@@ -220,18 +227,15 @@ export default function ClienteForm({
           </button>
         </div>
 
-        {/* Formulario Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
               {error}
             </div>
           )}
-
-          {/* TAB 1: DATOS GENERALES & SUNAT */}
-          {tabActiva === "general" && (
+ 
+           {tabActiva === "general" && (
             <div className="space-y-4 animate-fadeIn">
-              {/* Tipo y Número de Documento */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
@@ -288,7 +292,6 @@ export default function ClienteForm({
                 </div>
               )}
 
-              {/* Nombre / Razón Social */}
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
                   Nombre Completo / Razón Social *
@@ -303,7 +306,6 @@ export default function ClienteForm({
                 />
               </div>
 
-              {/* Clasificación & Condición SUNAT */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
@@ -340,7 +342,6 @@ export default function ClienteForm({
                 </div>
               </div>
 
-              {/* Teléfono & WhatsApp */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
@@ -368,7 +369,6 @@ export default function ClienteForm({
                 </div>
               </div>
 
-              {/* Email & Dirección */}
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
                   Correo Electrónico
@@ -396,9 +396,8 @@ export default function ClienteForm({
               </div>
             </div>
           )}
-
-          {/* TAB 2: DATOS B2B & REPRESENTANTE */}
-          {tabActiva === "b2b" && (
+ 
+           {tabActiva === "b2b" && (
             <div className="space-y-4 animate-fadeIn">
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
                 <span className="font-bold text-slate-700 block mb-1">Información Corporativa & Contactos B2B</span>
@@ -472,9 +471,8 @@ export default function ClienteForm({
               </div>
             </div>
           )}
-
-          {/* TAB 3: CRÉDITO & COBRANZA */}
-          {tabActiva === "credito" && (
+ 
+           {tabActiva === "credito" && (
             <div className="space-y-4 animate-fadeIn">
               <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-xs text-emerald-800">
                 <span className="font-bold block mb-0.5">Control de Línea de Crédito & Finanzas</span>
@@ -542,7 +540,6 @@ export default function ClienteForm({
             </div>
           )}
 
-          {/* Footer Submit */}
           <div className="pt-4 border-t border-slate-200 flex gap-2">
             <button
               type="button"

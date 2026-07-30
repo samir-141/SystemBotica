@@ -1,3 +1,7 @@
+// El backend Prisma usa VARCHAR(10) sin enum, por lo que acepta cualquier cadena.
+// El DTO CreateClienteDto solo valida @IsNotEmpty() y @IsString(), sin restringir valores.
+// El módulo facturacion define un enum interno (TipoDocumentoIdentidad) para emisión de comprobantes,
+// pero la capa de clientes almacena DNI, RUC, CE y PASAPORTE libremente.
 export type TipoDocumento = "DNI" | "RUC" | "CE" | "PASAPORTE";
 export type TipoCliente = "NATURAL" | "JURIDICO" | "HOSPITAL" | "CLINICA" | "DROGUERIA" | "BOTICA" | "OTRO";
 export type CondicionContribuyente = "HABIDO" | "NO HABIDO" | "SUSPENDED" | "ANULADO";

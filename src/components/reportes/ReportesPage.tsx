@@ -7,6 +7,7 @@ import {
   Store,
   Sparkles,
   FileCode,
+  Landmark,
 } from "lucide-react";
 
 import { useReportes } from "./hooks/useReportes";
@@ -14,16 +15,18 @@ import { useAuth } from "../../hooks/useAuth";
 import ReporteVentas from "./elements/ReporteVentas";
 import ReporteInventario from "./elements/ReporteInventario";
 import ReporteComprobantes from "./elements/ReporteComprobantes";
+import ReporteFinanciero from "./elements/ReporteFinanciero";
 
-type TabType = "ventas" | "inventario" | "comprobantes";
+type TabType = "finanzas" | "ventas" | "inventario" | "comprobantes";
 
 export default function ReportesPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { sucursalActual } = useAuth();
+  const { sucursalActual, sucursales } = useAuth();
 
   // Determinar pestaña activa por ruta o estado
-  let initialTab: TabType = "ventas";
+  let initialTab: TabType = "finanzas";
+  if (location.pathname.includes("historial")) initialTab = "ventas";
   if (location.pathname.includes("inventario")) initialTab = "inventario";
   if (location.pathname.includes("comprobantes") || location.pathname.includes("boletas")) initialTab = "comprobantes";
 
@@ -32,24 +35,31 @@ export default function ReportesPage() {
   const {
     reporteVentas,
     reporteInventario,
+    reporteFinanciero,
     loadingVentas,
     loadingInventario,
+    loadingFinanciero,
     fechaInicio,
     setFechaInicio,
     fechaFin,
     setFechaFin,
     refetchVentas,
     refetchInventario,
+    sucursalReporteId,
+    setSucursalReporteId,
+    refetchFinanciero,
   } = useReportes();
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    if (tab === "inventario") {
+    if (tab === "finanzas") {
+      navigate("/reportes/ventas");
+    } else if (tab === "inventario") {
       navigate("/reportes/inventario");
     } else if (tab === "comprobantes") {
       navigate("/reportes/comprobantes");
     } else {
-      navigate("/reportes/ventas");
+      navigate("/ventas/historial");
     }
   };
 
@@ -78,16 +88,17 @@ export default function ReportesPage() {
         {/* Tab Switcher */}
         <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0 flex-wrap sm:flex-nowrap gap-1">
           <button
-            onClick={() => handleTabChange("ventas")}
+            onClick={() => handleTabChange("finanzas")}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
-              activeTab === "ventas"
+              activeTab === "finanzas"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <BarChart3 className="w-4 h-4" />
-            <span>Ventas & Finanzas</span>
+            <Landmark className="w-4 h-4" />
+            <span>Finanzas</span>
           </button>
+          <button onClick={() => handleTabChange("ventas")} className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "ventas" ? "bg-white text-purple-700 shadow-sm font-extrabold" : "text-slate-600 hover:text-slate-900"}`}><BarChart3 className="w-4 h-4" /><span>Ventas</span></button>
           <button
             onClick={() => handleTabChange("comprobantes")}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all cursor-pointer ${
@@ -114,6 +125,8 @@ export default function ReportesPage() {
       </div>
 
       {/* ═══ CONTENIDO DE LA PESTAÑA ACTIVA ═══════════════════════════ */}
+      {activeTab === "finanzas" && <ReporteFinanciero reporte={reporteFinanciero} loading={loadingFinanciero} sucursalId={sucursalReporteId} sucursales={sucursales} onSucursalChange={setSucursalReporteId} onRefresh={refetchFinanciero} />}
+
       {activeTab === "ventas" && (
         <ReporteVentas
           reporte={reporteVentas}

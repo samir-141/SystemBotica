@@ -46,12 +46,12 @@ export function useClientes() {
     return () => clearTimeout(timer);
   }, [fetchClientes]);
 
-  const crearCliente = async (payload: Record<string, unknown>) => {
+  const crearCliente = async (payload: any) => {
     await posApi.crearCliente(payload);
     await fetchClientes();
   };
 
-  const actualizarCliente = async (id: string, payload: Record<string, unknown>) => {
+  const actualizarCliente = async (id: string, payload: any) => {
     await posApi.actualizarCliente(id, payload);
     await fetchClientes();
   };

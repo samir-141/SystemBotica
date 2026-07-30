@@ -1,5 +1,6 @@
 // src/components/productos/elements/ProductoForm.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import {
   X,
   Save,
@@ -13,21 +14,25 @@ import {
   Pill,
   Sparkles,
   Layers,
+  Plus,
+  Trash2,
+  ScanLine,
 } from "lucide-react";
 import type { ProductoPOS } from "../../api/api.data";
-import { posApi } from "../../api/api.data";
 import type { ProductoFormData, FormMode, TipoCatalogo } from "../types";
 import { VIAS_ADMINISTRACION, UNIDADES_CONCENTRACION } from "../types";
 import type { CatalogosMap } from "../hooks/useCatalogos";
+import type { CreateProductoDto, UpdateProductoDto } from "../../../types/dto";
 import CatalogoSelect from "./CatalogoSelect";
 
 type Props = {
   open: boolean;
   mode: FormMode;
   producto: ProductoPOS | null;
+  presentaciones?: ProductoPOS[];
   catalogos: CatalogosMap;
   onClose: () => void;
-  onSave: (data: Record<string, unknown>, mode: FormMode) => Promise<void>;
+  onSave: (data: CreateProductoDto | UpdateProductoDto, mode: FormMode) => Promise<void>;
   onCatalogoRefresh: (tipo: TipoCatalogo) => void;
 };
 
@@ -55,6 +60,7 @@ export default function ProductoForm({
   open,
   mode,
   producto,
+  presentaciones = [],
   catalogos,
   onClose,
   onSave,
@@ -64,22 +70,50 @@ export default function ProductoForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados para búsqueda de producto comercial existente
-  const [searchVal, setSearchVal] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [foundProduct, setFoundProduct] = useState(false);
+  const foundProduct = false;
 
   // Estado para la ventana de ayuda sobre presentaciones
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
+  const [presentacionesExtra, setPresentacionesExtra] = useState<Array<{
+    unidad_presentacion_id: string;
+    cantidad_unidad_base: number | "";
+    precio_actual: number | "";
+    codigo_barras: string;
+  }>>([]);
+  const [scannerAbierto, setScannerAbierto] = useState(false);
+  const videoScannerRef = useRef<HTMLVideoElement>(null);
 
   const isEdit = mode === "editar";
+  const set = (key: keyof ProductoFormData, val: any) =>
+    setForm((prev) => ({ ...prev, [key]: val }));
+  const presentacionesEdicion = useMemo(
+    () => (presentaciones.length > 0 ? [...presentaciones] : producto ? [producto] : [])
+      .sort((a, b) => a.cantidad_unidad_base - b.cantidad_unidad_base),
+    [presentaciones, producto],
+  );
+  const presentacionEditando = presentacionesEdicion.find(
+    (item) => item.presentacion_id === form.presentacion_id,
+  );
+
+  const seleccionarPresentacionEdicion = (presentacionId: string) => {
+    const seleccionada = presentacionesEdicion.find(
+      (item) => item.presentacion_id === presentacionId,
+    );
+    if (!seleccionada) return;
+    setForm((prev) => ({
+      ...prev,
+      presentacion_id: seleccionada.presentacion_id,
+      cantidad_unidad_base: seleccionada.cantidad_unidad_base,
+      precio_actual: seleccionada.precio_actual,
+      codigo_barras: seleccionada.codigo_barras || "",
+    }));
+  };
 
   /* Pre-fill form on open */
   useEffect(() => {
     if (!open) return;
     setError(null);
-    setSearchVal("");
-    setFoundProduct(false);
+    setPresentacionesExtra([]);
 
     if (isEdit && producto) {
       setForm({
@@ -106,50 +140,92 @@ export default function ProductoForm({
     }
   }, [open, mode, producto, isEdit]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!scannerAbierto || !videoScannerRef.current) return;
+    const reader = new BrowserMultiFormatReader();
+    reader.decodeFromConstraints(
+      { video: { facingMode: { ideal: "environment" } } },
+      videoScannerRef.current,
+      (result, error) => {
+        if (result) {
+          set("codigo_barras", result.getText());
+          setScannerAbierto(false);
+        } else if (error && !(error instanceof NotFoundException)) {
+          console.warn("[ProductoBarcodeScanner]", error);
+        }
+      },
+    ).catch(() => setError("No se pudo abrir la cámara. Puedes escribir o usar un lector USB en el campo de código."));
+    return () => reader.reset();
+  }, [scannerAbierto]);
 
-  const set = (key: keyof ProductoFormData, val: any) =>
-    setForm((prev) => ({ ...prev, [key]: val }));
+  const unidadesSugeridas = useMemo(() => {
+    const todas = catalogos["unidades-presentacion"];
+    const forma = catalogos["formas-farmaceuticas"].find((item) => item.id === form.forma_farmaceutica_id)?.nombre.toLowerCase() || "";
+    let patron: RegExp | null = null;
+    if (/(tableta|cápsula|comprimido|gragea|pastilla)/.test(forma)) patron = /(tableta|cápsula|comprimido|blíster|caja|sobre)/i;
+    else if (/(jarabe|solución|suspensión|gota|líquido)/.test(forma)) patron = /(frasco|botella|ml|caja|sobre)/i;
+    else if (/(ampolla|inyectable|vial)/.test(forma)) patron = /(ampolla|vial|jeringa|caja)/i;
+    else if (/(crema|gel|pomada|ungüento)/.test(forma)) patron = /(tubo|tarro|sobre|caja)/i;
+    const filtradas = patron ? todas.filter((unidad) => patron!.test(unidad.nombre)) : todas;
+    return filtradas.length > 0 ? filtradas : todas;
+  }, [catalogos, form.forma_farmaceutica_id]);
 
-  /* Búsqueda por SKU o Código de Barras */
-  const handleSearch = async () => {
-    if (!searchVal.trim()) return;
-    setSearching(true);
-    setError(null);
-    try {
-      const res = await posApi.buscarPorIdentificador(searchVal.trim());
-      if (res.encontrado) {
-        const p = res;
-        setForm((prev) => ({
-          ...prev,
-          nombre_comercial: p.nombre_comercial,
-          sku: p.sku,
-          codigo_interno: p.codigo_interno || "",
-          principio_activo_id: p.principio_activo_id,
-          forma_farmaceutica_id: p.forma_farmaceutica_id,
-          laboratorio_id: p.laboratorio_id,
-          categoria_id: p.categoria_id,
-          concentracion: p.concentracion,
-          unidad_concentracion: p.unidad_concentracion,
-          via_administracion: p.via_administracion,
-          requiere_receta: p.requiere_receta,
-          afecto_igv: p.afecto_igv,
-        }));
-        setFoundProduct(true);
-      } else {
-        setError("No se encontró ningún producto comercial con ese identificador.");
-      }
-    } catch (err: any) {
-      setError(err.message ?? "Error en la búsqueda");
-    } finally {
-      setSearching(false);
-    }
+  // Caja, blíster y sobre son empaques comerciales; no pueden ser la unidad base.
+  // La unidad base representa el tipo físico que se consume: tableta, frasco, ampolla, tubo, etc.
+  const unidadesBaseSugeridas = useMemo(() => {
+    const empaques = /(caja|blíster|blister|sobre|display|pack)/i;
+    const candidatas = unidadesSugeridas.filter((unidad) => !empaques.test(unidad.nombre));
+    return candidatas.length > 0 ? candidatas : unidadesSugeridas;
+  }, [unidadesSugeridas]);
+
+  const formaSeleccionada = catalogos["formas-farmaceuticas"].find(
+    (item) => item.id === form.forma_farmaceutica_id,
+  )?.nombre;
+
+  const alternarPresentacionExtra = (unidadId: string) => {
+    setPresentacionesExtra((prev) => prev.some((item) => item.unidad_presentacion_id === unidadId)
+      ? prev.filter((item) => item.unidad_presentacion_id !== unidadId)
+      : [...prev, { unidad_presentacion_id: unidadId, cantidad_unidad_base: "", precio_actual: "", codigo_barras: "" }]);
   };
+
+  if (!open) return null;
 
   /* Submit handler */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!isEdit) {
+      if (!form.principio_activo_id) {
+        setError("Selecciona un principio activo.");
+        return;
+      }
+      if (!form.forma_farmaceutica_id) {
+        setError("Selecciona una forma farmacéutica.");
+        return;
+      }
+      if (!form.laboratorio_id) {
+        setError("Selecciona un laboratorio.");
+        return;
+      }
+      if (!form.categoria_id) {
+        setError("Selecciona una categoría.");
+        return;
+      }
+      if (!form.presentacion_id) {
+        setError("Selecciona la unidad base del producto.");
+        return;
+      }
+      const unidadesSeleccionadas = [form.presentacion_id, ...presentacionesExtra.map((p) => p.unidad_presentacion_id)];
+      if (unidadesSeleccionadas.some((id) => !id) || new Set(unidadesSeleccionadas).size !== unidadesSeleccionadas.length) {
+        setError("Cada presentación debe tener una unidad distinta.");
+        return;
+      }
+      if (presentacionesExtra.some((p) => !p.cantidad_unidad_base || Number(p.cantidad_unidad_base) <= 1 || p.precio_actual === "" || Number(p.precio_actual) < 0)) {
+        setError("Completa equivalencia y precio de cada presentación adicional. Deben contener más de una unidad base.");
+        return;
+      }
+    }
 
     if (form.precio_actual === "" || Number(form.precio_actual) < 0) {
       setError("El precio de venta debe ser un número válido mayor o igual a 0.");
@@ -163,7 +239,29 @@ export default function ProductoForm({
 
     setSaving(true);
     try {
-      await onSave(form as unknown as Record<string, unknown>, mode);
+      const data = isEdit
+        ? form as UpdateProductoDto
+        : {
+            ...form,
+            producto_comercial_id: undefined,
+            unidad_base_id: form.presentacion_id,
+            cantidad_unidad_base: 1,
+            presentaciones: [
+              {
+                unidad_presentacion_id: form.presentacion_id,
+                cantidad_unidad_base: 1,
+                precio_actual: Number(form.precio_actual),
+                codigo_barras: form.codigo_barras || undefined,
+              },
+              ...presentacionesExtra.map((p) => ({
+                unidad_presentacion_id: p.unidad_presentacion_id,
+                cantidad_unidad_base: Number(p.cantidad_unidad_base),
+                precio_actual: Number(p.precio_actual),
+                codigo_barras: p.codigo_barras || undefined,
+              })),
+            ],
+          } as CreateProductoDto;
+      await onSave(data, mode);
       onClose();
     } catch (err: any) {
       setError(err.message ?? "Error al guardar el producto");
@@ -207,38 +305,6 @@ export default function ProductoForm({
             {error && (
               <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700">
                 {error}
-              </div>
-            )}
-
-            {/* Búsqueda previa en modo Crear */}
-            {!isEdit && (
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
-                  ¿El producto comercial ya existe? Búscalo aquí:
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={searchVal}
-                    onChange={(e) => setSearchVal(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearch())}
-                    placeholder="Escribe SKU o Código de Barras..."
-                    className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSearch}
-                    disabled={searching}
-                    className="px-3.5 py-2 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition cursor-pointer"
-                  >
-                    {searching ? "Buscando..." : "Buscar"}
-                  </button>
-                </div>
-                {foundProduct && (
-                  <p className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                    ✓ Producto encontrado. Los datos del medicamento han sido rellenados.
-                  </p>
-                )}
               </div>
             )}
 
@@ -351,7 +417,11 @@ export default function ProductoForm({
                     tipo="formas-farmaceuticas"
                     items={catalogos["formas-farmaceuticas"]}
                     value={form.forma_farmaceutica_id}
-                    onChange={(id) => set("forma_farmaceutica_id", id)}
+                    onChange={(id) => {
+                      set("forma_farmaceutica_id", id);
+                      set("presentacion_id", "");
+                      setPresentacionesExtra([]);
+                    }}
                     onItemCreated={onCatalogoRefresh}
                     disabled={foundProduct}
                     required
@@ -449,15 +519,24 @@ export default function ProductoForm({
                 <>
                   <CatalogoSelect
                     tipo="unidades-presentacion"
-                    items={catalogos["unidades-presentacion"]}
+                    label="Unidad base del medicamento"
+                    items={unidadesBaseSugeridas}
                     value={form.presentacion_id}
-                    onChange={(id) => set("presentacion_id", id)}
+                    onChange={(id) => {
+                      set("presentacion_id", id);
+                      set("cantidad_unidad_base", 1);
+                    }}
                     onItemCreated={onCatalogoRefresh}
                     required
                   />
+                  <p className="-mt-2 text-[10px] text-slate-400">
+                    {formaSeleccionada
+                      ? `Unidad base para ${formaSeleccionada}. Los empaques se seleccionan abajo.`
+                      : "Primero selecciona la forma farmacéutica para filtrar la unidad base."}
+                  </p>
 
                   {/* Preajustes rápidos de equivalencia */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <div className="hidden">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Ajustes rápidos:</span>
                     <button
                       type="button"
@@ -490,20 +569,40 @@ export default function ProductoForm({
                       type="number"
                       min={1}
                       value={form.cantidad_unidad_base}
-                      onChange={(e) =>
-                        set("cantidad_unidad_base", e.target.value === "" ? "" : Number(e.target.value))
-                      }
-                      placeholder="1"
-                      className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 focus:outline-none transition"
+                      readOnly
+                      className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-mono"
                     />
+                    <p className="mt-1 text-[10px] text-slate-400">La unidad base siempre equivale a 1. Agrega caja, blíster, frasco u otro empaque abajo.</p>
                   </div>
                 </>
+              )}
+
+              {isEdit && (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+                  <label className="text-[10px] font-bold uppercase text-indigo-700 tracking-wider block mb-1">
+                    Presentación que deseas editar
+                  </label>
+                  <select
+                    value={form.presentacion_id}
+                    onChange={(e) => seleccionarPresentacionEdicion(e.target.value)}
+                    className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                  >
+                    {presentacionesEdicion.map((presentacion) => (
+                      <option key={presentacion.presentacion_id} value={presentacion.presentacion_id}>
+                        {presentacion.presentacion_nombre} (equivale a {presentacion.cantidad_unidad_base} unidad{presentacion.cantidad_unidad_base !== 1 ? "es" : ""} base)
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-[10px] text-slate-500">
+                    Cada presentación mantiene su propio precio y código de barras.
+                  </p>
+                </div>
               )}
 
               {/* Precio */}
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                  Precio de Venta (S/) <span className="text-rose-400">*</span>
+                  Precio de Venta{isEdit && presentacionEditando ? ` — ${presentacionEditando.presentacion_nombre}` : ""} (S/) <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">
@@ -526,16 +625,67 @@ export default function ProductoForm({
               {/* Código de barras */}
               <div>
                 <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1 flex items-center gap-1">
-                  <Barcode className="w-3.5 h-3.5" /> Código de Barras
+                  <Barcode className="w-3.5 h-3.5" /> Código de Barras de la unidad base
                 </label>
-                <input
-                  type="text"
-                  value={form.codigo_barras}
-                  onChange={(e) => set("codigo_barras", e.target.value)}
-                  placeholder="ej. 7751234567890"
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono tracking-wider focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 focus:outline-none transition"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.codigo_barras}
+                    onChange={(e) => set("codigo_barras", e.target.value)}
+                    placeholder="ej. 7751234567890"
+                    className="min-w-0 flex-1 px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-mono tracking-wider focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400 focus:outline-none transition"
+                  />
+                  {!isEdit && (
+                    <button type="button" onClick={() => setScannerAbierto(true)} title="Escanear código con cámara" className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100">
+                      <ScanLine className="h-4 w-4" /> Escanear
+                    </button>
+                  )}
+                </div>
+                <p className="mt-1 text-[10px] text-slate-400">Opcional: también puedes enfocar este campo y usar un lector USB.</p>
+                {!isEdit && scannerAbierto && (
+                  <div className="mt-2 overflow-hidden rounded-xl border border-indigo-200 bg-black">
+                    <video ref={videoScannerRef} className="max-h-56 w-full object-cover" playsInline muted />
+                    <button type="button" onClick={() => setScannerAbierto(false)} className="w-full bg-slate-900 px-3 py-2 text-xs font-bold text-white">Cerrar cámara</button>
+                  </div>
+                )}
               </div>
+
+              {!isEdit && !foundProduct && (
+                <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Presentaciones de venta adicionales</p>
+                      <p className="text-[10px] text-slate-500">Sugeridas según la forma farmacéutica; puedes marcar varias y configurar cada una.</p>
+                    </div>
+                    <button type="button" onClick={() => setPresentacionesExtra((prev) => [...prev, { unidad_presentacion_id: "", cantidad_unidad_base: "", precio_actual: "", codigo_barras: "" }])} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-teal-600 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-teal-700">
+                      <Plus className="h-3.5 w-3.5" /> Añadir
+                    </button>
+                  </div>
+                  {form.presentacion_id && (
+                    <div className="grid grid-cols-2 gap-2 rounded-lg border border-teal-100 bg-white p-2.5 sm:grid-cols-3">
+                      {unidadesSugeridas.filter((unidad) => unidad.id !== form.presentacion_id).map((unidad) => {
+                        const seleccionada = presentacionesExtra.some((item) => item.unidad_presentacion_id === unidad.id);
+                        return <label key={unidad.id} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-xs font-bold ${seleccionada ? "border-teal-400 bg-teal-50 text-teal-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                          <input type="checkbox" checked={seleccionada} onChange={() => alternarPresentacionExtra(unidad.id)} className="accent-teal-600" />
+                          {unidad.nombre}
+                        </label>;
+                      })}
+                    </div>
+                  )}
+                  {presentacionesExtra.map((pres, index) => (
+                    <div key={index} className="grid grid-cols-2 gap-2 rounded-lg border border-teal-100 bg-white p-2.5">
+                      <select value={pres.unidad_presentacion_id} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, unidad_presentacion_id: e.target.value } : item))} className="col-span-2 w-full rounded-lg border border-slate-200 px-2 py-2 text-xs">
+                        <option value="">Seleccionar presentación</option>
+                        {catalogos["unidades-presentacion"].map((unidad) => <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>)}
+                      </select>
+                      <input type="number" min={2} placeholder="Equivale a (base)" value={pres.cantidad_unidad_base} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, cantidad_unidad_base: e.target.value === "" ? "" : Number(e.target.value) } : item))} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" />
+                      <input type="number" min={0} step={0.01} placeholder="Precio S/" value={pres.precio_actual} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, precio_actual: e.target.value === "" ? "" : Number(e.target.value) } : item))} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" />
+                      <input type="text" placeholder="Código de barras (opcional)" value={pres.codigo_barras} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, codigo_barras: e.target.value } : item))} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" />
+                      <button type="button" onClick={() => setPresentacionesExtra((prev) => prev.filter((_, i) => i !== index))} className="inline-flex items-center justify-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50" title="Quitar presentación"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </fieldset>
 
             {/* ─── Sección: Opciones ────────────────────── */}

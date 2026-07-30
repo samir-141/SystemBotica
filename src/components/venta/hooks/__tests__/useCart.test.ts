@@ -5,7 +5,6 @@ import { useCart } from "../useCart";
 describe("Hook useCart con Persistencia", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.stubGlobal("alert", vi.fn());
     if (typeof localStorage !== "undefined") {
       localStorage.clear();
     }
@@ -75,9 +74,10 @@ describe("Hook useCart con Persistencia", () => {
   it("debe prevenir el agregado si se supera el stock disponible", async () => {
     let hookResult: any;
     const productoStockBajo = { ...productoMock, stock_total: 1 };
+    const onError = vi.fn();
 
     await act(async () => {
-      const { result } = renderHook(() => useCart());
+      const { result } = renderHook(() => useCart(onError));
       hookResult = result;
     });
 
@@ -90,7 +90,7 @@ describe("Hook useCart con Persistencia", () => {
       hookResult.current.agregarAlCarrito(productoStockBajo);
     });
 
-    expect(globalThis.alert).toHaveBeenCalledWith("Stock insuficiente. Disponible: 1");
+    expect(onError).toHaveBeenCalledWith("Stock insuficiente. Disponible: 1");
     expect(hookResult.current.carrito[0].cantidad).toBe(1);
   });
 

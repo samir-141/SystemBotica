@@ -6,7 +6,7 @@ import Sucursal from "./elements/sucursal";
 import Usuarioperfil from "./elements/usuarioperfil";
 import NavModulos from "./elements/NavModulos";
 import FooterNav from "./elements/footer";
-import { MENU_ITEMS } from "./config/perimisos";
+import { MENU_ITEMS, tieneRolPermitido } from "./config/perimisos";
 import { useAuth } from "../../hooks/useAuth";
 
 interface NavLateralProps {
@@ -32,8 +32,7 @@ export default function NavLateral({ mobileOpen = false, onMobileClose }: NavLat
     const rolUsuario: string = (user as any)?.rol || "Cajero";
 
     const modulosPermitidos = MENU_ITEMS.filter((item) => {
-        if (!item.rolesPermitidos) return true;
-        return item.rolesPermitidos.includes(rolUsuario);
+        return tieneRolPermitido(rolUsuario, item.rolesPermitidos);
     });
 
     // ────────────────────────────────────────────────────────────────────────────

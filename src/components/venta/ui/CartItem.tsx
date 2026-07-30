@@ -1,7 +1,7 @@
 // src/components/venta/ui/CartItem.tsx
 import React from "react";
 import { Minus, Plus, Trash2, ShieldAlert } from "lucide-react";
-import { formatMoney } from "../utils";
+import { formatMoney } from "../utils/calculosVenta";
 import type { ItemCarrito } from "../types";
 
 interface CartItemProps {

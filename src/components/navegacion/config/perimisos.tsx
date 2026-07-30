@@ -5,10 +5,11 @@ import {
     Package,
     Users,
     BarChart3,
-    Settings
+    Settings,
+    Receipt
 } from "lucide-react";
 
-interface MenuItem {
+export interface MenuItem {
     label: string;
     icon: React.ElementType;
     path: string;
@@ -16,6 +17,27 @@ interface MenuItem {
     /** Etiqueta corta para barra inferior mobile */
     labelCorto?: string;
 }
+
+/** Compara roles sin depender de mayúsculas, tildes o del formato de la BD. */
+export const normalizarRol = (rol?: string | null) =>
+    String(rol || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toUpperCase();
+
+export const tieneRolPermitido = (
+    rol: string | null | undefined,
+    rolesPermitidos?: string[],
+) =>
+    !rolesPermitidos ||
+    rolesPermitidos.some((permitido) => normalizarRol(permitido) === normalizarRol(rol));
+
+export const ROLES = {
+    OPERACION: ['Administrador', 'Gerente', 'Farmacéutico', 'Cajero', 'Vendedor', 'Almacenero'],
+    SUPERVISION: ['Administrador', 'Gerente', 'Farmacéutico', 'Contador'],
+    ADMINISTRACION: ['Administrador'],
+} as const;
 
 export const MENU_ITEMS: MenuItem[] = [
     {
@@ -58,6 +80,13 @@ export const MENU_ITEMS: MenuItem[] = [
         labelCorto: "Admin",
         icon: Settings,
         path: "/admin/usuarios",
+        rolesPermitidos: ["Administrador"],
+    },
+    {
+        label: "Gastos e Inversiones",
+        labelCorto: "Gastos",
+        icon: Receipt,
+        path: "/gastos",
         rolesPermitidos: ["Administrador"],
     },
 ];

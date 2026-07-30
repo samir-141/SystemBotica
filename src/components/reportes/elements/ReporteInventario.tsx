@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   RotateCcw,
 } from "lucide-react";
+import { exportToCSV } from "../../../utils/csvExport";
 
 type Props = {
   reporte: any;
@@ -42,15 +43,7 @@ export default function ReporteInventario({ reporte, loading }: Props) {
       l.dias_para_vencer,
     ]);
 
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Reporte_Inventario_FEFO_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCSV(`Reporte_Inventario_FEFO_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
   };
 
   return (

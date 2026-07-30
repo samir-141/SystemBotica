@@ -48,7 +48,7 @@ export const useProductos = () => {
         throw err;
       }
     },
-    staleTime: CACHE_STALE_TIMES.PRODUCTOS, // 10 minutos
+    staleTime: 0, // Invalidation instantánea para actualización de stock en tiempo real en el POS
   });
 
   const error = errorQuery ? (errorQuery as Error).message || "Error al conectar con el inventario" : null;

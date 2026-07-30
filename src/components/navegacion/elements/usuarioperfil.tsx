@@ -1,4 +1,5 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Wifi, WifiOff } from "lucide-react";
+import { useSocket } from "../../../contexts/SocketContext";
 
 interface UsuarioperfilProps {
     isCollapsed: boolean;
@@ -7,16 +8,25 @@ interface UsuarioperfilProps {
 }
 
 export default function Usuarioperfil({ isCollapsed, user, rolUsuario }: UsuarioperfilProps) {
+    const { isConnected, usuariosConectados } = useSocket();
     const inicial = user?.nombre ? user.nombre.charAt(0).toUpperCase() : "U";
 
     return (
-        <div className={`border-b border-slate-800/80 shrink-0 ${isCollapsed ? "flex justify-center py-3 px-2" : "flex items-center gap-3 px-4 py-3"}`}>
-            {/* Avatar inicial */}
-            <div
-                className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white font-black flex items-center justify-center shrink-0 text-sm shadow-md"
-                title={user?.nombre || "Usuario"}
-            >
-                {inicial}
+        <div className={`border-b border-slate-800/80 shrink-0 ${isCollapsed ? "flex flex-col items-center py-3 px-2 gap-2" : "flex items-center gap-3 px-4 py-3"}`}>
+            {/* Avatar inicial con indicador de conexión */}
+            <div className="relative shrink-0">
+                <div
+                    className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white font-black flex items-center justify-center text-sm shadow-md"
+                    title={user?.nombre || "Usuario"}
+                >
+                    {inicial}
+                </div>
+                <span
+                    className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900 ${
+                        isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                    }`}
+                    title={isConnected ? "WebSocket Realtime Conectado" : "Conexión Realtime Reintentando"}
+                />
             </div>
 
             {!isCollapsed && (
@@ -24,9 +34,17 @@ export default function Usuarioperfil({ isCollapsed, user, rolUsuario }: Usuario
                     <p className="font-bold text-[13px] text-white truncate leading-tight">
                         {user?.nombre || "Usuario POS"}
                     </p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                        <ShieldCheck size={11} className="text-teal-400 shrink-0" />
-                        <span className="text-[11px] text-teal-400 font-semibold truncate">{rolUsuario}</span>
+                    <div className="flex items-center justify-between gap-1 mt-0.5">
+                        <div className="flex items-center gap-1 min-w-0">
+                            <ShieldCheck size={11} className="text-teal-400 shrink-0" />
+                            <span className="text-[11px] text-teal-400 font-semibold truncate">{rolUsuario}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400" title="Usuarios/Cajeros en línea en tiempo real">
+                            {isConnected ? <Wifi size={10} className="text-emerald-400" /> : <WifiOff size={10} className="text-amber-400" />}
+                            <span className={isConnected ? "text-emerald-400" : "text-amber-400"}>
+                                {isConnected ? `${usuariosConectados.length || 1} en línea` : "Offline"}
+                            </span>
+                        </div>
                     </div>
                 </div>
             )}

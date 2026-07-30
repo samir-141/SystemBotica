@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, Users, Shield, Store, Sparkles } from "lucide-react";
+import { Settings, Users, Shield, Store, Sparkles, Package, FileText, Stethoscope, Hash } from "lucide-react";
 import { useAdmin } from "./hooks/useAdmin";
 import { useAuth } from "../../hooks/useAuth";
 import UsuariosAdmin from "./elements/UsuariosAdmin";
 import RolesAdmin from "./elements/RolesAdmin";
 import SucursalesAdmin from "./elements/SucursalesAdmin";
+import CatalogosAdmin from "./elements/CatalogosAdmin";
+import FacturacionAdmin from "./elements/FacturacionAdmin";
+import DiagnosticosAdmin from "./elements/DiagnosticosAdmin";
+import SeriesDocumentosAdmin from "./elements/SeriesDocumentosAdmin";
 
-type AdminTab = "usuarios" | "roles" | "sucursales";
+type AdminTab = "usuarios" | "roles" | "sucursales" | "catalogos" | "facturacion" | "diagnosticos" | "series-documentos";
 
 export default function AdminPage() {
   const location = useLocation();
@@ -17,6 +21,10 @@ export default function AdminPage() {
   const getInitialTab = (): AdminTab => {
     if (location.pathname.includes("roles")) return "roles";
     if (location.pathname.includes("sucursales")) return "sucursales";
+    if (location.pathname.includes("catalogos")) return "catalogos";
+    if (location.pathname.includes("facturacion")) return "facturacion";
+    if (location.pathname.includes("diagnosticos")) return "diagnosticos";
+    if (location.pathname.includes("series-documentos")) return "series-documentos";
     return "usuarios";
   };
 
@@ -37,9 +45,16 @@ export default function AdminPage() {
 
   const handleTabChange = (tab: AdminTab) => {
     setActiveTab(tab);
-    if (tab === "roles") navigate("/admin/roles");
-    else if (tab === "sucursales") navigate("/admin/sucursales");
-    else navigate("/admin/usuarios");
+    const paths: Record<AdminTab, string> = {
+      usuarios: "/admin/usuarios",
+      roles: "/admin/roles",
+      sucursales: "/admin/sucursales",
+      catalogos: "/admin/catalogos",
+      facturacion: "/admin/facturacion",
+      diagnosticos: "/admin/diagnosticos",
+      "series-documentos": "/admin/series-documentos",
+    };
+    navigate(paths[tab]);
   };
 
   const handleSaveUser = async (data: Record<string, unknown>, isEdit: boolean, userId?: string) => {
@@ -73,36 +88,76 @@ export default function AdminPage() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0 self-start sm:self-auto">
+        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold shrink-0 self-start sm:self-auto flex-wrap gap-1">
           <button
             onClick={() => handleTabChange("usuarios")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "usuarios"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "usuarios"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
               }`}
           >
             <Users className="w-4 h-4" />
-            <span>Usuarios ({usuarios.length})</span>
+            <span className="hidden sm:inline">Usuarios</span>
           </button>
           <button
             onClick={() => handleTabChange("roles")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "roles"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "roles"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
               }`}
           >
             <Shield className="w-4 h-4" />
-            <span>Roles & Permisos</span>
+            <span className="hidden sm:inline">Roles</span>
           </button>
           <button
             onClick={() => handleTabChange("sucursales")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "sucursales"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "sucursales"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
                 : "text-slate-600 hover:text-slate-900"
               }`}
           >
             <Store className="w-4 h-4" />
-            <span>Sucursales ({sucursales.length})</span>
+            <span className="hidden sm:inline">Sucursales</span>
+          </button>
+          <button
+            onClick={() => handleTabChange("catalogos")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "catalogos"
+                ? "bg-white text-purple-700 shadow-sm font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+              }`}
+          >
+            <Package className="w-4 h-4" />
+            <span className="hidden sm:inline">Catálogos</span>
+          </button>
+          <button
+            onClick={() => handleTabChange("facturacion")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "facturacion"
+                ? "bg-white text-purple-700 shadow-sm font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+              }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Facturación</span>
+          </button>
+          <button
+            onClick={() => handleTabChange("diagnosticos")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "diagnosticos"
+                ? "bg-white text-purple-700 shadow-sm font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+              }`}
+          >
+            <Stethoscope className="w-4 h-4" />
+            <span className="hidden sm:inline">Diagnóstico</span>
+          </button>
+          <button
+            onClick={() => handleTabChange("series-documentos")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "series-documentos"
+                ? "bg-white text-purple-700 shadow-sm font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+              }`}
+          >
+            <Hash className="w-4 h-4" />
+            <span className="hidden sm:inline">Series</span>
           </button>
         </div>
       </div>
@@ -120,6 +175,7 @@ export default function AdminPage() {
         <UsuariosAdmin
           usuarios={usuarios}
           roles={roles}
+          sucursales={sucursales}
           loading={loading}
           onSaveUser={handleSaveUser}
           onDeleteUser={eliminarUsuario}
@@ -140,6 +196,22 @@ export default function AdminPage() {
           onSaveSucursal={crearSucursal}
           onRefresh={refetch}
         />
+      )}
+
+      {activeTab === "catalogos" && (
+        <CatalogosAdmin />
+      )}
+
+      {activeTab === "facturacion" && (
+        <FacturacionAdmin />
+      )}
+
+      {activeTab === "diagnosticos" && (
+        <DiagnosticosAdmin />
+      )}
+
+      {activeTab === "series-documentos" && (
+        <SeriesDocumentosAdmin />
       )}
     </div>
   );

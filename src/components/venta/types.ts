@@ -9,6 +9,7 @@ export interface ItemCarrito {
   cantidad: number;
   unidades_base_por_pack: number;
   unidades_base_totales: number;
+  stock_total?: number;
   lote_fefo_numero: string;
   lote_fefo_vencimiento: string;
   requiere_receta?: boolean;
@@ -30,7 +31,7 @@ export type TipoComprobante = "BOLETA" | "FACTURA" | "NOTA_VENTA";
 export type MetodoPago = "EFECTIVO" | "TARJETA" | "YAPE_PLIN" | "TRANSFERENCIA";
 
 export interface DatosCliente {
-  tipo_documento: "DNI" | "RUC" | "NINGUNO";
+  tipo_documento: "DNI" | "RUC" | "CE" | "PASAPORTE" | "NINGUNO";
   numero_documento: string;
   nombre_razon_social: string;
   direccion: string;

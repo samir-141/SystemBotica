@@ -11,6 +11,7 @@ type Props = {
   value: string;
   onChange: (id: string) => void;
   onItemCreated: (tipo: TipoCatalogo) => void;
+  label?: string;
   disabled?: boolean;
   required?: boolean;
 };
@@ -25,11 +26,12 @@ export default function CatalogoSelect({
   value,
   onChange,
   onItemCreated,
+  label: labelPersonalizado,
   disabled = false,
   required = false,
 }: Props) {
   const [showModal, setShowModal] = useState(false);
-  const label = CATALOGO_LABELS[tipo];
+  const label = labelPersonalizado || CATALOGO_LABELS[tipo];
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;

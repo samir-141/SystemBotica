@@ -1,4 +1,5 @@
 import { api } from './client';
+import type { CreateProductoDto, UpdateProductoDto, CreateClienteDto, UpdateClienteDto } from '../../types/dto';
 
 // ==========================================
 // 1. INTERFACES / TIPOS DE DATOS (SWAGGER/BACKEND)
@@ -102,7 +103,6 @@ export const posApi = {
         const { data } = await api.get<PaginatedResponse<ProductoPOS>>('/productos', { params });
         return data;
     },
-
     getProductoDetalle: async (id: string) => {
         const { data } = await api.get(`/productos/${id}`);
         return data;
@@ -116,22 +116,18 @@ export const posApi = {
         const { data } = await api.get<PaginatedResponse<ItemCatalogo>>(`/catalogos/${tipo}`, { params });
         return data;
     },
-
     getItemCatalogoById: async (tipo: TipoCatalogo, id: string): Promise<ItemCatalogo> => {
         const { data } = await api.get<ItemCatalogo>(`/catalogos/${tipo}/${id}`);
         return data;
     },
-
     crearItemCatalogo: async (tipo: TipoCatalogo, payload: Partial<ItemCatalogo>): Promise<ItemCatalogo> => {
         const { data } = await api.post<ItemCatalogo>(`/catalogos/${tipo}`, payload);
         return data;
     },
-
     actualizarItemCatalogo: async (tipo: TipoCatalogo, id: string, payload: Partial<ItemCatalogo>): Promise<ItemCatalogo> => {
         const { data } = await api.patch<ItemCatalogo>(`/catalogos/${tipo}/${id}`, payload);
         return data;
     },
-
     eliminarItemCatalogo: async (tipo: TipoCatalogo, id: string): Promise<{ mensaje: string }> => {
         const { data } = await api.delete<{ mensaje: string }>(`/catalogos/${tipo}/${id}`);
         return data;
@@ -142,22 +138,18 @@ export const posApi = {
         const { data } = await api.get('/productos/buscar/identificador', { params: { valor } });
         return data;
     },
-
-    crearProducto: async (payload: Record<string, unknown>): Promise<ProductoPOS> => {
+    crearProducto: async (payload: CreateProductoDto): Promise<ProductoPOS> => {
         const { data } = await api.post<ProductoPOS>('/productos', payload);
         return data;
     },
-
-    actualizarProducto: async (id: string, payload: Record<string, unknown>): Promise<ProductoPOS> => {
+    actualizarProducto: async (id: string, payload: UpdateProductoDto): Promise<ProductoPOS> => {
         const { data } = await api.patch<ProductoPOS>(`/productos/${id}`, payload);
         return data;
     },
-
     eliminarProducto: async (id: string): Promise<{ mensaje: string }> => {
         const { data } = await api.delete<{ mensaje: string }>(`/productos/${id}`);
         return data;
     },
-
     reabastecerStock: async (payload: {
         producto_comercial_id: string;
         sucursal_id?: string;
@@ -169,7 +161,6 @@ export const posApi = {
         const { data } = await api.post('/productos/reabastecer', payload);
         return data;
     },
-
     actualizarPresentaciones: async (
         productoId: string,
         presentaciones: Array<{ unidad_presentacion_id?: string; nombre?: string; cantidad_unidad_base: number; precio_actual: number; codigo_barras?: string }>
@@ -177,12 +168,10 @@ export const posApi = {
         const { data } = await api.post(`/productos/${productoId}/presentaciones`, { presentaciones });
         return data;
     },
-
     buscarPorIdentificador: async (valor: string): Promise<any> => {
         const { data } = await api.get('/productos/buscar/identificador', { params: { valor } });
         console.log(data);
         return data;
-
     },
 
     // --- VENTAS ---
@@ -190,7 +179,6 @@ export const posApi = {
         const { data } = await api.post('/ventas', payload);
         return data;
     },
-
     anularVenta: async (id: string): Promise<any> => {
         const { data } = await api.post(`/ventas/${id}/anular`);
         return data;
@@ -225,35 +213,28 @@ export const posApi = {
         const { data } = await api.get('/clientes', { params });
         return data;
     },
-
     getClienteById: async (id: string): Promise<any> => {
         const { data } = await api.get(`/clientes/${id}`);
         return data;
     },
-
     buscarClientePorDocumento: async (documento: string): Promise<any> => {
         const { data } = await api.get(`/clientes/buscar/${documento}`);
         return data;
     },
-
     consultarDocumentoPadron: async (tipo: string, numero: string): Promise<any> => {
         const { data } = await api.get('/clientes/consultar-padron', {
             params: { tipo, numero }
         });
         return data;
     },
-
-    crearCliente: async (payload: Record<string, unknown>): Promise<any> => {
+    crearCliente: async (payload: CreateClienteDto): Promise<any> => {
         const { data } = await api.post('/clientes', payload);
         return data;
     },
-
-
-    actualizarCliente: async (id: string, payload: Record<string, unknown>): Promise<any> => {
+    actualizarCliente: async (id: string, payload: UpdateClienteDto): Promise<any> => {
         const { data } = await api.patch(`/clientes/${id}`, payload);
         return data;
     },
-
     eliminarCliente: async (id: string): Promise<{ mensaje: string }> => {
         const { data } = await api.delete<{ mensaje: string }>(`/clientes/${id}`);
         return data;
@@ -264,12 +245,14 @@ export const posApi = {
         const { data } = await api.get('/reportes/ventas', { params });
         return data;
     },
-
     getReporteInventario: async (params?: { sucursal_id?: string }): Promise<any> => {
         const { data } = await api.get('/reportes/inventario', { params });
         return data;
     },
-
+    getReporteFinanciero: async (params?: { fecha_inicio?: string; fecha_fin?: string; sucursal_id?: string }): Promise<any> => {
+        const { data } = await api.get('/reportes/financiero', { params });
+        return data;
+    },
     getLibroVentasPLE: async (params?: { fecha_inicio?: string; fecha_fin?: string }): Promise<any> => {
         const { data } = await api.get('/reportes/ple-libro-ventas', { params });
         return data;
@@ -280,38 +263,89 @@ export const posApi = {
         const { data } = await api.get('/usuarios');
         return data;
     },
-
     getRoles: async (): Promise<any> => {
         const { data } = await api.get('/usuarios/roles');
         return data;
     },
-
     getSucursalesAdmin: async (): Promise<any> => {
         const { data } = await api.get('/usuarios/sucursales');
         return data;
     },
-
     crearUsuario: async (payload: Record<string, unknown>): Promise<any> => {
         const { data } = await api.post('/usuarios', payload);
         return data;
     },
-
     actualizarUsuario: async (id: string, payload: Record<string, unknown>): Promise<any> => {
         const { data } = await api.patch(`/usuarios/${id}`, payload);
         return data;
     },
-
     eliminarUsuario: async (id: string): Promise<{ mensaje: string }> => {
         const { data } = await api.delete<{ mensaje: string }>(`/usuarios/${id}`);
         return data;
     },
-
     crearSucursal: async (payload: { nombre: string; direccion: string; telefono?: string }): Promise<any> => {
         const { data } = await api.post('/usuarios/sucursales', payload);
         return data;
     },
+    getDiagnosticoRutas: async (): Promise<{ total: number; rutas: Array<{ controller: string; metodo: string; ruta: string; funcion: string }> }> => {
+        const { data } = await api.get('/diagnosticos/rutas');
+        return data;
+    },
+    getDiagnosticoModulos: async (): Promise<{ totalModulos: number; totalProviders: number; totalControllers: number }> => {
+        const { data } = await api.get('/diagnosticos/modulos');
+        return data;
+    },
+    emitirComprobante: async (payload: any): Promise<any> => {
+        const { data } = await api.post('/facturacion/emitir', payload);
+        return data;
+    },
+
+    // --- SERIES DE DOCUMENTOS ---
+    getSeriesDocumentos: async (): Promise<any> => {
+        const { data } = await api.get('/series-documentos');
+        return data;
+    },
+    crearSerieDocumento: async (payload: any): Promise<any> => {
+        const { data } = await api.post('/series-documentos', payload);
+        return data;
+    },
+    actualizarSerieDocumento: async (id: string, payload: any): Promise<any> => {
+        const { data } = await api.patch(`/series-documentos/${id}`, payload);
+        return data;
+    },
+    eliminarSerieDocumento: async (id: string): Promise<{ mensaje: string }> => {
+        const { data } = await api.delete<{ mensaje: string }>(`/series-documentos/${id}`);
+        return data;
+    },
+
+    // --- CAJAS Y TURNOS ---
+    getEstadoCaja: async (): Promise<any> => {
+        const { data } = await api.get('/cajas/estado');
+        return data;
+    },
+    aperturarCaja: async (payload: { monto_inicial: number; observacion?: string }): Promise<any> => {
+        const { data } = await api.post('/cajas/aperturar', payload);
+        return data;
+    },
+    registrarMovimientoCaja: async (payload: { tipo: 'INGRESO' | 'EGRESO'; monto: number; observacion: string }): Promise<any> => {
+        const { data } = await api.post('/cajas/movimiento', payload);
+        return data;
+    },
+    cerrarCaja: async (payload: { efectivo_contado: number; observacion?: string }): Promise<any> => {
+        const { data } = await api.post('/cajas/cerrar', payload);
+        return data;
+    },
+
+    getGastos: async (params?: { sucursal_id?: string; desde?: string; hasta?: string }): Promise<any[]> => {
+        const { data } = await api.get('/gastos', { params });
+        return data;
+    },
+    crearGasto: async (payload: { tipo: 'OPERATIVO' | 'INVERSION'; categoria: string; monto: number; sucursal_id?: string; descripcion?: string; comprobante?: string; fecha?: string }): Promise<any> => {
+        const { data } = await api.post('/gastos', payload);
+        return data;
+    },
+    eliminarGasto: async (id: string): Promise<{ mensaje: string }> => {
+        const { data } = await api.delete(`/gastos/${id}`);
+        return data;
+    },
 };
-
-
-
-

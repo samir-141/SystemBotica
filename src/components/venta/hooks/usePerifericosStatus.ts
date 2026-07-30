@@ -9,7 +9,7 @@ export interface EstadoPeriferico {
     scannerConectado: boolean;
     /** WebHID está disponible en este navegador */
     hidSoportado: boolean;
-    /** Impresora disponible (via window.print heuristic) */
+    /** El navegador permite abrir el diálogo de impresión; no confirma una impresora física. */
     impresoraDisponible: boolean;
     /** El dispositivo actual es un móvil/tablet (iOS o Android) */
     esCelular: boolean;
@@ -33,7 +33,7 @@ async function detectarCamara(): Promise<boolean> {
 }
 
 function detectarImpresoraHeuristica(): boolean {
-    return typeof window.print === "function";
+    return typeof window !== "undefined" && typeof window.print === "function";
 }
 
 export function usePerifericosStatus(): EstadoPeriferico {
@@ -99,25 +99,27 @@ export function usePerifericosStatus(): EstadoPeriferico {
     // ── Fallback: detectar scanner por velocidad de tecleo (ya existe en venta.tsx)
     // Si hay eventos de teclado muy rápidos, es probable que haya un scanner activo
     useEffect(() => {
-        if (hidSoportado) return; // Si ya tenemos HID, no necesitamos esto
-
         let rapidKeyCount = 0;
+        let lastKeyAt = 0;
         let rapidKeyTimer: ReturnType<typeof setTimeout> | null = null;
 
-        const handleKeyDown = () => {
-            rapidKeyCount++;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const now = Date.now();
+            if (now - lastKeyAt > 80) rapidKeyCount = 0;
+            lastKeyAt = now;
+            if (event.key.length === 1) rapidKeyCount++;
             if (rapidKeyTimer) clearTimeout(rapidKeyTimer);
             rapidKeyTimer = setTimeout(() => { rapidKeyCount = 0; }, 100);
 
-            // Si recibimos 6+ teclas en <100ms, es un scanner (no humano)
-            if (rapidKeyCount >= 6) {
+            if (event.key === "Enter" && rapidKeyCount >= 3) {
                 setScannerConectado(true);
+                rapidKeyCount = 0;
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [hidSoportado]);
+    }, []);
 
     return {
         scannerConectado,

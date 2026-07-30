@@ -1,1 +1,89 @@
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ESTILOS DE IMPRESIÓN PROPIOS PARA DASHBOARD & REPORTES (PRINT / SAVE AS PDF)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Forzar la impresión exacta de colores de fondo, gradientes y barras */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar navegación e interfaz no imprimible */
+  header,
+  nav,
+  aside,
+  .no-print,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Resetear absolutamente todos los contenedores padre y layouts con scroll/altura fija */
+  html,
+  body,
+  #root,
+  main,
+  div,
+  section,
+  article,
+  .h-svh,
+  .h-screen,
+  .h-full,
+  .overflow-hidden,
+  .overflow-auto,
+  .overflow-y-auto {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    float: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* El contenedor imprimible ocupa el 100% sin recortes */
+  .print-container {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Evitar cortes bruscos a la mitad de tarjetas, gráficos o filas de tabla */
+  .break-inside-avoid,
+  table,
+  tr,
+  .card-print,
+  .grid > div {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Quitar sombras en PDF */
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xs {
+    box-shadow: none !important;
+  }
+
+  /* Configuración de páginas PDF continuas con margen de 10mm */
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}

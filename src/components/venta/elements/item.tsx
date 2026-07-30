@@ -11,9 +11,7 @@ export interface PresentacionOption {
 export interface ProductoItemProps {
     item?: any;
     producto?: any;
-    monedas?: { simbolo: string; nombre: string }[];
-    monedaActivaIdx?: number;
-    onAgregar?: (presentacionSeleccionada: PresentacionOption, equivalencia: number) => void;
+    carrito?: any[];
     agregarAlCarrito?: (
         producto: any,
         cantidad: number,
@@ -21,28 +19,37 @@ export interface ProductoItemProps {
         precioUnitario: number
     ) => void;
     onSolicitarReceta?: (producto: any, presentacionSel: PresentacionOption) => void;
-    feedbackActive?: boolean;
     feedbackId?: string | null;
 }
 
 export default function Item({
     item,
     producto,
-    monedas = [{ simbolo: "S/", nombre: "Soles" }],
-    monedaActivaIdx = 0,
-    onAgregar,
+    carrito = [],
     agregarAlCarrito,
     onSolicitarReceta,
-    feedbackActive = false,
     feedbackId = null,
 }: ProductoItemProps) {
     const targetItem = item || producto;
 
-    const isFeedback = targetItem ? (feedbackActive || (feedbackId ? feedbackId === targetItem.producto_comercial_id : false)) : false;
-    const monedaActual = monedas[monedaActivaIdx] || { simbolo: "S/" };
+    const isFeedback = targetItem ? (feedbackId ? feedbackId === targetItem.producto_comercial_id : false) : false;
     const unidadBase = targetItem?.unidad_base_nombre || "unid";
 
-    // --- 1. Filtrar Presentaciones que TENGAN Stock Suficiente ---
+    // Calcular unidades reservadas actualmente en el carrito de compras
+    const unidadesEnCarrito = useMemo(() => {
+        if (!carrito || !targetItem) return 0;
+        return carrito
+            .filter((i: any) => i.producto_comercial_id === targetItem.producto_comercial_id)
+            .reduce(
+                (acc: number, i: any) =>
+                    acc + (i.unidades_base_totales || (i.cantidad * (i.unidades_base_por_pack || 1))),
+                0
+            );
+    }, [carrito, targetItem]);
+
+    const stockTotalBD = targetItem?.stock_total || 0;
+    const stockDisponibleReal = Math.max(0, stockTotalBD - unidadesEnCarrito);
+
     const presentacionesValidas = useMemo(() => {
         if (!targetItem) return [];
         if (!targetItem.presentaciones || targetItem.presentaciones.length === 0) {
@@ -56,20 +63,18 @@ export default function Item({
             ];
         }
 
-        // Muestra solo presentaciones que tengan al menos 1 paquete entero disponible
+        // Muestra presentaciones con paquetes disponibles según el stock real restante
         return targetItem.presentaciones.filter((pres: PresentacionOption) => {
             const equiv = pres.cantidad_unidad_base || 1;
-            const paquetesDisponibles = Math.floor((targetItem.stock_total || 0) / equiv);
+            const paquetesDisponibles = Math.floor(stockDisponibleReal / equiv);
             return paquetesDisponibles >= 1;
         });
-    }, [targetItem]);
+    }, [targetItem, stockDisponibleReal]);
 
-    // Estado local para la opción seleccionada por el usuario
     const [presentacionSel, setPresentacionSel] = useState<PresentacionOption | null>(
         presentacionesValidas[0] || null
     );
 
-    // Sincronizar selección cuando cambian las presentaciones
     useEffect(() => {
         if (presentacionesValidas.length > 0) {
             setPresentacionSel(presentacionesValidas[0]);
@@ -80,11 +85,9 @@ export default function Item({
 
     if (!targetItem) return null;
 
-    const stockTotal = targetItem.stock_total || 0;
-    const sinStockTotal = stockTotal <= 0;
+    const sinStockTotal = stockDisponibleReal <= 0;
     const requiereReceta = Boolean(targetItem.requiere_receta);
 
-    // --- Control FEFO de Vencimiento ---
     let vencePronto = false;
     let loteVencido = false;
     if (targetItem.lote_fefo_vencimiento) {
@@ -108,9 +111,7 @@ export default function Item({
             return;
         }
 
-        if (onAgregar) {
-            onAgregar(presentacionSel, presentacionSel.cantidad_unidad_base);
-        } else if (agregarAlCarrito) {
+        if (agregarAlCarrito) {
             agregarAlCarrito(
                 targetItem,
                 presentacionSel.cantidad_unidad_base,
@@ -120,11 +121,10 @@ export default function Item({
         }
     };
 
-    // --- Semáforo de Stock de Color ---
     const getStockBadgeStyle = () => {
         if (sinStockTotal) return "bg-slate-100 text-slate-400 border-slate-200 line-through";
-        if (stockTotal > 20) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-        if (stockTotal > 5) return "bg-amber-50 text-amber-800 border-amber-200";
+        if (stockDisponibleReal > 20) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (stockDisponibleReal > 5) return "bg-amber-50 text-amber-800 border-amber-200";
         return "bg-red-50 text-red-700 border-red-200 font-black animate-pulse";
     };
 
@@ -141,7 +141,6 @@ export default function Item({
         ${disabledAction ? "bg-slate-50 opacity-75" : ""}
       `}
         >
-            {/* ════════ BLOQUE 1: INFORMACIÓN DEL MEDICAMENTO ════════ */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1 text-[11px] font-medium flex-wrap">
                     {targetItem.laboratorio && (
@@ -170,7 +169,6 @@ export default function Item({
                     {targetItem.nombre_comercial}
                 </h3>
 
-                {/* Principio activo y Semáforo de stock */}
                 <div className="flex items-center gap-2.5 mt-1.5 text-xs text-slate-500 flex-wrap">
                     {targetItem.principio_activo && (
                         <p className="truncate text-slate-600">
@@ -184,23 +182,28 @@ export default function Item({
                         <Package size={13} />
                         <span>
                             {sinStockTotal
-                                ? "Sin stock"
-                                : stockTotal > 20
-                                    ? `${stockTotal} ${unidadBase}(s)`
-                                    : stockTotal > 5
-                                        ? `Stock Bajo (${stockTotal})`
-                                        : `Crítico (${stockTotal})`}
+                                ? unidadesEnCarrito > 0
+                                    ? `Tope Carrito (${unidadesEnCarrito})`
+                                    : "Sin stock"
+                                : stockDisponibleReal > 20
+                                    ? `${stockDisponibleReal} ${unidadBase}(s)`
+                                    : stockDisponibleReal > 5
+                                        ? `Stock Bajo (${stockDisponibleReal})`
+                                        : `Crítico (${stockDisponibleReal})`}
                         </span>
+                        {unidadesEnCarrito > 0 && stockDisponibleReal > 0 && (
+                            <span className="ml-1 text-[10px] text-teal-700 font-black bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200" title={`Reservado en carrito: ${unidadesEnCarrito} ${unidadBase}(s)`}>
+                                🛒 {unidadesEnCarrito}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* ════════ BLOQUE 2: SELECTOR DE PRESENTACIÓN Y PRECIO ════════ */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100 shrink-0">
 
                 {presentacionesValidas.length > 0 && presentacionSel ? (
                     <>
-                        {/* Select Dropdown */}
                         <div className="flex flex-col w-full sm:w-[210px]">
                             <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center gap-1">
                                 <Layers size={11} /> Presentación
@@ -216,7 +219,7 @@ export default function Item({
                             >
                                 {presentacionesValidas.map((p: PresentacionOption) => {
                                     const cantBase = p.cantidad_unidad_base || 1;
-                                    const paquetesDisponibles = Math.floor((stockTotal) / cantBase);
+                                    const paquetesDisponibles = Math.floor(stockDisponibleReal / cantBase);
 
                                     return (
                                         <option key={p.id} value={p.id}>
@@ -227,21 +230,13 @@ export default function Item({
                             </select>
                         </div>
 
-                        {/* Fila para Precio + Botón Prominente */}
                         <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
 
-                            {/* Precio destacado */}
-                            <div className="text-left sm:text-right min-w-[85px]">
-                                <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Precio</span>
-                                <span className="text-lg sm:text-xl font-black text-slate-900">
-                                    <span className="text-xs text-slate-500 font-semibold mr-0.5">
-                                        {monedaActual.simbolo}
-                                    </span>
-                                    {presentacionSel.precio.toFixed(2)}
-                                </span>
-                            </div>
+                            <span className="text-lg sm:text-xl font-black text-slate-900">
+                                <span className="text-xs text-slate-500 font-semibold mr-0.5">S/</span>
+                                {presentacionSel.precio.toFixed(2)}
+                            </span>
 
-                            {/* Botón de Agregar Prominente */}
                             <button
                                 type="button"
                                 onClick={handleAgregarClick}
@@ -273,7 +268,6 @@ export default function Item({
                         </div>
                     </>
                 ) : (
-                    /* Si no alcanza el stock */
                     <div className="flex items-center justify-center gap-1.5 text-xs text-rose-500 font-semibold bg-rose-50 p-2.5 rounded-xl w-full">
                         <AlertCircle size={16} />
                         <span>Sin stock disponible</span>

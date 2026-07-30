@@ -68,6 +68,11 @@ export function useSocketInvalidation() {
 
     socket.on("venta.creada", handleVentasChange);
     socket.on("venta.anulada", handleVentasChange);
+    socket.on("stock.actualizado", () => {
+      console.info("[Socket.IO] Stock actualizado -> Invalidando productos e inventario");
+      queryClient.invalidateQueries({ queryKey: ["productos"] });
+      queryClient.invalidateQueries({ queryKey: ["reportes-inventario"] });
+    });
     socket.on("dashboard.actualizado", () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     });

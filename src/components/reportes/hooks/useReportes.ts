@@ -6,8 +6,10 @@ export function useReportes() {
   const { sucursalActual } = useAuth();
   const [reporteVentas, setReporteVentas] = useState<any>(null);
   const [reporteInventario, setReporteInventario] = useState<any>(null);
+  const [reporteFinanciero, setReporteFinanciero] = useState<any>(null);
   const [loadingVentas, setLoadingVentas] = useState(true);
   const [loadingInventario, setLoadingInventario] = useState(true);
+  const [loadingFinanciero, setLoadingFinanciero] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Rango de fechas por defecto: Mes actual
@@ -16,6 +18,23 @@ export function useReportes() {
 
   const [fechaInicio, setFechaInicio] = useState(hace30DiasStr);
   const [fechaFin, setFechaFin] = useState(hoyStr);
+  const [sucursalReporteId, setSucursalReporteId] = useState<string>("");
+
+  const fetchFinanciero = useCallback(async () => {
+    setLoadingFinanciero(true);
+    try {
+      const data = await posApi.getReporteFinanciero({
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        sucursal_id: sucursalReporteId || undefined,
+      });
+      setReporteFinanciero(data);
+    } catch (err: any) {
+      setError(err.message || "Error al cargar reporte financiero");
+    } finally {
+      setLoadingFinanciero(false);
+    }
+  }, [fechaInicio, fechaFin, sucursalReporteId]);
 
   const fetchVentas = useCallback(async () => {
     setLoadingVentas(true);
@@ -52,19 +71,25 @@ export function useReportes() {
   useEffect(() => {
     fetchVentas();
     fetchInventario();
-  }, [fetchVentas, fetchInventario]);
+    fetchFinanciero();
+  }, [fetchVentas, fetchInventario, fetchFinanciero]);
 
   return {
     reporteVentas,
     reporteInventario,
+    reporteFinanciero,
     loadingVentas,
     loadingInventario,
+    loadingFinanciero,
     error,
     fechaInicio,
     setFechaInicio,
     fechaFin,
     setFechaFin,
+    sucursalReporteId,
+    setSucursalReporteId,
     refetchVentas: fetchVentas,
     refetchInventario: fetchInventario,
+    refetchFinanciero: fetchFinanciero,
   };
 }

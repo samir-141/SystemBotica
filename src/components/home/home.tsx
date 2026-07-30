@@ -18,6 +18,7 @@ import {
     Sunset
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth"; // Ajusta la ruta a tu hook de Auth
+import { tieneRolPermitido } from "../navegacion/config/perimisos";
 
 export default function HomePos() {
     const { user, sucursalActual, logout } = useAuth();
@@ -108,7 +109,7 @@ export default function HomePos() {
     // Filtrar accesos según el rol del usuario
     const rolUsuario = user?.rol || "Cajero";
     const accesosPermitidos = accesosDirectos.filter((acc) =>
-        acc.roles.includes(rolUsuario)
+        tieneRolPermitido(rolUsuario, acc.roles)
     );
 
     return (

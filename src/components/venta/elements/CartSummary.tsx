@@ -13,10 +13,12 @@ import {
   Zap,
   Sparkles,
 } from "lucide-react";
-import { type ItemCarrito } from "../types";
+import type { ItemCarrito } from "../types";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import CheckoutModal from "./CheckoutModal";
 import { CartItem } from "../ui/CartItem";
+import { DOM_IDS } from "../../../utils/constants";
+import { limpiarCarritoStorage } from "../utils/cartStorage";
 
 type Props = {
   carrito: ItemCarrito[];
@@ -34,6 +36,7 @@ type Props = {
   /** Si los precios incluyen IGV o no */
   incluyeIGV: boolean;
   setIncluyeIGV: (v: boolean) => void;
+  clienteSeleccionado?: { nombre: string; tipo_documento: string; numero_documento: string } | null;
   onAbrirClienteModal?: () => void;
 };
 
@@ -52,6 +55,7 @@ export default function CartSummary({
   setCarrito,
   incluyeIGV,
   setIncluyeIGV,
+  clienteSeleccionado,
   onAbrirClienteModal,
 }: Props) {
   const [showCheckout, setShowCheckout] = useState(false);
@@ -65,7 +69,6 @@ export default function CartSummary({
         ${showCartMobile ? "translate-x-0" : "translate-x-full"}
       `}
       >
-        {/* ══ Topbar ══ */}
         <div className="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-emerald-400" />
@@ -84,13 +87,19 @@ export default function CartSummary({
           </button>
         </div>
 
-        {/* ══ Selector de Cliente ══ */}
         <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 shrink-0 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <div className="truncate">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block leading-none">Cliente (F4)</span>
-              <span className="text-xs font-bold text-slate-800 truncate block">Cliente Genérico (Boleta)</span>
+              <span className="text-xs font-bold text-slate-800 truncate block">
+                {clienteSeleccionado ? clienteSeleccionado.nombre : "Cliente Genérico (Boleta)"}
+              </span>
+              {clienteSeleccionado && (
+                <span className="text-[10px] text-slate-500 font-mono">
+                  {clienteSeleccionado.tipo_documento}: {clienteSeleccionado.numero_documento}
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -102,12 +111,11 @@ export default function CartSummary({
           </button>
         </div>
 
-        {/* ══ Toggle IGV ══ */}
         <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 shrink-0">
-          <button
-            type="button"
-            id="toggle-incluye-igv"
-            onClick={() => setIncluyeIGV(!incluyeIGV)}
+            <button
+              type="button"
+              id={DOM_IDS.TOGGLE_INCLUYE_IGV}
+              onClick={() => setIncluyeIGV(!incluyeIGV)}
             className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer
               ${incluyeIGV
                 ? "bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100"
@@ -132,7 +140,6 @@ export default function CartSummary({
           </button>
         </div>
 
-        {/* ══ Lista de Items / Centro de Utilidad Venta Rápida ══ */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/40">
           {carrito.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-4">
@@ -144,8 +151,7 @@ export default function CartSummary({
                 Escanea un código o presiona <kbd className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-mono font-bold">F3</kbd> o <kbd className="px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-mono font-bold">/</kbd> para buscar.
               </p>
 
-              {/* Centro de Venta Rápida */}
-              <div className="mt-6 w-full pt-4 border-t border-slate-200/80">
+               <div className="mt-6 w-full pt-4 border-t border-slate-200/80">
                 <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500 mb-2">
                   <Sparkles size={12} className="text-emerald-500" />
                   <span>Sugerencias rápidas</span>
@@ -178,25 +184,22 @@ export default function CartSummary({
           )}
         </div>
 
-        {/* ══ Resumen + Acciones ══ */}
         <div className="p-3 bg-slate-100 border-t border-slate-200 space-y-2 shrink-0">
-          {/* Tipo de pago */}
           <label className="text-[10px] font-extrabold uppercase text-slate-400 block tracking-wider">
             Modalidad de Pago
           </label>
           <div className="grid grid-cols-3 gap-1 bg-slate-200 p-1 rounded-xl text-[11px] font-bold">
-            <button type="button" id="tipo-pago-contado" onClick={() => setTipoPago("CONTADO")} className={`py-1.5 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer ${tipoPago === "CONTADO" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600"}`}>
+            <button type="button" id={DOM_IDS.TIPO_PAGO_CONTADO} onClick={() => setTipoPago("CONTADO")} className={`py-1.5 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer ${tipoPago === "CONTADO" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600"}`}>
               <Banknote size={12} /> Contado
             </button>
-            <button type="button" id="tipo-pago-abono" onClick={() => setTipoPago("ABONO")} className={`py-1.5 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer ${tipoPago === "ABONO" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600"}`}>
+            <button type="button" id={DOM_IDS.TIPO_PAGO_ABONO} onClick={() => setTipoPago("ABONO")} className={`py-1.5 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer ${tipoPago === "ABONO" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600"}`}>
               <Receipt size={12} /> Abono
             </button>
-            <button type="button" id="tipo-pago-anticipo" onClick={() => setTipoPago("ANTICIPO")} className={`py-1.5 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer ${tipoPago === "ANTICIPO" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600"}`}>
+            <button type="button" id={DOM_IDS.TIPO_PAGO_ANTICIPO} onClick={() => setTipoPago("ANTICIPO")} className={`py-1.5 rounded-lg flex items-center justify-center gap-1 transition cursor-pointer ${tipoPago === "ANTICIPO" ? "bg-white text-emerald-800 shadow-2xs" : "text-slate-600"}`}>
               <PiggyBank size={12} /> Anticipo
             </button>
           </div>
 
-          {/* Desglose financiero */}
           <div className="pt-1 space-y-1 text-xs text-slate-500">
             {incluyeIGV ? (
               <>
@@ -221,10 +224,9 @@ export default function CartSummary({
             </div>
           </div>
 
-          {/* Botón Prominente COBRAR con Monto Integrado */}
           <button
             type="button"
-            id="btn-procesar-venta"
+            id={DOM_IDS.BTN_PROCESAR_VENTA}
             disabled={carrito.length === 0}
             onClick={() => setShowCheckout(true)}
             className={`
@@ -257,9 +259,11 @@ export default function CartSummary({
         igvCalculado={igvCalculado}
         tipoPago={tipoPago}
         incluyeIGV={incluyeIGV}
-        onVentaExitosa={() => {
+        clientePreseleccionado={clienteSeleccionado}
+        onVentaExitosa={async () => {
           setCarrito([]);
           setShowCartMobile(false);
+          await limpiarCarritoStorage();
         }}
       />
     </>

@@ -63,13 +63,13 @@ export function useProductos() {
     setParams((p) => ({ ...p, [key]: value || undefined, page: 1 }));
 
   /* ── CRUD ────────────────────────────────────────────── */
-  const crearProducto = async (data: Record<string, unknown>) => {
+  const crearProducto = async (data: any) => {
     const nuevo = await posApi.crearProducto(data);
     await fetchProductos(params); // refrescar tabla
     return nuevo;
   };
 
-  const actualizarProducto = async (id: string, data: Record<string, unknown>) => {
+  const actualizarProducto = async (id: string, data: any) => {
     const actualizado = await posApi.actualizarProducto(id, data);
     await fetchProductos(params);
     return actualizado;

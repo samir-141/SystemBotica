@@ -224,71 +224,26 @@ export default function ClienteTable({
       </div>
 
       {/* ═══ VISTA MÓVIL (CARDS) ═══════════════════════════════════════ */}
-      <div className="md:hidden space-y-3 p-3">
+      <div className="md:hidden divide-y divide-slate-100">
         {clientes.map((c) => (
-          <div
-            key={c.id}
-            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                    {c.tipo_documento}: {c.numero_documento}
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-teal-50 text-teal-700">
-                    {c.tipo_cliente || "NATURAL"}
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 leading-tight">{c.nombre}</h3>
-              </div>
-              <span className="text-xs font-black text-teal-700 bg-teal-50 px-2.5 py-1 rounded-xl shrink-0">
-                S/ {(c.monto_total_comprado || 0).toFixed(2)}
-              </span>
+          <div key={c.id} className="p-3 bg-white space-y-2">
+            <div className="text-xs font-bold text-slate-800">{c.nombre}</div>
+            <div className="text-[10px] text-slate-500">
+              {c.tipo_documento}: {c.numero_documento}
             </div>
-
-            {(c.telefono || c.direccion || c.whatsapp) && (
-              <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                {(c.telefono || c.whatsapp) && (
-                  <div className="flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-teal-600" />
-                    <span>{c.whatsapp || c.telefono}</span>
-                  </div>
-                )}
-                {c.direccion && (
-                  <div className="flex items-center gap-1.5 truncate">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{c.direccion}</span>
-                  </div>
-                )}
+            {(c.telefono || c.email || c.whatsapp) && (
+              <div className="text-[10px] text-slate-500">
+                {c.telefono && <span>{c.telefono}</span>}
+                {c.email && <span>{c.email}</span>}
+                {c.whatsapp && <span>{c.whatsapp}</span>}
               </div>
             )}
-
-            <div className="flex items-center justify-between pt-1 text-xs border-t border-slate-100">
-              <span className="text-slate-400 flex items-center gap-1 font-medium">
-                <ShoppingBag className="w-3.5 h-3.5 text-teal-600" /> {c.total_compras} compras realizadas
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onSelect(c)}
-                  className="px-2.5 py-1 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg transition"
-                >
-                  Ver
-                </button>
-                <button
-                  onClick={() => onEdit(c)}
-                  className="p-1.5 text-slate-500 hover:text-blue-600 rounded-lg"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(c)}
-                  className="p-1.5 text-slate-500 hover:text-rose-600 rounded-lg"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            <button
+              onClick={() => onSelect(c)}
+              className="px-2 py-1 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-lg"
+            >
+              Ver detalle
+            </button>
           </div>
         ))}
       </div>

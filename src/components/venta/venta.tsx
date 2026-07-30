@@ -1,5 +1,6 @@
 // src/components/venta/venta.tsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Toast } from "primereact/toast";
 import Item from "./elements/item";
 import { useAuth } from "../../hooks/useAuth";
 import MosProducto from "./elements/productos.muestra";
@@ -7,13 +8,22 @@ import CartSummary from "./elements/CartSummary";
 import RemoteScannerModal from "./elements/RemoteScannerModal";
 import RecetaModal from "./elements/RecetaModal";
 import BarraAtajos from "./elements/BarraAtajos";
+import ClienteSelectorModal from "./elements/ClienteSelectorModal";
 import { useProductos } from "./hooks/useProductos";
 import { usePerifericosStatus } from "./hooks/usePerifericosStatus";
 import { useCart } from "./hooks/useCart";
 import { useRemoteScannerSocket } from "../../hooks/useRemoteScannerSocket";
+import { useSocketInvalidation } from "../../hooks/useSocketInvalidation";
 import type { TipoPago, ProductoAgrupado } from "./types";
+import type { Cliente } from "../clientes/types";
+import { SHORTCUTS, DOM_IDS } from "../../utils/constants";
+import { useCaja } from "../caja/hooks/useCaja";
+import AperturaCajaModal from "../caja/elements/AperturaCajaModal";
+import CierreCajaModal from "../caja/elements/CierreCajaModal";
+import { Lock } from "lucide-react";
 
 export default function VentaPos() {
+    const toast = useRef<Toast>(null);
     const { sucursalActual } = useAuth();
     const {
         productosRaw,
@@ -23,7 +33,6 @@ export default function VentaPos() {
         productosAgrupados
     } = useProductos();
 
-    // --- Estado del Carrito con Persistencia IndexedDB y Sincronización Multi-pestaña ---
     const {
         carrito,
         setCarrito,
@@ -34,34 +43,36 @@ export default function VentaPos() {
         baseImponible: baseImpCalculada,
         igvCalculado: igvCalcHook,
         formatMoney,
-    } = useCart();
+    } = useCart((msg: string) => {
+        toast.current?.show({ severity: "warn", summary: "Stock", detail: msg, life: 3000 });
+    });
 
-    // --- Opciones Visuales / Configuración ---
     const [tipoPago, setTipoPago] = useState<TipoPago>("CONTADO");
     const [showCartMobile, setShowCartMobile] = useState(false);
     const [feedbackId, setFeedbackId] = useState<string | null>(null);
-
-    // --- Modal Escáner Celular Remoto ---
+    const [incluyeIGV, setIncluyeIGV] = useState(true);
     const [showRemoteScannerModal, setShowRemoteScannerModal] = useState(false);
-    const [ultimoCodigoRemoto, setUltimoCodigoRemoto] = useState<string | null>(null);
+    const [showClienteModal, setShowClienteModal] = useState(false);
+    const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
 
-    // --- Modal de Verificación de Receta Médica ---
+    // Módulo de Cajas
+    const { estadoCaja, aperturarCaja, cerrarCaja } = useCaja();
+    const [showAperturaModal, setShowAperturaModal] = useState(false);
+    const [showCierreModal, setShowCierreModal] = useState(false);
+
     const [recetaModalOpen, setRecetaModalOpen] = useState(false);
     const [productoParaReceta, setProductoParaReceta] = useState<{ producto: any; presentacionSel: any } | null>(null);
+    const [ultimoCodigoRemoto, setUltimoCodigoRemoto] = useState<string | null>(null);
 
-    // --- IGV dinámico ---
-    const [incluyeIGV, setIncluyeIGV] = useState(true);
-
-    // --- Periféricos ---
     const perifericosStatus = usePerifericosStatus();
 
-    // --- Feedback de adición ---
     const triggerFeedback = useCallback((id: string) => {
         setFeedbackId(id);
         setTimeout(() => setFeedbackId(null), 400);
     }, []);
 
-    // --- Abrir Modal de Receta Médica Obligatoria ---
+    useSocketInvalidation();
+
     const handleSolicitarReceta = useCallback((producto: any, presentacionSel: any) => {
         setProductoParaReceta({ producto, presentacionSel });
         setRecetaModalOpen(true);
@@ -83,7 +94,6 @@ export default function VentaPos() {
         setProductoParaReceta(null);
     };
 
-    // --- Agregar al Carrito ---
     const agregarAlCarrito = useCallback(
         (
             producto: ProductoAgrupado | any,
@@ -103,7 +113,6 @@ export default function VentaPos() {
         [agregarAlCarritoHook, triggerFeedback, handleSolicitarReceta]
     );
 
-    // --- Agregar al Carrito por código (usado por lector USB, cámara y celular remoto) ---
     const agregarPorCodigo = useCallback((codigo: string) => {
         const encontrado = productosRaw.find(
             (p) => p.codigo_barras === codigo || p.sku === codigo
@@ -134,16 +143,19 @@ export default function VentaPos() {
         }
     }, [productosRaw, productosAgrupados, agregarAlCarrito, setBusqueda, handleSolicitarReceta]);
 
-    // --- Hook de Escáner Remoto por WebSockets ---
     const handleBarcodeFromSocket = useCallback((codigo: string) => {
         if (!codigo) return;
         setUltimoCodigoRemoto(codigo);
         agregarPorCodigo(codigo);
     }, [agregarPorCodigo]);
 
-    const remoteSocket = useRemoteScannerSocket(handleBarcodeFromSocket);
+    const remoteSocket = useRemoteScannerSocket(
+        handleBarcodeFromSocket,
+        null,
+        "pc",
+        true
+    );
 
-    // --- Sincronizar lectura del escáner remoto ---
     useEffect(() => {
         const handleStorage = (e: StorageEvent) => {
             if (e.key === "pos_remote_scanned_code" && e.newValue) {
@@ -155,7 +167,6 @@ export default function VentaPos() {
         return () => window.removeEventListener("storage", handleStorage);
     }, [handleBarcodeFromSocket]);
 
-    // --- Lectura de escáner USB (teclado HID) ---
     useEffect(() => {
         let bufferBarcode = "";
         let lastKeyTime = Date.now();
@@ -180,24 +191,24 @@ export default function VentaPos() {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [agregarPorCodigo]);
 
-    // --- Teclas de Acceso Rápido (Shortcuts de Cajero: F2, F3, F4, F6, ESC) ---
     useEffect(() => {
         const handleShortcuts = (e: KeyboardEvent) => {
-            if (e.key === "F2") {
+            if (e.key === SHORTCUTS.F2) {
                 e.preventDefault();
-                document.getElementById("btn-procesar-venta")?.click();
-            } else if (e.key === "F3") {
+                document.getElementById(DOM_IDS.BTN_PROCESAR_VENTA)?.click();
+            } else if (e.key === SHORTCUTS.F3) {
                 e.preventDefault();
-                document.getElementById("pos-busqueda-producto")?.focus();
-            } else if (e.key === "F4") {
+                document.getElementById(DOM_IDS.POS_BUSQUEDA_PRODUCTO)?.focus();
+            } else if (e.key === SHORTCUTS.F4) {
                 e.preventDefault();
-                // Enfocar o abrir cliente
-            } else if (e.key === "F6") {
+                setShowClienteModal(true);
+            } else if (e.key === SHORTCUTS.F6) {
                 e.preventDefault();
                 setShowRemoteScannerModal(true);
-            } else if (e.key === "Escape") {
+            } else if (e.key === SHORTCUTS.ESCAPE) {
                 setShowRemoteScannerModal(false);
                 setRecetaModalOpen(false);
+                setShowClienteModal(false);
             }
         };
 
@@ -205,29 +216,50 @@ export default function VentaPos() {
         return () => window.removeEventListener("keydown", handleShortcuts);
     }, []);
 
-    // --- Cálculos Financieros finales según IGV ---
     const baseImponible = incluyeIGV ? baseImpCalculada : montoBrutoFinal;
     const igvCalculado = incluyeIGV ? igvCalcHook : 0;
 
     return (
-        <div className="relative flex flex-col md:flex-row h-full bg-slate-100 text-slate-800 font-sans antialiased overflow-hidden">
-            <MosProducto
-                Item={Item}
-                busqueda={busqueda}
-                setBusqueda={setBusqueda}
-                showCartMobile={showCartMobile}
-                setShowCartMobile={setShowCartMobile}
-                feedbackId={feedbackId}
-                setFeedbackId={setFeedbackId}
-                productosAgrupados={productosAgrupados}
-                cargando={cargando}
-                totalItems={totalItems}
-                sucursalActual={sucursalActual}
-                agregarAlCarrito={agregarAlCarrito}
-                onSolicitarReceta={handleSolicitarReceta}
-                perifericosStatus={perifericosStatus}
-                onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
-            />
+        <div className="relative flex flex-col h-full bg-slate-100 text-slate-800 font-sans antialiased overflow-hidden">
+            {/* Banner Alerta de Caja Cerrada */}
+            {estadoCaja?.estado === "CERRADA" && (
+                <div className="bg-amber-500 text-slate-950 px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-md border-b border-amber-600 font-bold text-xs shrink-0 z-10 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2">
+                        <Lock size={18} className="shrink-0 text-slate-950" />
+                        <span>⚠️ La Caja de esta sucursal está CERRADA. Debes aperturar turno con el sencillo inicial para procesar cobros de ventas.</span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowAperturaModal(true)}
+                        className="px-4 py-1.5 bg-slate-950 hover:bg-slate-900 text-amber-400 rounded-xl text-xs font-black shadow-sm transition cursor-pointer self-end sm:self-auto shrink-0"
+                    >
+                        Aperturar Caja Ahora
+                    </button>
+                </div>
+            )}
+
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+                <MosProducto
+                    Item={Item}
+                    busqueda={busqueda}
+                    setBusqueda={setBusqueda}
+                    showCartMobile={showCartMobile}
+                    setShowCartMobile={setShowCartMobile}
+                    feedbackId={feedbackId}
+                    setFeedbackId={setFeedbackId}
+                    productosAgrupados={productosAgrupados}
+                    cargando={cargando}
+                    totalItems={totalItems}
+                    sucursalActual={sucursalActual}
+                    agregarAlCarrito={agregarAlCarrito}
+                    onSolicitarReceta={handleSolicitarReceta}
+                    perifericosStatus={perifericosStatus}
+                    onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
+                    estadoCaja={estadoCaja}
+                    onAbrirAperturaModal={() => setShowAperturaModal(true)}
+                    onAbrirCierreModal={() => setShowCierreModal(true)}
+                    carrito={carrito}
+                />
             <CartSummary
                 carrito={carrito}
                 totalItems={totalItems}
@@ -243,17 +275,39 @@ export default function VentaPos() {
                 setCarrito={setCarrito}
                 incluyeIGV={incluyeIGV}
                 setIncluyeIGV={setIncluyeIGV}
+                clienteSeleccionado={clienteSeleccionado}
+                onAbrirClienteModal={() => setShowClienteModal(true)}
             />
 
-            {/* Barra Flotante de Atajos Rápidos */}
+            </div>
+
+            <AperturaCajaModal
+                open={showAperturaModal}
+                onClose={() => setShowAperturaModal(false)}
+                onConfirm={async (monto, obs) => {
+                    await aperturarCaja(monto, obs);
+                    toast.current?.show({ severity: "success", summary: "Caja Aperturada", detail: `Turno iniciado con S/ ${monto.toFixed(2)}`, life: 3000 });
+                }}
+            />
+
+            <CierreCajaModal
+                open={showCierreModal}
+                onClose={() => setShowCierreModal(false)}
+                estadoCaja={estadoCaja}
+                onConfirm={async (efectivoContado, obs) => {
+                    const res = await cerrarCaja(efectivoContado, obs);
+                    toast.current?.show({ severity: "info", summary: "Cierre Z Realizado", detail: "Turno cerrado exitosamente", life: 3000 });
+                    return res;
+                }}
+            />
+
             <BarraAtajos
-                onAbrirCheckout={() => document.getElementById("btn-procesar-venta")?.click()}
-                onEnfocarBusqueda={() => document.getElementById("pos-busqueda-producto")?.focus()}
-                onAbrirCliente={() => {}}
+                onAbrirCheckout={() => document.getElementById(DOM_IDS.BTN_PROCESAR_VENTA)?.click()}
+                onEnfocarBusqueda={() => document.getElementById(DOM_IDS.POS_BUSQUEDA_PRODUCTO)?.focus()}
+                onAbrirCliente={() => setShowClienteModal(true)}
                 onAbrirEscannerRemoto={() => setShowRemoteScannerModal(true)}
             />
 
-            {/* Modal Verificación Receta Médica Obligatoria */}
             <RecetaModal
                 open={recetaModalOpen}
                 nombreProducto={productoParaReceta?.producto?.nombre_comercial || "Medicamento Regulado"}
@@ -264,7 +318,6 @@ export default function VentaPos() {
                 onConfirm={handleConfirmarReceta}
             />
 
-            {/* Modal Escáner Celular Remoto (Puente WebSocket) */}
             <RemoteScannerModal
                 open={showRemoteScannerModal}
                 onClose={() => setShowRemoteScannerModal(false)}
@@ -275,6 +328,13 @@ export default function VentaPos() {
                 pingMs={remoteSocket.pingMs}
                 ultimoCodigoRemoto={ultimoCodigoRemoto}
                 onChangeSessionCode={remoteSocket.changeSessionCode}
+            />
+
+            <Toast ref={toast} />
+            <ClienteSelectorModal
+                open={showClienteModal}
+                onClose={() => setShowClienteModal(false)}
+                onSelect={(cliente) => setClienteSeleccionado(cliente as any)}
             />
         </div>
     );

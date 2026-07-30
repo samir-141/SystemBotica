@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import { Menu, X, BriefcaseMedical } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import NavLateral from "../../components/navegacion/NavLateral";
-import { MENU_ITEMS } from "../../components/navegacion/config/perimisos";
+import { MENU_ITEMS, tieneRolPermitido } from "../../components/navegacion/config/perimisos";
 import { useAuth } from "../../hooks/useAuth";
 
 /**
@@ -20,8 +20,7 @@ export default function Nav() {
 
     const rolUsuario: string = (user as any)?.rol || "Cajero";
     const modulosPermitidos = MENU_ITEMS.filter((item) => {
-        if (!item.rolesPermitidos) return true;
-        return item.rolesPermitidos.includes(rolUsuario);
+        return tieneRolPermitido(rolUsuario, item.rolesPermitidos);
     });
 
     // Solo los primeros 5 para la barra inferior en mobile

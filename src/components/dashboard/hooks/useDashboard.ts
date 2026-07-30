@@ -24,6 +24,20 @@ export interface ResumenDashboard {
         pendiente: number;
         porcentaje_completado: number;
         fecha_inicio?: string;
+        compras_inventario?: number;
+        inversiones_adicionales?: number;
+        gastos_operativos?: number;
+        ingresos_historicos?: number;
+        costo_ventas_historico?: number;
+        resultado_acumulado?: number;
+        margen_acumulado_pct?: number;
+        venta_estimada_stock?: number;
+        costo_stock_vigente?: number;
+        ganancia_estimada_stock?: number;
+        venta_estimada_minima?: number;
+        venta_estimada_maxima?: number;
+        ganancia_estimada_minima?: number;
+        ganancia_estimada_maxima?: number;
     };
     grafico_7_dias: {
         fecha: string;

@@ -9,9 +9,12 @@ import {
   Smartphone,
   Sparkles,
   Monitor,
+  Wallet,
+  Lock,
 } from "lucide-react";
 import type { ProductoAgrupado } from "../types";
 import type { EstadoPeriferico } from "../hooks/usePerifericosStatus";
+import { DOM_IDS } from "../../../utils/constants";
 
 interface Props {
   Item: any;
@@ -35,6 +38,10 @@ interface Props {
   perifericosStatus: EstadoPeriferico;
   onAbrirEscannerRemoto?: () => void;
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
+  estadoCaja?: any;
+  onAbrirAperturaModal?: () => void;
+  onAbrirCierreModal?: () => void;
+  carrito?: any[];
 }
 
 export default function MosProducto({
@@ -52,6 +59,10 @@ export default function MosProducto({
   perifericosStatus,
   onAbrirEscannerRemoto,
   searchInputRef,
+  estadoCaja,
+  onAbrirAperturaModal,
+  onAbrirCierreModal,
+  carrito = [],
 }: Props) {
   const { scannerConectado, impresoraDisponible, deviceInfo } = perifericosStatus;
   const internalSearchRef = useRef<HTMLInputElement | null>(null);
@@ -83,7 +94,7 @@ export default function MosProducto({
               }
             }}
             type="text"
-            id="pos-busqueda-producto"
+            id={DOM_IDS.POS_BUSQUEDA_PRODUCTO}
             placeholder="Buscar por Nombre, P.Activo, Barcode... (Presiona '/' o F3)"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
@@ -149,6 +160,33 @@ export default function MosProducto({
           <span className="text-emerald-800 font-black">{sucursalActual?.nombre || "Matriz Principal"}</span>
         </div>
 
+        {/* Botón / Badge de Estado de Caja */}
+        {estadoCaja && (
+          estadoCaja.estado === "ABIERTA" ? (
+            <button
+              type="button"
+              onClick={onAbrirCierreModal}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 rounded-lg text-xs font-bold transition cursor-pointer"
+              title="Caja ABIERTA - Hacer clic para realizar Arqueo y Cierre Z"
+            >
+              <Wallet size={13} className="text-emerald-600" />
+              <span className="hidden sm:inline">Caja Abierta (Cierre Z)</span>
+              <span className="sm:hidden">Corte Z</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onAbrirAperturaModal}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-300 rounded-lg text-xs font-bold transition cursor-pointer animate-pulse"
+              title="Caja CERRADA - Hacer clic para Aperturar Caja"
+            >
+              <Lock size={13} className="text-rose-600" />
+              <span className="hidden sm:inline">Caja Cerrada (Aperturar)</span>
+              <span className="sm:hidden">Aperturar</span>
+            </button>
+          )
+        )}
+
         {/* Fila Discreta de Iconos Periféricos con Tooltips */}
         <div className="flex items-center gap-2">
           {/* Badge Dispositivo Detectado */}
@@ -192,11 +230,11 @@ export default function MosProducto({
                 ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                 : "bg-slate-100 text-slate-400 border-slate-200"
             }`}
-            title={impresoraDisponible ? "Impresora térmica configurada y lista" : "Sin impresora"}
+            title={impresoraDisponible ? "Impresión disponible desde el navegador. La detección de una impresora física no es posible desde la web." : "Impresión no disponible en este navegador"}
           >
             <Printer size={13} className={impresoraDisponible ? "text-emerald-600" : "text-slate-400"} />
             <span className="hidden sm:inline">
-              {impresoraDisponible ? "Impresora Lista" : "Impresora"}
+              {impresoraDisponible ? "Imprimir ticket" : "Sin impresión"}
             </span>
           </div>
         </div>
@@ -220,6 +258,7 @@ export default function MosProducto({
               <Item
                 key={producto.producto_comercial_id}
                 producto={producto}
+                carrito={carrito}
                 feedbackId={feedbackId}
                 agregarAlCarrito={agregarAlCarrito}
                 onSolicitarReceta={onSolicitarReceta}

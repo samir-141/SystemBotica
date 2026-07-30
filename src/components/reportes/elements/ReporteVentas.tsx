@@ -10,6 +10,7 @@ import {
   BarChart3,
   FileSpreadsheet,
 } from "lucide-react";
+import { exportToCSV } from "../../../utils/csvExport";
 
 type Props = {
   reporte: any;
@@ -61,15 +62,7 @@ export default function ReporteVentas({
       `"${v.estado}"`,
     ]);
 
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r: any) => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Reporte_Ventas_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportToCSV(`Reporte_Ventas_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
   };
 
   return (
@@ -233,7 +226,7 @@ export default function ReporteVentas({
               No hay datos registrados en el período seleccionado.
             </div>
           ) : (
-            <div className="h-48 flex items-end gap-2 pt-4 px-2 overflow-x-auto">
+            <div className="h-48 flex items-end gap-2 pt-4 px-2 flex-wrap">
               {tendencias.map((t: any) => {
                 const pctHeight = Math.max(10, Math.min(100, (t.total / maxTendencia) * 100));
                 return (
@@ -338,7 +331,7 @@ export default function ReporteVentas({
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-left text-xs font-sans">
             <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
               <tr>
@@ -388,6 +381,32 @@ export default function ReporteVentas({
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="md:hidden divide-y divide-slate-100">
+          {lista.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 italic text-xs">
+              No se encontraron registros de venta para este rango de fechas.
+            </div>
+          ) : (
+            lista.map((v: any) => (
+              <div key={v.id} className="p-3 bg-white space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-mono text-[10px] font-bold">
+                    {v.tipo_comprobante} #{v.id.slice(0, 8)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {new Date(v.fecha).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-800">{v.cliente_nombre}</div>
+                <div className="flex items-center justify-between text-[10px] text-slate-500">
+                  <span>{v.metodo_pago}</span>
+                  <span className="font-black text-slate-900 text-sm">S/ {v.total.toFixed(2)}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

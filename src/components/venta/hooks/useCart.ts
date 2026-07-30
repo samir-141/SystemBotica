@@ -9,7 +9,9 @@ import {
   suscribirCambiosCarrito,
 } from "../utils/cartStorage";
 
-export const useCart = () => {
+type CartErrorHandler = (message: string) => void;
+
+export const useCart = (onError?: CartErrorHandler) => {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [isCargado, setIsCargado] = useState(false);
   const isBroadcastingRef = useRef(false);
@@ -62,9 +64,7 @@ export const useCart = () => {
           .filter(i => i.producto_comercial_id === producto.producto_comercial_id)
           .reduce((acc, i) => acc + i.unidades_base_totales, 0);
         if (unidadesAnteriores + equivBase > producto.stock_total) {
-          if (typeof alert !== "undefined") {
-            alert(`Stock insuficiente. Disponible: ${producto.stock_total}`);
-          }
+          onError?.(`Stock insuficiente. Disponible: ${producto.stock_total}`);
           return prev;
         }
         const existe = prev.find(i => i.id_carrito === idCarrito);
@@ -91,6 +91,7 @@ export const useCart = () => {
             cantidad: 1,
             unidades_base_por_pack: equivBase,
             unidades_base_totales: equivBase,
+            stock_total: producto.stock_total,
             lote_fefo_numero: producto.lote_fefo_numero || "LOTE-STD",
             lote_fefo_vencimiento: producto.lote_fefo_vencimiento || "",
             requiere_receta: Boolean(producto.requiere_receta),
@@ -99,7 +100,7 @@ export const useCart = () => {
         ];
       });
     },
-    []
+    [onError]
   );
 
   const actualizarCantidad = useCallback(
@@ -108,19 +109,34 @@ export const useCart = () => {
         setCarrito(prev => prev.filter(i => i.id_carrito !== idCarrito));
         return;
       }
-      setCarrito(prev =>
-        prev.map(i =>
+      setCarrito(prev => {
+        const itemTarget = prev.find(i => i.id_carrito === idCarrito);
+        if (!itemTarget) return prev;
+
+        const unidadesOtros = prev
+          .filter(i => i.producto_comercial_id === itemTarget.producto_comercial_id && i.id_carrito !== idCarrito)
+          .reduce((acc, i) => acc + i.unidades_base_totales, 0);
+
+        const nuevasUnidades = nuevaCantidad * itemTarget.unidades_base_por_pack;
+        const stockMax = (itemTarget as any).stock_total;
+
+        if (stockMax !== undefined && (unidadesOtros + nuevasUnidades > stockMax)) {
+          onError?.(`Stock insuficiente. Máximo disponible: ${stockMax}`);
+          return prev;
+        }
+
+        return prev.map(i =>
           i.id_carrito === idCarrito
             ? {
-              ...i,
-              cantidad: nuevaCantidad,
-              unidades_base_totales: nuevaCantidad * i.unidades_base_por_pack,
-            }
+                ...i,
+                cantidad: nuevaCantidad,
+                unidades_base_totales: nuevasUnidades,
+              }
             : i
-        )
-      );
+        );
+      });
     },
-    []
+    [onError]
   );
 
   const limpiarCarrito = useCallback(async () => {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Search,
   Receipt,
@@ -22,8 +22,9 @@ import {
   PackageCheck,
   XCircle,
 } from "lucide-react";
+import { Toast } from "primereact/toast";
 import ImpresionComprobanteModal, { type ComprobanteData } from "./ImpresionComprobanteModal";
-import { formatMoney } from "../../venta/utils";
+import { formatMoney } from "../../venta/utils/calculosVenta";
 import { posApi } from "../../api/api.data";
 
 interface Props {
@@ -45,6 +46,7 @@ export default function ReporteComprobantes({
   fechaFin: fechaFinProp,
   setFechaFin: setFechaFinProp,
 }: Props) {
+  const toast = useRef<Toast>(null);
   // Filtros
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
@@ -212,7 +214,7 @@ export default function ReporteComprobantes({
       if (onRefresh) onRefresh();
       setComprobanteParaAnular(null);
     } catch (err: any) {
-      alert(`Error al anular comprobante: ${err.message || "Error del servidor"}`);
+      toast.current?.show({ severity: "error", summary: "Error", detail: `Error al anular comprobante: ${err.message || "Error del servidor"}`, life: 3000 });
     } finally {
       setAnulando(false);
     }
@@ -231,10 +233,10 @@ export default function ReporteComprobantes({
         link.click();
         document.body.removeChild(link);
       } else {
-        alert("No se pudo generar el Libro de Ventas PLE 14.1");
+        toast.current?.show({ severity: "warn", summary: "PLE", detail: "No se pudo generar el Libro de Ventas PLE 14.1", life: 3000 });
       }
     } catch (err: any) {
-      alert(`Error al descargar Libro PLE: ${err.message || "Error del servidor"}`);
+      toast.current?.show({ severity: "error", summary: "Error", detail: `Error al descargar Libro PLE: ${err.message || "Error del servidor"}`, life: 3000 });
     }
   };
 
@@ -355,14 +357,14 @@ export default function ReporteComprobantes({
             <span>Descargar PLE 14.1</span>
           </button>
           <button
-            onClick={() => alert("Resumen Diario de Boletas (RC) generado para SUNAT.")}
+            onClick={() => toast.current?.show({ severity: "info", summary: "SUNAT", detail: "Resumen Diario de Boletas (RC) generado para SUNAT.", life: 3000 })}
             className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
           >
             <Receipt size={15} />
             <span>Resumen Diario (RC)</span>
           </button>
           <button
-            onClick={() => alert("Comunicación de Baja (RA) de comprobantes generada.")}
+            onClick={() => toast.current?.show({ severity: "info", summary: "SUNAT", detail: "Comunicación de Baja (RA) de comprobantes generada.", life: 3000 })}
             className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
           >
             <Ban size={15} />
@@ -529,171 +531,230 @@ export default function ReporteComprobantes({
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-sans">
-              <thead className="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Comprobante / Serie</th>
-                  <th className="py-3 px-4">Fecha Emisión</th>
-                  <th className="py-3 px-4">Cliente / RUC-DNI</th>
-                  <th className="py-3 px-4">
-                    <div className="flex items-center gap-1">
-                      <PackageCheck size={13} className="text-purple-600" />
-                      <span>Productos Comprados</span>
-                    </div>
-                  </th>
-                  <th className="py-3 px-4 text-center">Método Pago</th>
-                  <th className="py-3 px-4 text-center">Estado SUNAT</th>
-                  <th className="py-3 px-4 text-right">Monto Total</th>
-                  <th className="py-3 px-4 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {comprobantesFiltrados.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => abrirModal(c, "80mm")}
-                    className="hover:bg-purple-50/40 transition-colors cursor-pointer group"
-                  >
-                    {/* Serie / Tipo */}
-                    <td className="py-3 px-4 font-mono font-bold">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full ${
-                            c.estadoSunat === "ANULADO"
-                              ? "bg-rose-500"
-                              : c.tipoComprobante === "FACTURA"
-                              ? "bg-violet-500"
-                              : c.tipoComprobante === "NOTA_VENTA"
-                              ? "bg-amber-500"
-                              : "bg-sky-500"
-                          }`}
-                        />
-                        <div>
-                          <div className="text-slate-900 font-black text-xs group-hover:text-purple-700 transition">{c.serieNumero}</div>
+          <>
+            <div className="overflow-x-auto hidden md:block">
+              <table className="w-full text-left text-xs font-sans">
+                <thead className="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th className="py-3 px-4">Comprobante / Serie</th>
+                    <th className="py-3 px-4">Fecha Emisión</th>
+                    <th className="py-3 px-4">Cliente / RUC-DNI</th>
+                    <th className="py-3 px-4">
+                      <div className="flex items-center gap-1">
+                        <PackageCheck size={13} className="text-purple-600" />
+                        <span>Productos Comprados</span>
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 text-center">Método Pago</th>
+                    <th className="py-3 px-4 text-center">Estado SUNAT</th>
+                    <th className="py-3 px-4 text-right">Monto Total</th>
+                    <th className="py-3 px-4 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {comprobantesFiltrados.map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => abrirModal(c, "80mm")}
+                      className="hover:bg-purple-50/40 transition-colors cursor-pointer group"
+                    >
+                      {/* Serie / Tipo */}
+                      <td className="py-3 px-4 font-mono font-bold">
+                        <div className="flex items-center gap-2">
                           <span
-                            className={`text-[9px] font-sans font-bold px-1.5 py-0.2 rounded ${
-                              c.tipoComprobante === "FACTURA"
-                                ? "bg-violet-50 text-violet-700"
+                            className={`w-2.5 h-2.5 rounded-full ${
+                              c.estadoSunat === "ANULADO"
+                                ? "bg-rose-500"
+                                : c.tipoComprobante === "FACTURA"
+                                ? "bg-violet-500"
                                 : c.tipoComprobante === "NOTA_VENTA"
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-sky-50 text-sky-700"
+                                ? "bg-amber-500"
+                                : "bg-sky-500"
                             }`}
-                          >
-                            {c.tipoComprobante}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Fecha */}
-                    <td className="py-3 px-4 text-slate-500 font-medium">
-                      {new Date(c.fechaEmision).toLocaleString("es-PE", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-
-                    {/* Cliente */}
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-slate-800">{c.cliente.nombre}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        {c.cliente.tipoDocumento}: {c.cliente.numeroDocumento}
-                      </div>
-                    </td>
-
-                    {/* Detalle de Productos Comprados */}
-                    <td className="py-3 px-4 max-w-[220px]">
-                      <div className="space-y-1 text-[11px]">
-                        {c.items.slice(0, 2).map((item, idx) => (
-                          <div key={idx} className="truncate font-semibold text-slate-800 flex items-center justify-between gap-1">
-                            <span className="truncate">💊 {item.cantidad}x {item.descripcion}</span>
-                            <span className="font-mono text-[10px] text-slate-500 font-bold">S/ {item.subtotal.toFixed(2)}</span>
+                          />
+                          <div>
+                            <div className="text-slate-900 font-black text-xs group-hover:text-purple-700 transition">{c.serieNumero}</div>
+                            <span
+                              className={`text-[9px] font-sans font-bold px-1.5 py-0.2 rounded ${
+                                c.tipoComprobante === "FACTURA"
+                                  ? "bg-violet-50 text-violet-700"
+                                  : c.tipoComprobante === "NOTA_VENTA"
+                                  ? "bg-amber-50 text-amber-700"
+                                  : "bg-sky-50 text-sky-700"
+                              }`}
+                            >
+                              {c.tipoComprobante}
+                            </span>
                           </div>
-                        ))}
-                        {c.items.length > 2 && (
-                          <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-md">
-                            +{c.items.length - 2} producto(s) más...
+                        </div>
+                      </td>
+
+                      {/* Fecha */}
+                      <td className="py-3 px-4 text-slate-500 font-medium">
+                        {new Date(c.fechaEmision).toLocaleString("es-PE", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+
+                      {/* Cliente */}
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-slate-800">{c.cliente.nombre}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {c.cliente.tipoDocumento}: {c.cliente.numeroDocumento}
+                        </div>
+                      </td>
+
+                      {/* Detalle de Productos Comprados */}
+                      <td className="py-3 px-4 max-w-[220px]">
+                        <div className="space-y-1 text-[11px]">
+                          {c.items.slice(0, 2).map((item, idx) => (
+                            <div key={idx} className="truncate font-semibold text-slate-800 flex items-center justify-between gap-1">
+                              <span className="truncate">💊 {item.cantidad}x {item.descripcion}</span>
+                              <span className="font-mono text-[10px] text-slate-500 font-bold">S/ {item.subtotal.toFixed(2)}</span>
+                            </div>
+                          ))}
+                          {c.items.length > 2 && (
+                            <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-md">
+                              +{c.items.length - 2} producto(s) más...
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Método de Pago */}
+                      <td className="py-3 px-4 text-center">
+                        {getMetodoIcon(c.metodoPago)}
+                      </td>
+
+                      {/* Estado SUNAT */}
+                      <td className="py-3 px-4 text-center">
+                        {c.estadoSunat === "ACEPTADO" ? (
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-emerald-200">
+                            <CheckCircle2 size={12} /> ACEPTADO
                           </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Método de Pago */}
-                    <td className="py-3 px-4 text-center">
-                      {getMetodoIcon(c.metodoPago)}
-                    </td>
-
-                    {/* Estado SUNAT */}
-                    <td className="py-3 px-4 text-center">
-                      {c.estadoSunat === "ACEPTADO" ? (
-                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-emerald-200">
-                          <CheckCircle2 size={12} /> ACEPTADO
-                        </span>
-                      ) : c.estadoSunat === "ANULADO" ? (
-                        <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-rose-200">
-                          <XCircle size={12} /> ANULADO
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-amber-200">
-                          <Clock size={12} /> PENDIENTE
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Monto Total */}
-                    <td className="py-3 px-4 text-right font-black text-slate-900 text-sm">
-                      {formatMoney(c.total)}
-                    </td>
-
-                    {/* Botones Acciones Coherentes */}
-                    <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* Botón Ver Comprobante */}
-                        <button
-                          onClick={() => abrirModal(c, "80mm")}
-                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer border border-indigo-200 shadow-2xs"
-                          title="Ver o Imprimir Comprobante Completo"
-                        >
-                          <Eye size={13} />
-                          <span>Ver</span>
-                        </button>
-
-                        {/* Botón XML Rápido SUNAT */}
-                        <button
-                          onClick={() => abrirModal(c, "xml")}
-                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-emerald-200"
-                          title="Ver Modelo XML SUNAT UBL 2.1"
-                        >
-                          <FileCode size={12} />
-                          <span>XML</span>
-                        </button>
-
-                        {/* Botón Anular / Cancelar */}
-                        {c.estadoSunat === "ANULADO" ? (
-                          <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-bold border border-slate-200 cursor-not-allowed inline-flex items-center gap-1">
-                            <Ban size={12} /> Anulado
+                        ) : c.estadoSunat === "ANULADO" ? (
+                          <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-rose-200">
+                            <XCircle size={12} /> ANULADO
                           </span>
                         ) : (
-                          <button
-                            onClick={() => setComprobanteParaAnular(c)}
-                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-rose-200"
-                            title="Anular comprobante y devolver stock a lotes FEFO"
-                          >
-                            <Ban size={12} />
-                            <span>Anular</span>
-                          </button>
+                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-amber-200">
+                            <Clock size={12} /> PENDIENTE
+                          </span>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </td>
+
+                      {/* Monto Total */}
+                      <td className="py-3 px-4 text-right font-black text-slate-900 text-sm">
+                        {formatMoney(c.total)}
+                      </td>
+
+                      {/* Botones Acciones Coherentes */}
+                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          {/* Botón Ver Comprobante */}
+                          <button
+                            onClick={() => abrirModal(c, "80mm")}
+                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer border border-indigo-200 shadow-2xs"
+                            title="Ver o Imprimir Comprobante Completo"
+                          >
+                            <Eye size={13} />
+                            <span>Ver</span>
+                          </button>
+
+                          {/* Botón XML Rápido SUNAT */}
+                          <button
+                            onClick={() => abrirModal(c, "xml")}
+                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-emerald-200"
+                            title="Ver Modelo XML SUNAT UBL 2.1"
+                          >
+                            <FileCode size={12} />
+                            <span>XML</span>
+                          </button>
+
+                          {/* Botón Anular / Cancelar */}
+                          {c.estadoSunat === "ANULADO" ? (
+                            <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-bold border border-slate-200 cursor-not-allowed inline-flex items-center gap-1">
+                              <Ban size={12} /> Anulado
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setComprobanteParaAnular(c)}
+                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-rose-200"
+                              title="Anular comprobante y devolver stock a lotes FEFO"
+                            >
+                              <Ban size={12} />
+                              <span>Anular</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden divide-y divide-slate-100">
+              {comprobantesFiltrados.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => abrirModal(c, "80mm")}
+                  className="p-3 bg-white space-y-2 cursor-pointer active:bg-slate-50"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full ${
+                          c.estadoSunat === "ANULADO"
+                            ? "bg-rose-500"
+                            : c.tipoComprobante === "FACTURA"
+                            ? "bg-violet-500"
+                            : c.tipoComprobante === "NOTA_VENTA"
+                            ? "bg-amber-500"
+                            : "bg-sky-500"
+                        }`}
+                      />
+                      <span className="text-xs font-black text-slate-900">{c.serieNumero}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {new Date(c.fechaEmision).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-800">{c.cliente.nombre}</div>
+                  <div className="text-[10px] text-slate-500 font-mono">
+                    {c.cliente.tipoDocumento}: {c.cliente.numeroDocumento}
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <span className="font-bold text-slate-700">{c.items.length} producto(s)</span>
+                    <span className="font-black text-slate-900 text-sm">{formatMoney(c.total)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        c.estadoSunat === "ACEPTADO"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : c.estadoSunat === "ANULADO"
+                          ? "bg-rose-50 text-rose-700"
+                          : "bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {c.estadoSunat}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); abrirModal(c, "80mm"); }}
+                      className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-bold"
+                    >
+                      Ver
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -749,6 +810,7 @@ export default function ReporteComprobantes({
           </div>
         </div>
       )}
+      <Toast ref={toast} />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authApi } from '../components/api/auth.api';
 import type { LoginRequest } from '../components/api/auth.api';
+import { queryClient } from '../lib/queryClient';
 
 interface User {
     id: string;
@@ -126,8 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('sucursalId', nuevaSucursal.id);
             setSucursalActual(nuevaSucursal);
 
-            // Recargar la página para actualizar datos y peticiones
-            window.location.reload();
+            queryClient.invalidateQueries();
         }
     };
 

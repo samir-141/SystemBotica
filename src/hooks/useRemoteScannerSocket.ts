@@ -13,7 +13,8 @@ function generarSessionCode(): string {
 export function useRemoteScannerSocket(
   onBarcodeScanned?: (barcode: string, deviceName?: string) => void,
   initialSessionCode?: string | null,
-  role: "pc" | "phone" = "pc"
+  role: "pc" | "phone" = "pc",
+  enabled: boolean = true
 ) {
   const [sessionCode, setSessionCode] = useState<string>(() => {
     if (initialSessionCode) return initialSessionCode.toUpperCase();
@@ -30,7 +31,23 @@ export function useRemoteScannerSocket(
   const [pingMs, setPingMs] = useState<number | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
+  // Mantener callback estable mediante useRef para evitar ciclo infinito de reconexión
+  const onBarcodeScannedRef = useRef(onBarcodeScanned);
   useEffect(() => {
+    onBarcodeScannedRef.current = onBarcodeScanned;
+  }, [onBarcodeScanned]);
+
+  useEffect(() => {
+    if (!enabled) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        setConnected(false);
+        setRemoteDeviceConnected(false);
+      }
+      return;
+    }
+
     // Determinar URL del servidor backend para WebSocket
     const envUrl = import.meta.env.VITE_API_URL || "";
     let serverHost = "";
@@ -46,7 +63,7 @@ export function useRemoteScannerSocket(
     const socket = io(socketUrl, {
       transports: ["websocket", "polling"],
       reconnectionAttempts: 20,
-      reconnectionDelay: 1000,
+      reconnectionDelay: 2000,
     });
 
     socketRef.current = socket;
@@ -72,8 +89,8 @@ export function useRemoteScannerSocket(
     });
 
     socket.on("barcode_scanned", (data) => {
-      if (data?.barcode && onBarcodeScanned) {
-        onBarcodeScanned(data.barcode, data.deviceName);
+      if (data?.barcode && onBarcodeScannedRef.current) {
+        onBarcodeScannedRef.current(data.barcode, data.deviceName);
       }
     });
 
@@ -92,8 +109,9 @@ export function useRemoteScannerSocket(
     return () => {
       clearInterval(pingInterval);
       socket.disconnect();
+      socketRef.current = null;
     };
-  }, [sessionCode, role, onBarcodeScanned]);
+  }, [sessionCode, role, enabled]);
 
   const sendBarcode = useCallback(
     (barcode: string) => {

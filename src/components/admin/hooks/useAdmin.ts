@@ -8,6 +8,9 @@ export interface UsuarioItem {
   estado: string;
   rol_id: string;
   rol_nombre: string;
+  botica_nombre?: string;
+  sucursal_id?: string | null;
+  sucursal_nombre?: string;
   created_at?: string;
 }
 

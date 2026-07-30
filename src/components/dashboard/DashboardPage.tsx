@@ -29,7 +29,6 @@ import { useAuth } from "../../hooks/useAuth";
 import {
   enmascararDocumento,
   calcularMargenBruto,
-  calcularMarkup,
   esMargenAnomalo,
 } from "./utils/dashboardUtils";
 
@@ -43,70 +42,243 @@ export default function DashboardPage() {
 
   // Cálculos financieros defensivos
   const ventasHoy = kpis?.total_ventas_hoy || 0;
-  const gananciaNeta = kpis?.ganancia_neta_hoy || (ventasHoy * 0.35); // Fallback razonable al 35%
-  const costoVentas = kpis?.costo_ventas_hoy || (ventasHoy - gananciaNeta);
-  const margenBrutoPct = kpis?.margen_ganancia_pct || calcularMargenBruto(ventasHoy, costoVentas);
-  const markupPct = calcularMarkup(ventasHoy, costoVentas);
-  const esAnomalo = esMargenAnomalo(margenBrutoPct);
+  const gananciaNeta = kpis?.ganancia_neta_hoy ?? 0;
+  const costoVentas = kpis?.costo_ventas_hoy ?? 0;
+  const margenBrutoPct = kpis?.margen_ganancia_pct ?? calcularMargenBruto(ventasHoy, costoVentas);
+  const progresoCapital = resumen?.progreso_capital;
+  const resultadoAcumulado = progresoCapital?.resultado_acumulado ?? 0;
+  const margenAcumuladoPct = progresoCapital?.margen_acumulado_pct ?? 0;
+  const gananciaEstimadaMinima = progresoCapital?.ganancia_estimada_minima ?? 0;
+  const gananciaEstimadaMaxima = progresoCapital?.ganancia_estimada_maxima ?? 0;
+  const ventaEstimadaMinima = progresoCapital?.venta_estimada_minima ?? 0;
+  const ventaEstimadaMaxima = progresoCapital?.venta_estimada_maxima ?? 0;
+  const hayPerdidaAcumulada = resultadoAcumulado < 0;
 
   const operacionesHoy = kpis?.operaciones_hoy || 0;
   const tieneDatosSuficientesComparar = operacionesHoy >= 10;
 
-  // Exportar Excel / CSV para Contadores
+  // Exportar Excel estructurado y estilizado para Microsoft Excel
   const handleExportarExcelCSV = () => {
     if (!resumen) return;
 
-    const fechaHoy = new Date().toISOString().split("T")[0];
+    const fechaHoy = new Date().toLocaleDateString("es-PE", { year: "numeric", month: "2-digit", day: "2-digit" });
+    const horaHoy = new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
     const sucursalNombre = sucursalActual?.nombre || "MATRIZ PRINCIPAL";
 
-    let csvContent = `REPORTES CONTABLES POS FARMACIA - FECHA: ${fechaHoy}\n`;
-    csvContent += `SUCURSAL: ${sucursalNombre}\n\n`;
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="utf-8">
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Dashboard Financiero</x:Name>
+                <x:WorksheetOptions>
+                  <x:DisplayGridlines/>
+                </x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; }
+          table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+          .banner { background-color: #0f172a; color: #10b981; font-size: 16pt; font-weight: bold; text-align: center; padding: 14px; border: 1px solid #0284c7; }
+          .subbanner { background-color: #1e293b; color: #cbd5e1; font-size: 10pt; text-align: center; padding: 8px; border: 1px solid #334155; }
+          .section { background-color: #047857; color: #ffffff; font-size: 11pt; font-weight: bold; padding: 9px; text-align: left; }
+          .section-alert { background-color: #991b1b; color: #ffffff; font-size: 11pt; font-weight: bold; padding: 9px; text-align: left; }
+          th { background-color: #059669; color: #ffffff; font-size: 10pt; font-weight: bold; border: 1px solid #047857; padding: 8px; text-align: left; }
+          td { border: 1px solid #cbd5e1; padding: 7px; font-size: 10pt; color: #1e293b; }
+          .alt { background-color: #f8fafc; }
+          .num { text-align: right; }
+          .pct { text-align: right; }
+          .cnt { text-align: center; }
+          .bold { font-weight: bold; }
+          .success { color: #047857; font-weight: bold; }
+          .alert { color: #b91c1c; font-weight: bold; }
+          .spacer { height: 16px; background-color: #ffffff; border: none; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr>
+            <td colspan="5" class="banner">REPORTE FINANCIERO Y ANALYTICS DE VENTAS - POS FARMA ERP</td>
+          </tr>
+          <tr>
+            <td colspan="5" class="subbanner">
+              Sucursal: <b>${sucursalNombre}</b> | Emisión: <b>${fechaHoy} ${horaHoy}</b> | Rango: <b>${rangoFecha}</b>
+            </td>
+          </tr>
+          <tr class="spacer"><td colspan="5"></td></tr>
 
-    // 1. BALANCE GENERAL Y KPIS
-    csvContent += `--- RESUMEN Y BALANCE DE INGRESOS Y UTILIDAD ---\n`;
-    csvContent += `Métrica,Monto (PEN),Detalle\n`;
-    csvContent += `Ventas Totales Hoy,S/ ${ventasHoy.toFixed(2)},${operacionesHoy} operaciones\n`;
-    csvContent += `Ganancia Neta (Utilidad Bruta),S/ ${gananciaNeta.toFixed(2)},Margen: ${margenBrutoPct}%\n`;
-    csvContent += `Ticket Promedio,S/ ${(kpis?.ticket_promedio || 0).toFixed(2)},Por transacción\n`;
-    csvContent += `Ventas Ayer,S/ ${(kpis?.total_ventas_ayer || 0).toFixed(2)},Crecimiento: ${kpis?.porcentaje_crecimiento || 0}%\n`;
-    csvContent += `Payback Recuperado,S/ ${(resumen.progreso_capital?.recaudado || 0).toFixed(2)},Pendiente: S/ ${(resumen.progreso_capital?.pendiente || 0).toFixed(2)}\n\n`;
+          <!-- 1. RESUMEN EJECUTIVO Y BALANCES -->
+          <tr>
+            <td colspan="5" class="section">1. RESUMEN EJECUTIVO & BALANCE DE INGRESOS</td>
+          </tr>
+          <tr>
+            <th>Métrica / Indicador Financiero</th>
+            <th style="text-align:right">Monto (PEN)</th>
+            <th style="text-align:right">Porcentaje / Margen</th>
+            <th colspan="2">Detalle u Observación</th>
+          </tr>
+          <tr>
+            <td class="bold">Ventas Totales Hoy</td>
+            <td class="num bold">S/ ${ventasHoy.toFixed(2)}</td>
+            <td class="pct">${kpis?.porcentaje_crecimiento || 0}%</td>
+            <td colspan="2">${operacionesHoy} transacciones procesadas hoy</td>
+          </tr>
+          <tr class="alt">
+            <td class="bold">Ganancia Neta (Utilidad Bruta)</td>
+            <td class="num bold success">S/ ${gananciaNeta.toFixed(2)}</td>
+            <td class="pct success">${margenBrutoPct}%</td>
+            <td colspan="2">Margen bruto proyectado sobre costo de ventas</td>
+          </tr>
+          <tr>
+            <td>Costo de Ventas Calculado</td>
+            <td class="num">S/ ${costoVentas.toFixed(2)}</td>
+            <td class="pct">${(100 - margenBrutoPct).toFixed(1)}%</td>
+            <td colspan="2">Costo base de insumos y medicamentos</td>
+          </tr>
+          <tr class="alt">
+            <td>Ticket Promedio por Venta</td>
+            <td class="num">S/ ${(kpis?.ticket_promedio || 0).toFixed(2)}</td>
+            <td class="cnt">-</td>
+            <td colspan="2">Promedio invertido por cliente por ticket</td>
+          </tr>
+          <tr>
+            <td>Ventas Día Anterior (Ayer)</td>
+            <td class="num">S/ ${(kpis?.total_ventas_ayer || 0).toFixed(2)}</td>
+            <td class="pct">${kpis?.porcentaje_crecimiento || 0}%</td>
+            <td colspan="2">Comparativa vs periodo anterior</td>
+          </tr>
+          <tr class="alt">
+            <td class="bold">Recuperación de Inversión (Payback Global)</td>
+            <td class="num bold success">S/ ${(resumen.progreso_capital?.recaudado || 0).toFixed(2)}</td>
+            <td class="pct success">${resumen.progreso_capital?.porcentaje_completado}%</td>
+            <td colspan="2">Meta Capital: S/ ${(resumen.progreso_capital?.meta_capital || 0).toFixed(2)} | Pendiente: S/ ${(resumen.progreso_capital?.pendiente || 0).toFixed(2)}</td>
+          </tr>
 
-    // 2. DESGLOSE METODOS DE PAGO
-    csvContent += `--- DESGLOSE DE INGRESOS POR METODO DE PAGO ---\n`;
-    csvContent += `Metodo de Pago,Monto Total (PEN),Porcentaje (%)\n`;
-    resumen.desglose_pagos.forEach((p) => {
-      csvContent += `"${p.metodo}",S/ ${p.monto.toFixed(2)},${p.porcentaje}%\n`;
-    });
-    csvContent += `\n`;
+          <tr class="spacer"><td colspan="5"></td></tr>
 
-    // 3. TOP CLIENTES (ENMASCARADO)
-    csvContent += `--- TOP MEJORES CLIENTES (DNI ENMASCARADO LEY DE PRIVACIDAD) ---\n`;
-    csvContent += `Cliente,Documento Enmascarado,Compras Realizadas,Total Gastado (PEN)\n`;
-    (resumen.top_clientes || []).forEach((c) => {
-      csvContent += `"${c.nombre}","${enmascararDocumento(c.documento)}",${c.compras_count},S/ ${c.total_comprado.toFixed(2)}\n`;
-    });
-    csvContent += `\n`;
+          <!-- 2. DESGLOSE METODOS DE PAGO -->
+          <tr>
+            <td colspan="5" class="section">2. DESGLOSE DE INGRESOS POR METODO DE PAGO</td>
+          </tr>
+          <tr>
+            <th colspan="2">Método de Pago</th>
+            <th style="text-align:right">Monto Recaudado (PEN)</th>
+            <th style="text-align:right">Participación (%)</th>
+            <th>Estado Conciliación</th>
+          </tr>
+          ${resumen.desglose_pagos.map((p, idx) => `
+            <tr class="${idx % 2 === 1 ? "alt" : ""}">
+              <td colspan="2" class="bold">${p.metodo}</td>
+              <td class="num">S/ ${p.monto.toFixed(2)}</td>
+              <td class="pct">${p.porcentaje}%</td>
+              <td class="cnt success">CONCILIADO</td>
+            </tr>
+          `).join("")}
 
-    // 4. TOP VENDEDORES
-    csvContent += `--- DESEMPEÑO DE VENDEDORES (CAJEROS) ---\n`;
-    csvContent += `Vendedor,Correo,Operaciones,Total Facturado (PEN)\n`;
-    (resumen.top_vendedores || []).forEach((u) => {
-      csvContent += `"${u.nombre}","${u.correo}",${u.operaciones_count},S/ ${u.total_facturado.toFixed(2)}\n`;
-    });
-    csvContent += `\n`;
+          <tr class="spacer"><td colspan="5"></td></tr>
 
-    // 5. PRODUCTOS MAS RENTABLES
-    csvContent += `--- PRODUCTOS MAS RENTABLES ---\n`;
-    csvContent += `Producto,Presentacion,Unidades Vendidas,Ingresos Totales (PEN),Ganancia Neta (PEN),Margen (%)\n`;
-    (resumen.productos_rentables || []).forEach((p) => {
-      csvContent += `"${p.nombre}","${p.presentacion}",${p.cantidad},S/ ${p.ingresos.toFixed(2)},S/ ${p.ganancia_neta.toFixed(2)},${p.margen_pct}%\n`;
-    });
+          <!-- 3. PRODUCTOS MAS RENTABLES -->
+          <tr>
+            <td colspan="5" class="section">3. PRODUCTOS MAS RENTABLES (MAYOR MARGEN DE UTILIDAD)</td>
+          </tr>
+          <tr>
+            <th>Producto Comercial</th>
+            <th>Presentación</th>
+            <th style="text-align:center">Unidades Vendidas</th>
+            <th style="text-align:right">Ingresos Totales (PEN)</th>
+            <th style="text-align:right">Ganancia Neta (PEN)</th>
+          </tr>
+          ${(resumen.productos_rentables || []).map((p, idx) => `
+            <tr class="${idx % 2 === 1 ? "alt" : ""}">
+              <td class="bold">${p.nombre}</td>
+              <td>${p.presentacion}</td>
+              <td class="cnt">${p.cantidad}</td>
+              <td class="num">S/ ${p.ingresos.toFixed(2)}</td>
+              <td class="num bold success">S/ ${p.ganancia_neta.toFixed(2)}</td>
+            </tr>
+          `).join("")}
 
-    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+          <tr class="spacer"><td colspan="5"></td></tr>
+
+          <!-- 4. TOP VENDEDORES -->
+          <tr>
+            <td colspan="5" class="section">4. DESEMPEÑO DE CAJEROS Y VENDEDORES</td>
+          </tr>
+          <tr>
+            <th colspan="2">Nombre del Vendedor</th>
+            <th>Correo Electrónico</th>
+            <th style="text-align:center">N° Operaciones</th>
+            <th style="text-align:right">Total Facturado (PEN)</th>
+          </tr>
+          ${(resumen.top_vendedores || []).map((u, idx) => `
+            <tr class="${idx % 2 === 1 ? "alt" : ""}">
+              <td colspan="2" class="bold">${u.nombre}</td>
+              <td>${u.correo}</td>
+              <td class="cnt">${u.operaciones_count}</td>
+              <td class="num bold">S/ ${u.total_facturado.toFixed(2)}</td>
+            </tr>
+          `).join("")}
+
+          <tr class="spacer"><td colspan="5"></td></tr>
+
+          <!-- 5. TOP CLIENTES -->
+          <tr>
+            <td colspan="5" class="section">5. CLIENTES DESTACADOS (PRIVACIDAD ENMASCARADA)</td>
+          </tr>
+          <tr>
+            <th colspan="2">Nombre del Cliente</th>
+            <th>Documento Enmascarado</th>
+            <th style="text-align:center">N° Compras</th>
+            <th style="text-align:right">Total Comprado (PEN)</th>
+          </tr>
+          ${(resumen.top_clientes || []).map((c, idx) => `
+            <tr class="${idx % 2 === 1 ? "alt" : ""}">
+              <td colspan="2" class="bold">${c.nombre}</td>
+              <td>${enmascararDocumento(c.documento)}</td>
+              <td className="cnt">${c.compras_count}</td>
+              <td className="num bold">S/ ${c.total_comprado.toFixed(2)}</td>
+            </tr>
+          `).join("")}
+
+          <tr class="spacer"><td colspan="5"></td></tr>
+
+          <!-- 6. ALERTAS DE INVENTARIO -->
+          <tr>
+            <td colspan="5" class="section-alert">6. ALERTAS DE INVENTARIO Y STOCK BAJO</td>
+          </tr>
+          <tr>
+            <th>Producto Comercial</th>
+            <th>N° Lote</th>
+            <th style="text-align:center">Stock Actual</th>
+            <th>Fecha Vencimiento</th>
+            <th>Estado / Acción Required</th>
+          </tr>
+          ${(resumen.alertas_stock || []).map((a, idx) => `
+            <tr class="${idx % 2 === 1 ? "alt" : ""}">
+              <td class="bold">${a.nombre_comercial}</td>
+              <td>${a.numero_lote}</td>
+              <td class="cnt bold alert">${a.stock_actual} unids</td>
+              <td>${new Date(a.fecha_vencimiento).toLocaleDateString("es-PE")}</td>
+              <td class="bold alert">REABASTECER URGENTE</td>
+            </tr>
+          `).join("")}
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\ufeff" + excelTemplate], { type: "application/vnd.ms-excel;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Reporte_Contable_POS_${fechaHoy}.csv`;
+    link.download = `Reporte_Financiero_POS_${fechaHoy.replace(/\//g, "-")}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -117,7 +289,23 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-100 font-sans text-slate-800 overflow-y-auto p-3 sm:p-6 space-y-6 select-none">
+    <div className="h-full flex flex-col bg-slate-100 font-sans text-slate-800 overflow-y-auto p-3 sm:p-6 space-y-6 select-none print-container">
+      {/* ═══ ENCABEZADO EXCLUSIVO PARA IMPRESIÓN / PDF ════════════════════════ */}
+      <div className="hidden print:block border-b-2 border-slate-900 pb-3 mb-2">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase">REPORTE EJECUTIVO DE ANALYTICS - FARMAPOS ERP</h1>
+            <p className="text-xs text-slate-600 font-medium mt-1">
+              Sucursal: <strong>{sucursalActual?.nombre || "Matriz Principal"}</strong> | Rango Seleccionado: <strong>{rangoFecha}</strong>
+            </p>
+          </div>
+          <div className="text-right text-xs text-slate-600">
+            <p>Emisión: <strong>{new Date().toLocaleDateString("es-PE")} {new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}</strong></p>
+            <p className="text-[10px] text-slate-400">Documento Interno Confidencial</p>
+          </div>
+        </div>
+      </div>
+
       {/* ═══ HEADER BAR CON RANGO DE FECHAS & EXPORTACIÓN CONTABLE ══════════════ */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-2xs border border-slate-200/80">
         <div className="flex items-center gap-3">
@@ -139,7 +327,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Acciones & Presets de Rango de Fecha */}
-        <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+        <div className="flex items-center gap-2 flex-wrap self-end md:self-auto print:hidden">
           {/* Selector Preset de Fecha */}
           <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
             {["HOY", "AYER", "7 DÍAS", "MES"].map((r) => (
@@ -166,7 +354,7 @@ export default function DashboardPage() {
             title="Exportar archivo CSV / Excel para contabilidad"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Exportar CSV</span>
+            <span>Exportar Excel</span>
           </button>
 
           <button
@@ -203,7 +391,7 @@ export default function DashboardPage() {
       {/* ═══ BANNER RECUPERACIÓN DE INVERSIÓN INICIAL (PAYBACK) ════════════════ */}
       {resumen?.progreso_capital && (
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 p-5 rounded-2xl border border-slate-700 shadow-lg text-white space-y-3 relative">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
                 <Target size={20} />
@@ -214,21 +402,27 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setShowPaybackTooltip(!showPaybackTooltip)}
-                    className="text-slate-400 hover:text-white cursor-pointer"
+                    className="text-slate-400 hover:text-white cursor-pointer print:hidden"
                     title="Explicación del indicador contable"
                   >
                     <Info size={14} />
                   </button>
                 </div>
-                <p className="text-xs text-slate-300">Retorno acumulado sobre inversión inicial vs Meta de Apertura</p>
+                <p className="text-xs text-slate-300">Retorno acumulado global (todas las sucursales) vs Meta de Inversión</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-xs font-mono font-bold self-end sm:self-auto">
-              <span className="bg-emerald-900/60 px-3 py-1 rounded-xl border border-emerald-500/30 text-emerald-300">
+            <div className="grid w-full grid-cols-2 gap-2 text-xs font-mono font-bold lg:w-auto lg:grid-cols-4">
+              <span className="whitespace-nowrap bg-emerald-900/60 px-3 py-1.5 rounded-xl border border-emerald-500/30 text-emerald-300">
                 Meta: S/ {resumen.progreso_capital.meta_capital.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
               </span>
-              <span className="bg-emerald-500/20 px-3 py-1 rounded-xl border border-emerald-400/40 text-emerald-200">
+              <span className="whitespace-nowrap bg-slate-700/70 px-3 py-1.5 rounded-xl border border-slate-500 text-slate-100">
+                Ventas: S/ {(resumen.progreso_capital.ingresos_historicos || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+              </span>
+              <span className={`whitespace-nowrap px-3 py-1.5 rounded-xl border ${hayPerdidaAcumulada ? "bg-rose-500/15 border-rose-400/40 text-rose-200" : "bg-emerald-500/20 border-emerald-400/40 text-emerald-200"}`}>
+                {hayPerdidaAcumulada ? "Pérdida" : "Resultado"}: S/ {(hayPerdidaAcumulada ? Math.abs(resultadoAcumulado) : resultadoAcumulado).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+              </span>
+              <span className="whitespace-nowrap bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-400/40 text-emerald-200">
                 Recuperado: S/ {resumen.progreso_capital.recaudado.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -237,18 +431,23 @@ export default function DashboardPage() {
           {/* Modal / Tooltip de ayuda contable Payback */}
           {showPaybackTooltip && (
             <div className="p-3 bg-slate-800/90 border border-emerald-500/40 rounded-xl text-xs text-emerald-100 font-medium animate-in fade-in duration-150">
-              💡 <strong>Nota Contable (Payback)</strong>: Este indicador mide la recuperación acumulada de la inversión inicial de apertura (S/ {resumen.progreso_capital.meta_capital.toLocaleString()}) mediante utilidades netas desde la apertura de la sucursal.
+              <p className="mb-1">La meta incluye compras de inventario, inversiones y gastos operativos. La recuperación usa utilidad bruta acumulada: ventas menos costo real de mercadería vendida.</p>
+              <p className="text-emerald-200">Ventas S/ {(resumen.progreso_capital.ingresos_historicos || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })} − costo vendido S/ {(resumen.progreso_capital.costo_ventas_historico || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })} = recuperado S/ {resumen.progreso_capital.recaudado.toLocaleString("es-PE", { minimumFractionDigits: 2 })}</p>
+              <p className="mt-1 text-slate-300">El avance general se calcula dinámicamente como el porcentaje de ventas históricas acumuladas sobre la meta de inversión inicial, de forma global e independiente de filtros.</p>
+              💡 <strong>Nota Contable (Payback)</strong>: Este indicador mide la recuperación acumulada global de todas las sucursales sobre la inversión inicial (S/ {resumen.progreso_capital.meta_capital.toLocaleString()}). Es un indicador histórico consolidado que no varía por filtros de fecha o sucursal.
             </div>
           )}
 
           {/* Barra de progreso */}
           <div className="space-y-1.5">
-            <div className="flex justify-between text-xs font-extrabold">
+            <div className="flex flex-col gap-1 text-xs font-extrabold sm:flex-row sm:items-center sm:justify-between">
               <span className="text-emerald-300 flex items-center gap-1">
-                <Coins size={14} /> Completo: {resumen.progreso_capital.porcentaje_completado}%
+                <Coins size={14} /> Avance general: {resumen.progreso_capital.porcentaje_completado}%
               </span>
-              <span className="text-amber-300 font-mono">
-                Falta para meta: S/ {resumen.progreso_capital.pendiente.toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+              <span className={`${hayPerdidaAcumulada ? "text-rose-300" : "text-amber-300"} font-mono`}>
+                {hayPerdidaAcumulada
+                  ? `Primero cubrir pérdida: S/ ${Math.abs(resultadoAcumulado).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`
+                  : `Falta para meta: S/ ${resumen.progreso_capital.pendiente.toLocaleString("es-PE", { minimumFractionDigits: 2 })}`}
               </span>
             </div>
             <div className="w-full bg-slate-700/60 h-3.5 rounded-full overflow-hidden p-0.5 border border-slate-600">
@@ -262,7 +461,7 @@ export default function DashboardPage() {
       )}
 
       {/* ═══ KPIS CARDS FINANCIEROS AUDITADOS ═══════════════════════════════════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Card 1: Ventas Hoy */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-3">
@@ -295,34 +494,52 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: Utilidad Bruta & Margen de Ganancia AUDITADO */}
-        <div className={`bg-white p-5 rounded-2xl border shadow-2xs flex flex-col justify-between hover:shadow-md transition-all ${esAnomalo ? "border-amber-300 ring-1 ring-amber-400/30" : "border-emerald-100"}`}>
+        {/* Card 2: Resultado global, independiente de los filtros de período */}
+        <div className={`bg-white p-5 rounded-2xl border shadow-2xs flex flex-col justify-between hover:shadow-md transition-all ${resultadoAcumulado < 0 ? "border-rose-300 ring-1 ring-rose-400/20" : esMargenAnomalo(margenAcumuladoPct) ? "border-amber-300 ring-1 ring-amber-400/30" : "border-emerald-100"}`}>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Ganancia Neta</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <span className={`text-xs font-bold uppercase tracking-wider ${resultadoAcumulado < 0 ? "text-rose-700" : "text-emerald-700"}`}>
+              {resultadoAcumulado < 0 ? "Pérdida acumulada" : "Ganancia acumulada"}
+            </span>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${resultadoAcumulado < 0 ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>
               <PiggyBank className="w-5 h-5" />
             </div>
           </div>
           <div>
-            <div className="text-2xl sm:text-3xl font-black text-emerald-700 tabular-nums">
-              S/ {gananciaNeta.toFixed(2)}
+            <div className={`text-2xl sm:text-3xl font-black tabular-nums ${resultadoAcumulado < 0 ? "text-rose-700" : "text-emerald-700"}`}>
+              S/ {resultadoAcumulado.toFixed(2)}
             </div>
-            <div className="mt-2 text-xs font-bold text-emerald-800 space-y-0.5">
+            <div className={`mt-2 text-xs font-bold space-y-0.5 ${resultadoAcumulado < 0 ? "text-rose-800" : "text-emerald-800"}`}>
               <div className="flex items-center gap-1">
                 <Percent className="w-3.5 h-3.5" />
-                <span>Margen Bruto: {margenBrutoPct}%</span>
+                <span>Margen global: {margenAcumuladoPct}%</span>
               </div>
-              <p className="text-[10px] text-slate-400 font-normal">Markup s/ Costo: {markupPct}%</p>
-              {esAnomalo && (
-                <span className="inline-block mt-1 text-[10px] text-amber-800 font-black bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                  ⚠️ Revisar fórmula (Margen &gt; 60%)
-                </span>
-              )}
+              <p className="text-[10px] text-slate-400 font-normal">Histórico global, sin filtro de fecha</p>
             </div>
           </div>
         </div>
 
-        {/* Card 3: Operaciones & Recetas */}
+        {/* Card 3: Utilidad potencial del inventario vigente */}
+        <div className={`bg-white p-5 rounded-2xl border shadow-2xs flex flex-col justify-between hover:shadow-md transition-all ${gananciaEstimadaMinima < 0 ? "border-rose-200" : "border-violet-100"}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className={`text-xs font-bold uppercase tracking-wider ${gananciaEstimadaMinima < 0 ? "text-rose-700" : "text-violet-700"}`}>Ganancia estimada</span>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${gananciaEstimadaMinima < 0 ? "bg-rose-50 text-rose-600" : "bg-violet-50 text-violet-600"}`}>
+              <Sparkles className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <div className={`text-sm font-black tabular-nums ${gananciaEstimadaMinima < 0 ? "text-rose-700" : "text-violet-700"}`}>
+              Mínima: S/ {gananciaEstimadaMinima.toFixed(2)}
+            </div>
+            <div className="text-sm font-black tabular-nums text-violet-700">
+              Máxima: S/ {gananciaEstimadaMaxima.toFixed(2)}
+            </div>
+            <p className="text-[10px] text-slate-500 font-medium">
+              Venta posible: S/ {ventaEstimadaMinima.toFixed(2)} — S/ {ventaEstimadaMaxima.toFixed(2)}
+            </p>
+          </div>
+        </div>
+
+        {/* Card 4: Operaciones & Recetas */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col justify-between hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Operaciones</span>

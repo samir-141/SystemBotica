@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Plus, Edit2, Trash2, Shield, CheckCircle2, XCircle, Search, RefreshCw, X, Save, Loader2 } from "lucide-react";
-import type { UsuarioItem, RolItem } from "../hooks/useAdmin";
+import { Toast } from "primereact/toast";
+import type { UsuarioItem, RolItem, SucursalAdminItem } from "../hooks/useAdmin";
 
 
 type Props = {
   usuarios: UsuarioItem[];
   roles: RolItem[];
+  sucursales: SucursalAdminItem[];
   loading: boolean;
   onSaveUser: (data: Record<string, unknown>, isEdit: boolean, userId?: string) => Promise<void>;
   onDeleteUser: (id: string) => Promise<void>;
@@ -15,11 +17,13 @@ type Props = {
 export default function UsuariosAdmin({
   usuarios,
   roles,
+  sucursales,
   loading,
   onSaveUser,
   onDeleteUser,
   onRefresh,
 }: Props) {
+  const toast = useRef<Toast>(null);
   const [busqueda, setBusqueda] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [userEdit, setUserEdit] = useState<UsuarioItem | null>(null);
@@ -29,6 +33,7 @@ export default function UsuariosAdmin({
   const [password, setPassword] = useState("");
   const [rolId, setRolId] = useState("");
   const [estado, setEstado] = useState("ACTIVO");
+  const [sucursalId, setSucursalId] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [errorForm, setErrorForm] = useState<string | null>(null);
@@ -42,6 +47,7 @@ export default function UsuariosAdmin({
     setPassword("");
     setRolId(roles[0]?.id || "");
     setEstado("ACTIVO");
+    setSucursalId(sucursales[0]?.id || "");
     setErrorForm(null);
     setModalOpen(true);
   };
@@ -53,6 +59,7 @@ export default function UsuariosAdmin({
     setPassword("");
     setRolId(u.rol_id);
     setEstado(u.estado);
+    setSucursalId(u.sucursal_id || "");
     setErrorForm(null);
     setModalOpen(true);
   };
@@ -61,12 +68,16 @@ export default function UsuariosAdmin({
     e.preventDefault();
     setErrorForm(null);
 
-    if (!nombre.trim() || !correo.trim() || !rolId) {
+    if (!nombre.trim() || !correo.trim() || !rolId || !sucursalId) {
       setErrorForm("Por favor completa los campos requeridos (*)");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim())) {
+      setErrorForm("El correo electrónico no tiene un formato válido.");
+      return;
+    }
     if (!userEdit && (!password || password.length < 6)) {
-      setErrorForm("La contraseña debe tener al menos 6 caracteres.");
+      setErrorForm("La contraseña debe tener al menos 6 caracteres, con mayúscula, minúscula y número.");
       return;
     }
 
@@ -77,6 +88,7 @@ export default function UsuariosAdmin({
         correo: correo.trim().toLowerCase(),
         rol_id: rolId,
         estado,
+        sucursal_id: sucursalId || undefined,
       };
       if (password.trim()) {
         payload.password = password.trim();
@@ -98,7 +110,7 @@ export default function UsuariosAdmin({
       await onDeleteUser(deleteTarget.id);
       setDeleteTarget(null);
     } catch (err: any) {
-      alert(err.message || "Error al eliminar el usuario");
+      toast.current?.show({ severity: "error", summary: "Error", detail: err.message || "Error al eliminar el usuario", life: 3000 });
     } finally {
       setDeleting(false);
     }
@@ -112,7 +124,6 @@ export default function UsuariosAdmin({
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -141,7 +152,6 @@ export default function UsuariosAdmin({
         </div>
       </div>
 
-      {/* Tabla / Cards */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         {loading && usuarios.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
@@ -160,6 +170,7 @@ export default function UsuariosAdmin({
                   <th className="py-3 px-4">Usuario</th>
                   <th className="py-3 px-4">Correo</th>
                   <th className="py-3 px-4">Rol Asignado</th>
+                  <th className="py-3 px-4">Sucursal</th>
                   <th className="py-3 px-4 text-center">Estado</th>
                   <th className="py-3 px-4 text-center">Acciones</th>
                 </tr>
@@ -173,6 +184,9 @@ export default function UsuariosAdmin({
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                         <Shield className="w-3 h-3 text-purple-500" /> {u.rol_nombre}
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-[11px]">
+                      <p className="font-bold text-slate-700">{u.sucursal_nombre || "Sin sucursal asignada"}</p>
                     </td>
                     <td className="py-3 px-4 text-center">
                       {u.estado === "ACTIVO" ? (
@@ -209,7 +223,6 @@ export default function UsuariosAdmin({
         )}
       </div>
 
-      {/* Modal Form Usuario */}
       {modalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
@@ -278,6 +291,14 @@ export default function UsuariosAdmin({
               </div>
 
               <div>
+                  <label className="font-bold text-slate-600 block mb-1">Sucursal de trabajo *</label>
+                  <select value={sucursalId} onChange={(e) => setSucursalId(e.target.value)} required className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 bg-white">
+                    <option value="">Seleccionar sucursal</option>
+                    {sucursales.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                  </select>
+              </div>
+
+              <div>
                 <label className="font-bold text-slate-600 block mb-1">Estado</label>
                 <select
                   value={estado}
@@ -311,7 +332,6 @@ export default function UsuariosAdmin({
         </div>
       )}
 
-      {/* Delete Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl p-6 w-full max-w-sm text-center">
@@ -326,6 +346,7 @@ export default function UsuariosAdmin({
           </div>
         </div>
       )}
+      <Toast ref={toast} />
     </div>
   );
 }
