@@ -21,6 +21,7 @@ import {
   Landmark,
   PackageCheck,
   XCircle,
+  Share2,
 } from "lucide-react";
 import { Toast } from "primereact/toast";
 import ImpresionComprobanteModal, { type ComprobanteData } from "./ImpresionComprobanteModal";
@@ -36,6 +37,11 @@ interface Props {
   fechaFin?: string;
   setFechaFin?: (f: string) => void;
 }
+
+type ComprobanteConCliente = ComprobanteData & {
+  clienteId?: string;
+  telefonoCliente?: string;
+};
 
 export default function ReporteComprobantes({
   ventasLista = [],
@@ -69,9 +75,12 @@ export default function ReporteComprobantes({
   // Modal de Confirmación de Anulación
   const [comprobanteParaAnular, setComprobanteParaAnular] = useState<ComprobanteData | null>(null);
   const [anulando, setAnulando] = useState(false);
+  const [comprobanteParaEnviar, setComprobanteParaEnviar] = useState<ComprobanteConCliente | null>(null);
+  const [telefonoEnvio, setTelefonoEnvio] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   // Transformar ventas reales en lista enriquecida de comprobantes con detalle de productos comprados
-  const comprobantesFormat: ComprobanteData[] = useMemo(() => {
+  const comprobantesFormat: ComprobanteConCliente[] = useMemo(() => {
     if (!ventasLista) return [];
 
     return ventasLista.map((v: any, idx: number) => {
@@ -131,6 +140,8 @@ export default function ReporteComprobantes({
           tipoDocumento: tipoComp === "FACTURA" ? "RUC" : tipoComp === "BOLETA" ? "DNI" : "NINGUNO",
           numeroDocumento: numDoc || (tipoComp === "NOTA_VENTA" ? "00000000" : "S/D"),
         },
+        clienteId: v.cliente_id || undefined,
+        telefonoCliente: v.cliente_telefono || undefined,
         items: itemsProcesados,
         subtotal: v.subtotal || (v.total ? v.total / 1.18 : 0),
         igv: v.igv || (v.total ? v.total - v.total / 1.18 : 0),
@@ -251,6 +262,58 @@ export default function ReporteComprobantes({
     setComprobanteSeleccionado(c);
     setFormatoInicialModal(formato);
     setModalOpen(true);
+  };
+
+  const enviarEnlaceComprobante = (c: ComprobanteConCliente) => {
+    if (c.estadoSunat === "ANULADO") {
+      toast.current?.show({ severity: "warn", summary: "Comprobante anulado", detail: "No se puede compartir un comprobante anulado.", life: 3500 });
+      return;
+    }
+    const digitos = (c.telefonoCliente || "").replace(/\D/g, "");
+    const numeroNacional = digitos.startsWith("51") && digitos.length === 11 ? digitos.slice(2) : digitos;
+    if (/^9\d{8}$/.test(numeroNacional)) {
+      void procesarEnvioComprobante(c, numeroNacional);
+      return;
+    }
+    setComprobanteParaEnviar(c);
+    setTelefonoEnvio(c.telefonoCliente || "");
+  };
+
+  const procesarEnvioComprobante = async (comprobante: ComprobanteConCliente, numeroNacional: string) => {
+    setEnviando(true);
+    try {
+      if (!comprobante.id) throw new Error("No se identificó la venta del comprobante.");
+      const numeroGuardado = (comprobante.telefonoCliente || "").replace(/\D/g, "");
+      const numeroNormalizado = `51${numeroNacional}`;
+      if (comprobante.clienteId && numeroGuardado !== numeroNormalizado && numeroGuardado !== numeroNacional) {
+        await posApi.actualizarCliente(comprobante.clienteId, {
+          id: comprobante.clienteId,
+          telefono: numeroNacional,
+          whatsapp: numeroNacional,
+        });
+      }
+      const enlace = await posApi.obtenerEnlaceComprobante(comprobante.id);
+      if (!enlace.disponible) throw new Error("El enlace ya no est\u00e1 disponible.");
+      const url = `${window.location.origin}${enlace.url}`;
+      const mensaje = `Hola, te compartimos tu comprobante ${comprobante.serieNumero}: ${url}`;
+      window.open(`https://wa.me/51${numeroNacional}?text=${encodeURIComponent(mensaje)}`, "_blank", "noopener,noreferrer");
+      setComprobanteParaEnviar(null);
+    } catch (error: any) {
+      toast.current?.show({ severity: "error", summary: "No se pudo compartir", detail: error?.response?.data?.message || error?.message || "No existe un enlace para este comprobante.", life: 4500 });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const confirmarEnvioComprobante = () => {
+    if (!comprobanteParaEnviar) return;
+    const digitos = telefonoEnvio.replace(/\D/g, "");
+    const numeroNacional = digitos.startsWith("51") && digitos.length === 11 ? digitos.slice(2) : digitos;
+    if (!/^9\d{8}$/.test(numeroNacional)) {
+      toast.current?.show({ severity: "warn", summary: "Número inválido", detail: "Ingresa un celular peruano de 9 dígitos (ej. 987654321).", life: 4000 });
+      return;
+    }
+    void procesarEnvioComprobante(comprobanteParaEnviar, numeroNacional);
   };
 
   const getMetodoIcon = (metodo?: string) => {
@@ -675,6 +738,15 @@ export default function ReporteComprobantes({
                             <span>XML</span>
                           </button>
 
+                          <button
+                            onClick={() => enviarEnlaceComprobante(c)}
+                            className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-teal-200"
+                            title="Enviar enlace del comprobante por WhatsApp"
+                          >
+                            <Share2 size={12} />
+                            <span>Enviar</span>
+                          </button>
+
                           {/* Botón Anular / Cancelar */}
                           {c.estadoSunat === "ANULADO" ? (
                             <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-bold border border-slate-200 cursor-not-allowed inline-flex items-center gap-1">
@@ -750,6 +822,12 @@ export default function ReporteComprobantes({
                     >
                       Ver
                     </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); enviarEnlaceComprobante(c); }}
+                      className="px-2 py-1 bg-teal-50 text-teal-700 rounded-lg text-[10px] font-bold"
+                    >
+                      Enviar
+                    </button>
                   </div>
                 </div>
               ))}
@@ -766,6 +844,45 @@ export default function ReporteComprobantes({
           formatoInicial={formatoInicialModal}
           onClose={() => setModalOpen(false)}
         />
+      )}
+
+      {/* Confirmación y corrección del número antes de abrir WhatsApp. */}
+      {comprobanteParaEnviar && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center">
+              <Share2 size={23} />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">Enviar comprobante por WhatsApp</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Confirma el celular de <span className="font-bold text-slate-700">{comprobanteParaEnviar.cliente.nombre}</span>. Si lo corriges, se actualizará en la ficha del cliente.
+              </p>
+            </div>
+            <label className="block text-xs font-bold text-slate-700">
+              Celular / WhatsApp
+              <input
+                autoFocus
+                value={telefonoEnvio}
+                onChange={(event) => setTelefonoEnvio(event.target.value)}
+                inputMode="tel"
+                placeholder="987654321"
+                className="mt-1.5 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              />
+            </label>
+            {!comprobanteParaEnviar.clienteId && (
+              <p className="rounded-xl bg-amber-50 p-2.5 text-[11px] text-amber-800 border border-amber-200">
+                Venta a cliente general: el número se usará para este envío, pero no hay una ficha de cliente donde guardarlo.
+              </p>
+            )}
+            <div className="flex gap-3 pt-1">
+              <button disabled={enviando} onClick={() => setComprobanteParaEnviar(null)} className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-200">Cancelar</button>
+              <button disabled={enviando} onClick={confirmarEnvioComprobante} className="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-60">
+                {enviando ? "Preparando..." : "Enviar por WhatsApp"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Confirmación de Anulación */}

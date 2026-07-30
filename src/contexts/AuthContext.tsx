@@ -131,6 +131,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    useEffect(() => {
+        if (sucursalActual?.empresa) {
+            document.title = `${sucursalActual.empresa} - Sistema POS`;
+        } else {
+            document.title = 'POS Farma ERP';
+        }
+    }, [sucursalActual]);
+
     return (
         <AuthContext.Provider
             value={{

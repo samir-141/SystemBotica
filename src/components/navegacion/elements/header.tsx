@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, BriefcaseMedical } from "lucide-react";
+import { useAuth } from "../../../hooks/useAuth";
 
 interface HeaderNavProps {
     isCollapsed: boolean;
@@ -6,6 +7,10 @@ interface HeaderNavProps {
 }
 
 export default function HeaderNav({ isCollapsed, setIsCollapsed }: HeaderNavProps) {
+    const { sucursalActual } = useAuth();
+    const nombreEmpresa = sucursalActual?.empresa || "FarmaPOS";
+    const nombreSucursal = sucursalActual?.nombre || "Sistema de Farmacia";
+
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 min-h-[56px] shrink-0">
             {!isCollapsed && (
@@ -14,10 +19,12 @@ export default function HeaderNav({ isCollapsed, setIsCollapsed }: HeaderNavProp
                         <BriefcaseMedical className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                        <h1 className="text-base font-black tracking-tight text-white leading-tight">
-                            Farma<span className="text-teal-400">POS</span>
+                        <h1 className="text-xs sm:text-sm font-black tracking-tight text-white leading-tight truncate max-w-[150px]" title={nombreEmpresa}>
+                            {nombreEmpresa}
                         </h1>
-                        <p className="text-[10px] text-slate-500 font-medium leading-tight">Sistema de Farmacia</p>
+                        <p className="text-[9px] text-slate-500 font-bold leading-tight truncate max-w-[150px]" title={nombreSucursal}>
+                            {nombreSucursal}
+                        </p>
                     </div>
                 </div>
             )}

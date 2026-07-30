@@ -22,6 +22,7 @@ import ReportesPage from './components/reportes/ReportesPage';
 import AdminPage from './components/admin/AdminPage';
 import RemoteScannerPage from './pages/escanner/RemoteScannerPage';
 import GastosPage from './components/gastos/GastosPage';
+import ComprobantePublicoPage from './pages/comprobantes/ComprobantePublicoPage';
 
 import { SocketProvider } from './contexts/SocketContext';
 import RealtimeNotifications from './components/notifications/RealtimeNotifications';
@@ -36,6 +37,7 @@ const AppContent: React.FC = () => {
         {/* Rutas públicas */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/escanner-remoto" element={<RemoteScannerPage />} />
+        <Route path="/c/:token" element={<ComprobantePublicoPage />} />
 
         {/* Rutas protegidas */}
         <Route element={<PrivateRoute />}>

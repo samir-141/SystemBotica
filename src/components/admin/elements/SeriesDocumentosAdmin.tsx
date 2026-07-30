@@ -2,8 +2,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Hash, Plus, RefreshCw, X, Save, Loader2 } from "lucide-react";
 import { posApi } from "../../api/api.data";
+import { useAuth } from "../../../hooks/useAuth";
 
-type Props = {};
+type Props = {
+  sucursales?: any[];
+};
 
 type SerieDocumento = {
   id: string;
@@ -18,7 +21,8 @@ type SerieDocumento = {
 
 const TIPOS_DOCUMENTO = ["BOLETA", "FACTURA", "NOTA_VENTA", "GUIA_REMISION"];
 
-export default function SeriesDocumentosAdmin(_props: Props) {
+export default function SeriesDocumentosAdmin({ sucursales }: Props) {
+  const { sucursalActual } = useAuth();
   const [series, setSeries] = useState<SerieDocumento[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -51,7 +55,15 @@ export default function SeriesDocumentosAdmin(_props: Props) {
 
   const handleOpenCreate = () => {
     setEditItem(null);
-    setForm({ tipo_documento: "BOLETA", serie: "B001", correlativo_inicial: 1, correlativo_actual: 1, longitud_correlativo: 8, sucursal_id: "", activo: true });
+    setForm({
+      tipo_documento: "BOLETA",
+      serie: "B001",
+      correlativo_inicial: 1,
+      correlativo_actual: 1,
+      longitud_correlativo: 8,
+      sucursal_id: sucursalActual?.id || "",
+      activo: true
+    });
     setError(null);
     setModalOpen(true);
   };
@@ -80,10 +92,16 @@ export default function SeriesDocumentosAdmin(_props: Props) {
     }
     setSaving(true);
     try {
+      // Map empty string to undefined to avoid UUID validation error on the backend
+      const payload = {
+        ...form,
+        sucursal_id: form.sucursal_id === "" ? undefined : form.sucursal_id,
+      };
+
       if (editItem) {
-        await posApi.actualizarSerieDocumento(editItem.id, form);
+        await posApi.actualizarSerieDocumento(editItem.id, payload);
       } else {
-        await posApi.crearSerieDocumento(form);
+        await posApi.crearSerieDocumento(payload);
       }
       setModalOpen(false);
       cargar();
@@ -105,7 +123,7 @@ export default function SeriesDocumentosAdmin(_props: Props) {
   };
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+    <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center">
@@ -118,7 +136,7 @@ export default function SeriesDocumentosAdmin(_props: Props) {
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer animate-fade-in"
         >
           <Plus className="w-4 h-4" /> Nueva Serie
         </button>
@@ -144,6 +162,7 @@ export default function SeriesDocumentosAdmin(_props: Props) {
               <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Tipo</th>
+                  <th className="py-3 px-4">Sucursal / Sede</th>
                   <th className="py-3 px-4">Serie</th>
                   <th className="py-3 px-4">Correlativo Inicial</th>
                   <th className="py-3 px-4">Correlativo Actual</th>
@@ -156,7 +175,12 @@ export default function SeriesDocumentosAdmin(_props: Props) {
                 {series.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50/70 transition">
                     <td className="py-3 px-4 font-bold text-slate-800">{s.tipo_documento}</td>
-                    <td className="py-3 px-4 font-mono text-slate-600">{s.serie}</td>
+                    <td className="py-3 px-4 font-medium text-slate-600">
+                      {s.sucursal_id
+                        ? (sucursales?.find(suc => suc.id === s.sucursal_id)?.nombre || "Cargando...")
+                        : "Todas las sucursales (Global)"}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-600 font-bold">{s.serie}</td>
                     <td className="py-3 px-4 font-mono text-slate-600">{s.correlativo_inicial}</td>
                     <td className="py-3 px-4 font-mono text-slate-600">{s.correlativo_actual}</td>
                     <td className="py-3 px-4 font-mono text-slate-600">{s.longitud_correlativo}</td>
@@ -184,18 +208,18 @@ export default function SeriesDocumentosAdmin(_props: Props) {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs" onClick={() => setModalOpen(false)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn">
             <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
               <h2 className="font-bold text-sm">{editItem ? "Editar" : "Nueva"} Serie</h2>
-              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white p-1"><X className="w-5 h-5" /></button>
+              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white p-1 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-3">
               {error && <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">{error}</div>}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-600 block mb-1">Tipo Documento</label>
-                  <select value={form.tipo_documento} onChange={(e) => setForm({ ...form, tipo_documento: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-purple-400">
+                  <select value={form.tipo_documento} onChange={(e) => setForm({ ...form, tipo_documento: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-purple-400 cursor-pointer">
                     {TIPOS_DOCUMENTO.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
@@ -219,8 +243,19 @@ export default function SeriesDocumentosAdmin(_props: Props) {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-600 block mb-1">Sucursal ID (opcional)</label>
-                <input type="text" value={form.sucursal_id} onChange={(e) => setForm({ ...form, sucursal_id: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-purple-400" />
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">Sucursal / Sede *</label>
+                <select
+                  value={form.sucursal_id}
+                  onChange={(e) => setForm({ ...form, sucursal_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-purple-400 cursor-pointer"
+                >
+                  <option value="">Todas las sucursales (Global)</option>
+                  {sucursales?.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-2 pt-3">
                 <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">Cancelar</button>

@@ -253,6 +253,10 @@ export const posApi = {
         const { data } = await api.get('/reportes/financiero', { params });
         return data;
     },
+    obtenerEnlaceComprobante: async (ventaId: string): Promise<{ token: string; url: string; disponible: boolean }> => {
+        const { data } = await api.get(`/comprobantes-publicos/venta/${ventaId}`);
+        return data;
+    },
     getLibroVentasPLE: async (params?: { fecha_inicio?: string; fecha_fin?: string }): Promise<any> => {
         const { data } = await api.get('/reportes/ple-libro-ventas', { params });
         return data;

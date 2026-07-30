@@ -213,7 +213,7 @@ export default function AdminPage() {
       )}
 
       {activeTab === "series-documentos" && (
-        <SeriesDocumentosAdmin />
+        <SeriesDocumentosAdmin sucursales={sucursales} />
       )}
     </div>
   );

@@ -21,6 +21,8 @@ import {
   Loader2,
   FileCode,
   AlertTriangle,
+  Share2,
+  Copy,
 } from "lucide-react";
 import ImpresionComprobanteModal, { type ComprobanteData } from "../../reportes/elements/ImpresionComprobanteModal";
 import type {
@@ -210,6 +212,7 @@ export default function CheckoutModal({
   const [showImpresionModal, setShowImpresionModal] = useState(false);
   const [formatoSeleccionado, setFormatoSeleccionado] = useState<"80mm" | "58mm" | "A4" | "xml">("80mm");
   const [comprobanteEmitidoSnapshot, setComprobanteEmitidoSnapshot] = useState<ComprobanteData | null>(null);
+  const [comprobantePublicoUrl, setComprobantePublicoUrl] = useState<string | null>(null);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -313,7 +316,8 @@ export default function CheckoutModal({
         carrito,
       });
 
-      await posApi.registrarVenta(payload);
+      const ventaRegistrada = await posApi.registrarVenta(payload);
+      setComprobantePublicoUrl(ventaRegistrada?.comprobante_url ? `${window.location.origin}${ventaRegistrada.comprobante_url}` : null);
 
       await queryClient.invalidateQueries({ queryKey: ["productos"] });
 
@@ -882,6 +886,7 @@ export default function CheckoutModal({
                       </div>
                     </button>
                   </div>
+                  {comprobantePublicoUrl && <div className="flex flex-wrap justify-center gap-2"><button onClick={() => navigator.clipboard.writeText(comprobantePublicoUrl)} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700"><Copy size={14}/> Copiar enlace</button><button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Tu comprobante: ${comprobantePublicoUrl}`)}`, "_blank", "noopener,noreferrer")} className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Share2 size={14}/> Compartir WhatsApp</button></div>}
                   
                 </div>
               </div>
