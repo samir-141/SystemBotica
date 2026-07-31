@@ -9,7 +9,10 @@
 }
 
 :root { color-scheme: light; }
-body { background: #f6f8f5; }
+body { background: #ffffff; }
+
+/* El comprobante público es un documento: fondo blanco, sin el color del ERP. */
+.receipt-public-background { background: #ffffff !important; }
 
 .marifarma-cross {
   width: 2.55rem;
