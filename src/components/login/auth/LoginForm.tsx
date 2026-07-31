@@ -45,7 +45,7 @@ export default function LoginForm({
                     ¡Bienvenido de nuevo!
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
-                    Ingresa tus credenciales para acceder a <span className="font-bold text-teal-700">FarmaPOS</span>
+                    Ingresa tus credenciales para acceder a <span className="font-bold text-marifarma-green">Botica Marifarma</span>
                 </p>
             </div>
 

@@ -1,5 +1,6 @@
-import { ChevronLeft, ChevronRight, BriefcaseMedical } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "../../../hooks/useAuth";
+import MarifarmaBrand from "../../brand/MarifarmaBrand";
 
 interface HeaderNavProps {
     isCollapsed: boolean;
@@ -8,22 +9,17 @@ interface HeaderNavProps {
 
 export default function HeaderNav({ isCollapsed, setIsCollapsed }: HeaderNavProps) {
     const { sucursalActual } = useAuth();
-    const nombreEmpresa = sucursalActual?.empresa || "FarmaPOS";
+    const nombreEmpresa = sucursalActual?.empresa || "Botica Marifarma";
     const nombreSucursal = sucursalActual?.nombre || "Sistema de Farmacia";
 
     return (
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 min-h-[56px] shrink-0">
             {!isCollapsed && (
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="p-2 bg-teal-500/10 text-teal-400 border border-teal-500/20 rounded-xl shrink-0">
-                        <BriefcaseMedical className="w-5 h-5" />
-                    </div>
                     <div className="min-w-0">
-                        <h1 className="text-xs sm:text-sm font-black tracking-tight text-white leading-tight truncate max-w-[150px]" title={nombreEmpresa}>
-                            {nombreEmpresa}
-                        </h1>
+                        <MarifarmaBrand compact dark />
                         <p className="text-[9px] text-slate-500 font-bold leading-tight truncate max-w-[150px]" title={nombreSucursal}>
-                            {nombreSucursal}
+                            {nombreEmpresa === "Botica Marifarma" ? nombreSucursal : `${nombreEmpresa} · ${nombreSucursal}`}
                         </p>
                     </div>
                 </div>

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Menu, X, BriefcaseMedical } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import NavLateral from "../../components/navegacion/NavLateral";
 import { MENU_ITEMS, tieneRolPermitido } from "../../components/navegacion/config/perimisos";
 import { useAuth } from "../../hooks/useAuth";
+import MarifarmaBrand from "../../components/brand/MarifarmaBrand";
 
 /**
  * Nav — Layout principal del POS
@@ -27,25 +28,18 @@ export default function Nav() {
     const tabItems = modulosPermitidos.slice(0, 5);
 
     return (
-        <div className="flex flex-col h-svh w-screen bg-slate-100 overflow-hidden lg:flex-row">
+        <div className="flex flex-col h-svh w-screen bg-marifarma-gold-soft overflow-hidden lg:flex-row">
             {/* ══════════════════════════════════════════════
                 MOBILE — Top bar (< lg)
             ══════════════════════════════════════════════ */}
-            <header className="lg:hidden flex items-center justify-between px-4 h-14 bg-slate-900 border-b border-slate-800 shrink-0 z-30">
-                <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-teal-500/10 text-teal-400 border border-teal-500/20 rounded-lg">
-                        <BriefcaseMedical className="w-4.5 h-4.5" size={18} />
-                    </div>
-                    <span className="text-base font-black text-white tracking-tight">
-                        Farma<span className="text-teal-400">POS</span>
-                    </span>
-                </div>
+            <header className="lg:hidden flex items-center justify-between px-4 h-14 bg-marifarma-green-deep border-b border-marifarma-gold/30 shrink-0 z-30">
+                <MarifarmaBrand compact dark />
 
                 <button
                     type="button"
                     id="btn-abrir-menu-movil"
                     onClick={() => setMobileNavOpen(true)}
-                    className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    className="p-2 rounded-xl text-marifarma-gold hover:text-white hover:bg-marifarma-green transition-colors cursor-pointer"
                     aria-label="Abrir menú de navegación"
                     aria-expanded={mobileNavOpen}
                 >
@@ -64,7 +58,7 @@ export default function Nav() {
             {/* ══════════════════════════════════════════════
                 ÁREA PRINCIPAL DE CONTENIDO
             ══════════════════════════════════════════════ */}
-            <main className="flex-1 min-w-0 overflow-auto bg-slate-100 pb-[72px] lg:pb-0">
+            <main className="flex-1 min-w-0 overflow-auto bg-marifarma-gold-soft pb-[72px] lg:pb-0">
                 <Outlet />
             </main>
 
@@ -73,7 +67,7 @@ export default function Nav() {
                 Navegación rápida para los módulos principales
             ══════════════════════════════════════════════ */}
             <nav
-                className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-900 border-t border-slate-800
+                className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-marifarma-green-deep border-t border-marifarma-gold/30
                     flex items-stretch justify-around px-1 h-[68px] shadow-2xl shadow-black/40"
                 aria-label="Navegación inferior"
             >

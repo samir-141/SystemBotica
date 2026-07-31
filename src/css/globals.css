@@ -1,5 +1,58 @@
 @import "tailwindcss";
 
+@theme {
+  --color-marifarma-green: #003d31;
+  --color-marifarma-green-deep: #002b23;
+  --color-marifarma-gold: #ffc400;
+  --color-marifarma-gold-soft: #fff4c2;
+  --color-marifarma-cream: #fffdf4;
+}
+
+:root { color-scheme: light; }
+body { background: #f6f8f5; }
+
+.marifarma-cross {
+  width: 2.55rem;
+  height: 2.55rem;
+  display: grid;
+  place-items: center;
+  background: #003d31;
+  color: #ffc400;
+  border: 3px solid #ffc400;
+  border-radius: .8rem;
+  box-shadow: 0 5px 15px rgba(0, 61, 49, .22);
+}
+.marifarma-cross span { font-size: 2.3rem; line-height: 1; font-weight: 300; margin-top: -3px; }
+
+/* Tema Marifarma: adapta los componentes ya existentes sin duplicar su UI.
+   Los colores rojo/ámbar de advertencias se conservan por seguridad operativa. */
+.marifarma-app .bg-white { background-color: #fffdf4 !important; }
+.marifarma-app .bg-slate-50 { background-color: #f7f4df !important; }
+.marifarma-app .bg-slate-100 { background-color: #efeccf !important; }
+.marifarma-app .bg-slate-200 { background-color: #e2debd !important; }
+.marifarma-app .bg-slate-300 { background-color: #d4cfaa !important; }
+.marifarma-app .bg-slate-900, .marifarma-app .bg-slate-950 { background-color: #002b23 !important; }
+.marifarma-app .bg-slate-800, .marifarma-app .bg-slate-700 { background-color: #003d31 !important; }
+
+.marifarma-app .bg-teal-500, .marifarma-app .bg-teal-600, .marifarma-app .bg-teal-700,
+.marifarma-app .bg-emerald-500, .marifarma-app .bg-emerald-600, .marifarma-app .bg-emerald-700,
+.marifarma-app .bg-blue-600, .marifarma-app .bg-blue-700,
+.marifarma-app .bg-indigo-600, .marifarma-app .bg-indigo-700,
+.marifarma-app .bg-purple-600, .marifarma-app .bg-purple-700 { background-color: #003d31 !important; }
+
+.marifarma-app .bg-teal-50, .marifarma-app .bg-emerald-50, .marifarma-app .bg-blue-50,
+.marifarma-app .bg-indigo-50, .marifarma-app .bg-purple-50, .marifarma-app .bg-violet-50 { background-color: #fff4c2 !important; }
+.marifarma-app .bg-teal-100, .marifarma-app .bg-emerald-100, .marifarma-app .bg-indigo-100 { background-color: #e4f0d7 !important; }
+
+.marifarma-app .text-teal-600, .marifarma-app .text-teal-700, .marifarma-app .text-teal-800,
+.marifarma-app .text-emerald-600, .marifarma-app .text-emerald-700, .marifarma-app .text-emerald-800,
+.marifarma-app .text-blue-600, .marifarma-app .text-blue-700,
+.marifarma-app .text-indigo-600, .marifarma-app .text-indigo-700,
+.marifarma-app .text-purple-600, .marifarma-app .text-purple-700 { color: #003d31 !important; }
+.marifarma-app .border-teal-200, .marifarma-app .border-teal-300, .marifarma-app .border-teal-500,
+.marifarma-app .border-emerald-200, .marifarma-app .border-emerald-300,
+.marifarma-app .border-blue-200, .marifarma-app .border-indigo-200, .marifarma-app .border-purple-200 { border-color: #c9a400 !important; }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    ESTILOS DE IMPRESIÓN PROPIOS PARA DASHBOARD & REPORTES (PRINT / SAVE AS PDF)
    ═══════════════════════════════════════════════════════════════════════════ */

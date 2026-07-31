@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             const formatted = data.map((s: any) => ({
                                 id: s.id,
                                 nombre: s.nombre,
-                                empresa: s.empresa || 'FarmaPOS',
+                                empresa: s.empresa || 'Botica Marifarma',
                                 es_principal: !!s.es_principal,
                             }));
                             setSucursales(formatted);
@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sucursalActual?.empresa) {
             document.title = `${sucursalActual.empresa} - Sistema POS`;
         } else {
-            document.title = 'POS Farma ERP';
+            document.title = 'Botica Marifarma';
         }
     }, [sucursalActual]);
 

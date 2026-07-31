@@ -51,7 +51,7 @@ export function generarXmlUbl21(c: ComprobanteData): string {
   const isFactura = c.tipoComprobante === "FACTURA";
   const tipoDocCode = isFactura ? "01" : c.tipoComprobante === "BOLETA" ? "03" : "07";
   const rucEmisor = "20612345678";
-  const razonSocialEmisor = "FARMACIA POS DEMO S.A.C.";
+  const razonSocialEmisor = "BOTICA MARIFARMA";
   
   const itemsXml = (c.items || [])
     .map(
@@ -335,7 +335,7 @@ export default function ImpresionComprobanteModal({
               <div className="text-center border-b border-dashed border-slate-300 pb-3 space-y-1">
                 <div className="flex items-center justify-center gap-1.5 font-black text-sm text-slate-900">
                   <Store size={16} className="text-teal-600" />
-                  <span>FARMACIA DEMO S.A.C.</span>
+                  <span>BOTICA MARIFARMA</span>
                 </div>
                 <p className="text-[10px] text-slate-500">RUC: 20612345678</p>
                 <p className="text-[10px] text-slate-500">Av. Javier Prado 1234, San Isidro, Lima</p>
@@ -430,7 +430,7 @@ export default function ImpresionComprobanteModal({
               className="w-[230px] bg-white p-3 rounded-2xl border border-slate-300 shadow-xl font-mono text-[9px] text-slate-900 space-y-2 leading-tight relative overflow-hidden"
             >
               <div className="text-center border-b border-dashed border-slate-300 pb-2">
-                <p className="font-bold text-xs">FARMACIA DEMO</p>
+                <p className="font-bold text-xs">BOTICA MARIFARMA</p>
                 <p className="text-[8px] text-slate-500">RUC 20612345678</p>
                 <p className="font-bold text-teal-700 text-[10px] mt-1">{comprobante.serieNumero}</p>
               </div>
@@ -467,7 +467,7 @@ export default function ImpresionComprobanteModal({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 font-black text-lg text-slate-900">
                     <Store className="text-teal-600" />
-                    <span>FARMACIA POS DEMO S.A.C.</span>
+                    <span>BOTICA MARIFARMA</span>
                   </div>
                   <p className="text-slate-500 text-xs">Av. Javier Prado Este 1234, San Isidro, Lima</p>
                   <p className="text-slate-500 text-xs">Teléfono: (01) 456-7890 | Email: contacto@farmaciademo.pe</p>

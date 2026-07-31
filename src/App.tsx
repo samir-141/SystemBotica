@@ -30,7 +30,7 @@ import RealtimeNotifications from './components/notifications/RealtimeNotificati
 const AppContent: React.FC = () => {
   useSocketInvalidation();
   return (
-    <>
+    <div className="marifarma-app min-h-full">
       <Toast />
       <RealtimeNotifications />
       <Routes>
@@ -95,7 +95,7 @@ const AppContent: React.FC = () => {
           <p>Página no encontrada</p>
         </div>} />
       </Routes>
-    </>
+    </div>
   );
 };
 

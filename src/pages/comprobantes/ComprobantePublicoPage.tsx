@@ -8,7 +8,11 @@ export default function ComprobantePublicoPage() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    fetch(`/api/comprobantes-publicos/${token}`)
+    const rawUrl = (import.meta.env.VITE_API_URL || '').trim();
+    const cleanedUrl = rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+    const apiBase = cleanedUrl ? (cleanedUrl.endsWith('/api') ? cleanedUrl : `${cleanedUrl}/api`) : '/api';
+
+    fetch(`${apiBase}/comprobantes-publicos/${token}`)
       .then(async (r) => { if (!r.ok) throw new Error((await r.json()).message || 'No disponible'); return r.json(); })
       .then(setData).catch((e) => setError(e.message));
   }, [token]);

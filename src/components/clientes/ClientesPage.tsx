@@ -109,7 +109,7 @@ export default function ClientesPage() {
       (c.monto_total_comprado || 0).toFixed(2)
     ]);
 
-    exportToCSV(`Clientes_FarmaPOS_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
+    exportToCSV(`Clientes_Botica_Marifarma_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
   };
 
   const handleSave = useCallback(
