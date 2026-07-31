@@ -196,6 +196,18 @@ export default function ProductoForm({
     setError(null);
 
     if (!isEdit) {
+      if (!form.nombre_comercial.trim()) {
+        setError("El nombre comercial es obligatorio.");
+        return;
+      }
+      if (!form.sku.trim()) {
+        setError("El SKU es obligatorio. Usa un identificador único para este producto.");
+        return;
+      }
+      if (form.sku.trim().length < 3) {
+        setError("El SKU debe tener al menos 3 caracteres.");
+        return;
+      }
       if (!form.principio_activo_id) {
         setError("Selecciona un principio activo.");
         return;
@@ -216,6 +228,10 @@ export default function ProductoForm({
         setError("Selecciona la unidad base del producto.");
         return;
       }
+      if (form.concentracion === "" || !Number.isFinite(Number(form.concentracion)) || Number(form.concentracion) < 0) {
+        setError("Ingresa una concentración numérica válida (0 o mayor). ");
+        return;
+      }
       const unidadesSeleccionadas = [form.presentacion_id, ...presentacionesExtra.map((p) => p.unidad_presentacion_id)];
       if (unidadesSeleccionadas.some((id) => !id) || new Set(unidadesSeleccionadas).size !== unidadesSeleccionadas.length) {
         setError("Cada presentación debe tener una unidad distinta.");
@@ -223,6 +239,11 @@ export default function ProductoForm({
       }
       if (presentacionesExtra.some((p) => !p.cantidad_unidad_base || Number(p.cantidad_unidad_base) <= 1 || p.precio_actual === "" || Number(p.precio_actual) < 0)) {
         setError("Completa equivalencia y precio de cada presentación adicional. Deben contener más de una unidad base.");
+        return;
+      }
+      const codigosBarras = [form.codigo_barras.trim(), ...presentacionesExtra.map((p) => p.codigo_barras.trim())].filter(Boolean);
+      if (new Set(codigosBarras).size !== codigosBarras.length) {
+        setError("No repitas el mismo código de barras en dos presentaciones.");
         return;
       }
     }
@@ -244,6 +265,10 @@ export default function ProductoForm({
         : {
             ...form,
             producto_comercial_id: undefined,
+            nombre_comercial: form.nombre_comercial.trim(),
+            sku: form.sku.trim().toUpperCase(),
+            codigo_interno: form.codigo_interno.trim() || undefined,
+            registro_sanitario: form.registro_sanitario.trim() || undefined,
             unidad_base_id: form.presentacion_id,
             cantidad_unidad_base: 1,
             presentaciones: [

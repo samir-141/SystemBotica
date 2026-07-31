@@ -13,9 +13,10 @@ interface Props {
   open: boolean; onClose: () => void;
   producto?: { id: string; nombre_comercial: string; sku?: string } | null;
   productosLista?: ProductoIngreso[]; onSuccess?: () => void;
+  modo?: "nuevo-lote" | "reabastecer";
 }
 
-export default function ReabastecerModal({ open, onClose, producto, productosLista = [], onSuccess }: Props) {
+export default function ReabastecerModal({ open, onClose, producto, productosLista = [], onSuccess, modo = "reabastecer" }: Props) {
   const toast = useRef<Toast>(null);
   const videoScannerRef = useRef<HTMLVideoElement>(null);
   const [selectedProdId, setSelectedProdId] = useState("");
@@ -26,6 +27,7 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
   const [fechaVencimiento, setFechaVencimiento] = useState("");
   const [precioCompraPresentacion, setPrecioCompraPresentacion] = useState("");
   const [lotesExistentes, setLotesExistentes] = useState<Array<{ id: string; numero_lote: string; fecha_vencimiento: string; stock_actual: number }>>([]);
+  const [presentacionesDetalle, setPresentacionesDetalle] = useState<ProductoIngreso[]>([]);
   const [buscarLote, setBuscarLote] = useState("");
   const [mostrarProductos, setMostrarProductos] = useState(false);
   const [scannerAbierto, setScannerAbierto] = useState(false);
@@ -34,7 +36,7 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
   useEffect(() => {
     if (!open) return;
     setSelectedProdId(producto?.id || ""); setPresentacionId(""); setBuscarProducto("");
-    setCantidad(""); setNumeroLote(""); setFechaVencimiento(""); setPrecioCompraPresentacion(""); setLotesExistentes([]); setBuscarLote(""); setMostrarProductos(false); setScannerAbierto(false);
+    setCantidad(""); setNumeroLote(""); setFechaVencimiento(""); setPrecioCompraPresentacion(""); setLotesExistentes([]); setPresentacionesDetalle([]); setBuscarLote(""); setMostrarProductos(false); setScannerAbierto(false);
   }, [open, producto]);
 
   const productosUnicos = useMemo(() => {
@@ -43,8 +45,11 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
       && (vistos.add(p.producto_comercial_id), !texto || p.nombre_comercial.toLowerCase().includes(texto)));
   }, [productosLista, buscarProducto]);
   const prodId = producto?.id || selectedProdId;
-  const esReabastecimientoDeLote = Boolean(producto);
-  const presentaciones = useMemo(() => productosLista.filter(p => p.producto_comercial_id === prodId && p.presentacion_id), [productosLista, prodId]);
+  const esReabastecimientoDeLote = Boolean(producto) && modo === "reabastecer";
+  const presentaciones = useMemo(() => {
+    const disponibles = productosLista.filter(p => p.producto_comercial_id === prodId && p.presentacion_id);
+    return disponibles.length ? disponibles : presentacionesDetalle;
+  }, [productosLista, prodId, presentacionesDetalle]);
   const presentacion = presentaciones.find(p => p.presentacion_id === presentacionId);
   const equivalencia = Number(presentacion?.cantidad_unidad_base || 1);
   const unidadesBase = (Number(cantidad) || 0) * equivalencia;
@@ -53,8 +58,18 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
     if (!open || !prodId) return;
     let activo = true;
     posApi.getProductoDetalle(prodId)
-      .then((detalle) => activo && setLotesExistentes(detalle.lotes || []))
-      .catch(() => activo && setLotesExistentes([]));
+      .then((detalle) => {
+        if (!activo) return;
+        setLotesExistentes(detalle.lotes || []);
+        setPresentacionesDetalle((detalle.presentaciones || []).map((pres: any) => ({
+          producto_comercial_id: prodId,
+          presentacion_id: pres.id,
+          presentacion_nombre: pres.unidad_presentacion?.nombre || "Presentación",
+          cantidad_unidad_base: Number(pres.cantidad_unidad_base || 1),
+          codigo_barras: pres.codigo_barras || undefined,
+        })));
+      })
+      .catch(() => activo && (setLotesExistentes([]), setPresentacionesDetalle([])));
     return () => { activo = false; };
   }, [open, prodId]);
 
