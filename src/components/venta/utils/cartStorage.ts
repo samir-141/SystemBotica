@@ -2,8 +2,32 @@
 import { get, set, del } from "idb-keyval";
 import type { ItemCarrito } from "../types";
 
-const CART_STORAGE_KEY = "pos_farmacia_active_cart";
+const LEGACY_CART_STORAGE_KEY = "pos_farmacia_active_cart";
 const BROADCAST_CHANNEL_NAME = "pos_farmacia_cart_sync";
+
+export interface CartScope {
+  usuarioId: string;
+  boticaId: string;
+  sucursalId: string;
+}
+
+const DEFAULT_SCOPE: CartScope = {
+  usuarioId: "anonimo",
+  boticaId: "sin-botica",
+  sucursalId: "sin-sucursal",
+};
+
+const normalizarParte = (value: string | null | undefined, fallback: string) =>
+  encodeURIComponent(String(value || fallback).trim().toLowerCase());
+
+export function obtenerClaveCarrito(scope: CartScope = DEFAULT_SCOPE): string {
+  return [
+    LEGACY_CART_STORAGE_KEY,
+    normalizarParte(scope.boticaId, DEFAULT_SCOPE.boticaId),
+    normalizarParte(scope.sucursalId, DEFAULT_SCOPE.sucursalId),
+    normalizarParte(scope.usuarioId, DEFAULT_SCOPE.usuarioId),
+  ].join(":");
+}
 
 let broadcastChannel: BroadcastChannel | null = null;
 
@@ -16,22 +40,34 @@ if (typeof window !== "undefined" && "BroadcastChannel" in window) {
 }
 
 function isIDBAvailable(): boolean {
-  return typeof window !== "undefined" && "indexedDB" in window && window.indexedDB !== null;
+  try {
+    return (
+      typeof window !== "undefined" &&
+      typeof window.indexedDB !== "undefined" &&
+      window.indexedDB !== null
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
  * Guarda el carrito activo en IndexedDB (o localStorage como fallback).
  */
-export async function guardarCarritoStorage(carrito: ItemCarrito[]): Promise<void> {
+export async function guardarCarritoStorage(
+  carrito: ItemCarrito[],
+  scope: CartScope = DEFAULT_SCOPE,
+): Promise<void> {
   try {
+    const storageKey = obtenerClaveCarrito(scope);
     if (isIDBAvailable()) {
-      await set(CART_STORAGE_KEY, carrito);
+      await set(storageKey, carrito);
     } else if (typeof localStorage !== "undefined") {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(carrito));
+      localStorage.setItem(storageKey, JSON.stringify(carrito));
     }
 
     if (broadcastChannel) {
-      broadcastChannel.postMessage({ type: "CART_UPDATED", payload: carrito });
+      broadcastChannel.postMessage({ type: "CART_UPDATED", storageKey, payload: carrito });
     }
   } catch (error) {
     console.error("[CartStorage] Error al guardar carrito:", error);
@@ -41,13 +77,21 @@ export async function guardarCarritoStorage(carrito: ItemCarrito[]): Promise<voi
 /**
  * Carga el carrito guardado en IndexedDB (o localStorage como fallback).
  */
-export async function cargarCarritoStorage(): Promise<ItemCarrito[]> {
+export async function cargarCarritoStorage(scope: CartScope = DEFAULT_SCOPE): Promise<ItemCarrito[]> {
   try {
+    const storageKey = obtenerClaveCarrito(scope);
+    // El carrito histórico no tenía propietario ni sucursal. No se migra para
+    // evitar que otra sesión herede una venta preparada por un usuario distinto.
     if (isIDBAvailable()) {
-      const carritoGuardado = await get<ItemCarrito[]>(CART_STORAGE_KEY);
+      await del(LEGACY_CART_STORAGE_KEY);
+    }
+    if (typeof localStorage !== "undefined") localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
+
+    if (isIDBAvailable()) {
+      const carritoGuardado = await get<ItemCarrito[]>(storageKey);
       return Array.isArray(carritoGuardado) ? carritoGuardado : [];
     } else if (typeof localStorage !== "undefined") {
-      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       return stored ? JSON.parse(stored) : [];
     }
     return [];
@@ -60,16 +104,17 @@ export async function cargarCarritoStorage(): Promise<ItemCarrito[]> {
 /**
  * Limpia el carrito en almacenamiento persistente y notifica a otras pestañas.
  */
-export async function limpiarCarritoStorage(): Promise<void> {
+export async function limpiarCarritoStorage(scope: CartScope = DEFAULT_SCOPE): Promise<void> {
   try {
+    const storageKey = obtenerClaveCarrito(scope);
     if (isIDBAvailable()) {
-      await del(CART_STORAGE_KEY);
+      await del(storageKey);
     }
     if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(CART_STORAGE_KEY);
+      localStorage.removeItem(storageKey);
     }
     if (broadcastChannel) {
-      broadcastChannel.postMessage({ type: "CART_UPDATED", payload: [] });
+      broadcastChannel.postMessage({ type: "CART_UPDATED", storageKey, payload: [] });
     }
   } catch (error) {
     console.error("[CartStorage] Error al limpiar carrito:", error);
@@ -79,11 +124,19 @@ export async function limpiarCarritoStorage(): Promise<void> {
 /**
  * Suscribe a actualizaciones en vivo del carrito desde otras pestañas del navegador.
  */
-export function suscribirCambiosCarrito(onUpdate: (carrito: ItemCarrito[]) => void): () => void {
+export function suscribirCambiosCarrito(
+  scope: CartScope,
+  onUpdate: (carrito: ItemCarrito[]) => void,
+): () => void {
   if (!broadcastChannel) return () => {};
+  const storageKey = obtenerClaveCarrito(scope);
 
   const listener = (event: MessageEvent) => {
-    if (event.data && event.data.type === "CART_UPDATED" && Array.isArray(event.data.payload)) {
+    if (
+      event.data?.type === "CART_UPDATED" &&
+      event.data.storageKey === storageKey &&
+      Array.isArray(event.data.payload)
+    ) {
       onUpdate(event.data.payload);
     }
   };

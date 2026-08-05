@@ -616,10 +616,8 @@ export default function DashboardPage() {
 
                   <div
                     style={{ height: `${Math.max(alturaPct, 8)}%` }}
-                    className={`w-full max-w-[42px] rounded-t-xl transition-all duration-300 ${
-                      esHoy
-                        ? "bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-md shadow-emerald-500/20"
-                        : "bg-slate-200 group-hover:bg-emerald-300"
+                    className={`w-full max-w-[42px] rounded-t-xl ${
+                      esHoy ? "chart-bar-today" : "chart-bar-inactive"
                     }`}
                   />
 

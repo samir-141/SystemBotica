@@ -6,7 +6,7 @@ import { useRemoteScannerSocket } from "../../hooks/useRemoteScannerSocket";
 
 export default function RemoteScannerPage() {
   const [searchParams] = useSearchParams();
-  const sessionParam = searchParams.get("session") || "POS-8492";
+  const sessionParam = searchParams.get("session");
 
   const [escaneando, setEscaneando] = useState(true);
   const [ultimoEscaneo, setUltimoEscaneo] = useState<string | null>(null);
@@ -19,15 +19,16 @@ export default function RemoteScannerPage() {
   const cooldownRef = useRef(false);
 
   // Hook de comunicación WebSocket en tiempo real con la PC
-  const { connected, pingMs, sendBarcode, sessionCode } = useRemoteScannerSocket(
+  const { connected, paired, pingMs, sendBarcode, sessionCode, expired, error: connectionError } = useRemoteScannerSocket(
     undefined,
     sessionParam,
     "phone"
   );
 
   // Transmitir código escaneado mediante WebSocket instantáneo
-  const transmitirAlPOS = useCallback((codigo: string) => {
-    sendBarcode(codigo);
+  const transmitirAlPOS = useCallback(async (codigo: string) => {
+    const sent = await sendBarcode(codigo);
+    if (!sent) return;
 
     // Vibración hápida del celular
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -42,7 +43,7 @@ export default function RemoteScannerPage() {
 
   // Inicializar lector ZXing en bucle continuo
   useEffect(() => {
-    if (!escaneando || !videoRef.current) return;
+    if (!escaneando || !connected || !paired || expired || !videoRef.current) return;
 
     if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setErrorCamara(
@@ -90,7 +91,7 @@ export default function RemoteScannerPage() {
     return () => {
       reader.reset();
     };
-  }, [escaneando, transmitirAlPOS]);
+  }, [connected, escaneando, expired, paired, transmitirAlPOS]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans flex flex-col justify-between select-none">
@@ -128,14 +129,24 @@ export default function RemoteScannerPage() {
             }`}
           >
             <Wifi size={12} className={connected ? "animate-pulse" : ""} />
-            <span>{connected ? "CONECTADO" : "CONECTANDO..."}</span>
+            <span>{connected && paired ? "EMPAREJADO" : connected ? "CONECTANDO AL POS..." : "SIN CONEXIÓN"}</span>
           </div>
         </div>
       </div>
 
       {/* Cam Scanner Container */}
       <div className="flex-1 flex flex-col items-center justify-center p-3 relative overflow-hidden">
-        {errorCamara ? (
+        {connectionError ? (
+          <div className="p-6 bg-amber-950/80 border border-amber-700 text-amber-100 rounded-2xl text-center space-y-3 max-w-sm">
+            <p className="font-extrabold text-sm">Emparejamiento no disponible</p>
+            <p className="font-medium text-xs">{connectionError}</p>
+            <p className="text-[11px] text-amber-300">
+              {expired
+                ? "Solicita un QR nuevo en la caja y vuelve a abrirlo."
+                : "Verifica que hayas iniciado sesión en esta misma botica y abre el QR generado por el POS."}
+            </p>
+          </div>
+        ) : errorCamara ? (
           <div className="p-6 bg-rose-950/80 border border-rose-800 text-rose-200 rounded-2xl text-center space-y-3 max-w-xs">
             <p className="font-bold text-xs">{errorCamara}</p>
             <button

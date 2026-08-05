@@ -1,36 +1,41 @@
 // src/contexts/AuthContext.tsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { authApi } from '../components/api/auth.api';
-import type { LoginRequest } from '../components/api/auth.api';
+import React, { useState, useEffect } from 'react';
+import { authService } from '../services/auth.service';
+import type { LoginRequest } from '../types/api.types';
 import { queryClient } from '../lib/queryClient';
+import { limpiarCarritoStorage } from '../components/venta/utils/cartStorage';
+import { AuthContext, type AuthSucursal as Sucursal, type AuthUser as User } from './auth-context';
 
-interface User {
-    id: string;
-    nombre: string;
-    correo: string;
-    rol: string;
+function parseJsonSeguro<T>(value: string | null): T | null {
+    if (!value) return null;
+    try {
+        return JSON.parse(value) as T;
+    } catch {
+        return null;
+    }
 }
 
-interface Sucursal {
-    id: string;
-    nombre: string;
-    empresa: string;
-    es_principal: boolean;
+const esUsuarioValido = (value: unknown): value is User => {
+    const item = value as Partial<User> | null;
+    return Boolean(item && typeof item.id === 'string' && typeof item.correo === 'string' && typeof item.rol === 'string');
+};
+
+const esSucursalValida = (value: unknown): value is Sucursal => {
+    const item = value as Partial<Sucursal> | null;
+    return Boolean(item && typeof item.id === 'string' && typeof item.nombre === 'string');
+};
+
+function limpiarSesionLocal() {
+    ['token', 'user', 'usuario', 'sucursalActual', 'sucursales', 'sucursalId', 'rol'].forEach((key) =>
+        localStorage.removeItem(key),
+    );
 }
 
-interface AuthContextType {
-    user: User | null;
-    token: string | null;
-    isLoading: boolean;
-    isAuthenticated: boolean;
-    sucursalActual: Sucursal | null;
-    sucursales: Sucursal[];
-    login: (credentials: LoginRequest) => Promise<void>;
-    logout: () => void;
-    cambiarSucursal: (sucursalIdOrObj: string | Sucursal) => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const scopeCarrito = (usuario: User | null, sucursal: Sucursal | null) => ({
+    usuarioId: usuario?.id || 'anonimo',
+    boticaId: sucursal?.botica_id || 'sin-botica',
+    sucursalId: sucursal?.id || 'sin-sucursal',
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -46,57 +51,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedSucursal = localStorage.getItem('sucursalActual');
         const storedSucursales = localStorage.getItem('sucursales');
 
-        if (storedToken && storedUser && storedSucursal) {
-            const parsedUser = JSON.parse(storedUser);
+        const userGuardado = parseJsonSeguro<unknown>(storedUser);
+        const sucursalGuardada = parseJsonSeguro<unknown>(storedSucursal);
+        const sucursalesGuardadasRaw = parseJsonSeguro<unknown>(storedSucursales);
+        const parsedUser = esUsuarioValido(userGuardado) ? userGuardado : null;
+        const parsedSucursal = esSucursalValida(sucursalGuardada) ? sucursalGuardada : null;
+        const parsedSucursales = Array.isArray(sucursalesGuardadasRaw)
+            ? sucursalesGuardadasRaw.filter(esSucursalValida)
+            : [];
+
+        if (storedToken && parsedUser && parsedSucursal) {
+            const sucursalesGuardadas = Array.isArray(parsedSucursales) ? parsedSucursales : [];
+            const sucursalNormalizada = {
+                ...parsedSucursal,
+                botica_id:
+                    parsedSucursal.botica_id ||
+                    sucursalesGuardadas.find((item) => item.id === parsedSucursal.id)?.botica_id,
+            };
             setToken(storedToken);
             setUser(parsedUser);
-            setSucursalActual(JSON.parse(storedSucursal));
-            if (storedSucursales) {
-                setSucursales(JSON.parse(storedSucursales));
-            }
+            setSucursalActual(sucursalNormalizada);
+            setSucursales(sucursalesGuardadas);
 
             // Si el usuario es Administrador y sucursales tiene 1 o menos, cargar todas las sucursales del sistema
             const rolUpper = String(parsedUser?.rol || '').toUpperCase();
             const esAdmin = rolUpper.includes('ADMIN') || rolUpper.includes('PROPIETARIO') || rolUpper === 'GERENTE';
             if (esAdmin) {
-                import('../components/api/api.data').then(({ posApi }) => {
-                    posApi.getSucursalesAdmin().then((data) => {
-                        if (Array.isArray(data) && data.length > 0) {
-                            const formatted = data.map((s: any) => ({
-                                id: s.id,
-                                nombre: s.nombre,
-                                empresa: s.empresa || 'Botica Marifarma',
-                                es_principal: !!s.es_principal,
-                            }));
-                            setSucursales(formatted);
-                            localStorage.setItem('sucursales', JSON.stringify(formatted));
-                        }
-                    }).catch((err) => {
-                        console.warn('No se pudieron cargar sucursales administrativas adicionales:', err);
-                    });
+                authService.getSucursalesAdmin().then((data) => {
+                    if (Array.isArray(data) && data.length > 0) {
+                        const formatted = data.map((s: any) => ({
+                            id: s.id,
+                            nombre: s.nombre,
+                            empresa: s.empresa || 'Botica Marifarma',
+                            botica_id: s.botica_id,
+                            es_principal: !!s.es_principal,
+                        }));
+                        setSucursales(formatted);
+                        localStorage.setItem('sucursales', JSON.stringify(formatted));
+                    }
+                }).catch((err) => {
+                    console.warn('No se pudieron cargar sucursales administrativas adicionales:', err);
                 });
             }
+        } else if (storedToken || storedUser || storedSucursal || storedSucursales) {
+            limpiarSesionLocal();
         }
         setIsLoading(false);
     }, []);
 
     const login = async (credentials: LoginRequest) => {
         try {
-            const response = await authApi.login(credentials);
-            const data = response.data;
+            const data = await authService.login(credentials);
+            const sucursalesDisponibles = Array.isArray(data.sucursales_disponibles)
+                ? data.sucursales_disponibles
+                : [];
+            const sucursalActual = {
+                ...data.sucursal_actual,
+                botica_id:
+                    data.sucursal_actual.botica_id ||
+                    sucursalesDisponibles.find((item) => item.id === data.sucursal_actual.id)?.botica_id,
+            };
 
             // Guardar en localStorage
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.usuario));
-            localStorage.setItem('sucursalActual', JSON.stringify(data.sucursal_actual));
-            localStorage.setItem('sucursales', JSON.stringify(data.sucursales_disponibles));
-            localStorage.setItem('sucursalId', data.sucursal_actual.id);
+            localStorage.setItem('sucursalActual', JSON.stringify(sucursalActual));
+            localStorage.setItem('sucursales', JSON.stringify(sucursalesDisponibles));
+            localStorage.setItem('sucursalId', sucursalActual.id);
             localStorage.setItem('rol', data.usuario.rol);
             // Actualizar estado
             setToken(data.token);
             setUser(data.usuario);
-            setSucursalActual(data.sucursal_actual);
-            setSucursales(data.sucursales_disponibles);
+            setSucursalActual(sucursalActual);
+            setSucursales(sucursalesDisponibles);
 
             // Redirigir al dashboard
             window.location.href = '/';
@@ -106,11 +133,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('sucursalActual');
-        localStorage.removeItem('sucursales');
-        localStorage.removeItem('sucursalId');
+        void limpiarCarritoStorage(scopeCarrito(user, sucursalActual));
+        limpiarSesionLocal();
+        localStorage.removeItem('pos_session_code');
+        queryClient.clear();
         setToken(null);
         setUser(null);
         setSucursalActual(null);
@@ -123,11 +149,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const nuevaSucursal = sucursales.find(s => s.id === targetId) || (typeof sucursalIdOrObj === 'object' ? sucursalIdOrObj : null);
         
         if (nuevaSucursal) {
+            if (nuevaSucursal.id === sucursalActual?.id) return;
+            void Promise.all([
+                limpiarCarritoStorage(scopeCarrito(user, sucursalActual)),
+                limpiarCarritoStorage(scopeCarrito(user, nuevaSucursal)),
+            ]);
             localStorage.setItem('sucursalActual', JSON.stringify(nuevaSucursal));
             localStorage.setItem('sucursalId', nuevaSucursal.id);
             setSucursalActual(nuevaSucursal);
 
-            queryClient.invalidateQueries();
+            queryClient.clear();
         }
     };
 
@@ -156,12 +187,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             {children}
         </AuthContext.Provider>
     );
-};
-
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth debe ser usado dentro de AuthProvider');
-    }
-    return context;
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { posApi } from "../../api/api.data";
+import { reportesService } from "../../../services/reportes.service";
 import { useAuth } from "../../../hooks/useAuth";
+import { fechaCivil, fechaCivilMasDias } from "../../../utils/localDate";
 
 export function useReportes() {
   const { sucursalActual } = useAuth();
@@ -13,8 +14,9 @@ export function useReportes() {
   const [error, setError] = useState<string | null>(null);
 
   // Rango de fechas por defecto: Mes actual
-  const hoyStr = new Date().toISOString().split("T")[0];
-  const hace30DiasStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const hoy = new Date();
+  const hoyStr = fechaCivil(hoy);
+  const hace30DiasStr = fechaCivilMasDias(hoy, -30);
 
   const [fechaInicio, setFechaInicio] = useState(hace30DiasStr);
   const [fechaFin, setFechaFin] = useState(hoyStr);
@@ -23,7 +25,7 @@ export function useReportes() {
   const fetchFinanciero = useCallback(async () => {
     setLoadingFinanciero(true);
     try {
-      const data = await posApi.getReporteFinanciero({
+      const data = await reportesService.getReporteFinanciero({
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         sucursal_id: sucursalReporteId || undefined,
@@ -40,7 +42,7 @@ export function useReportes() {
     setLoadingVentas(true);
     setError(null);
     try {
-      const data = await posApi.getReporteVentas({
+      const data = await reportesService.getReporteVentas({
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,
         sucursal_id: sucursalActual?.id,
@@ -57,7 +59,7 @@ export function useReportes() {
   const fetchInventario = useCallback(async () => {
     setLoadingInventario(true);
     try {
-      const data = await posApi.getReporteInventario({
+      const data = await reportesService.getReporteInventario({
         sucursal_id: sucursalActual?.id,
       });
       setReporteInventario(data);
@@ -93,3 +95,4 @@ export function useReportes() {
     refetchFinanciero: fetchFinanciero,
   };
 }
+

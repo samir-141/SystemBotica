@@ -11,6 +11,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { exportToCSV } from "../../../utils/csvExport";
+import { fechaCivil, fechaCivilMasDias } from "../../../utils/localDate";
 
 type Props = {
   reporte: any;
@@ -38,8 +39,9 @@ export default function ReporteVentas({
   const tendencias = reporte?.tendencias_diarias || [];
 
   const aplicarPreset = (dias: number) => {
-    const fin = new Date().toISOString().split("T")[0];
-    const inicio = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const hoy = new Date();
+    const fin = fechaCivil(hoy);
+    const inicio = fechaCivilMasDias(hoy, -dias);
     setFechaInicio(inicio);
     setFechaFin(fin);
   };
@@ -62,7 +64,7 @@ export default function ReporteVentas({
       `"${v.estado}"`,
     ]);
 
-    exportToCSV(`Reporte_Ventas_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
+    exportToCSV(`Reporte_Ventas_${fechaCivil()}.csv`, headers, rows);
   };
 
   return (

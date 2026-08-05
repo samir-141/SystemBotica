@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { guardarCarritoStorage, cargarCarritoStorage, limpiarCarritoStorage } from "../cartStorage";
 import type { ItemCarrito } from "../../types";
+import type { CartScope } from "../cartStorage";
 
 // Mock de idb-keyval
 const store = new Map<string, any>();
@@ -29,6 +30,7 @@ describe("Persistencia del Carrito (cartStorage)", () => {
   const cartMock: ItemCarrito[] = [
     {
       id_carrito: "prod1_Unidad",
+      producto_presentacion_id: "presentacion-1",
       producto_comercial_id: "prod1",
       nombre_comercial: "Alcohol Gel 70%",
       presentacion_nombre: "Frasco 500ml",
@@ -40,6 +42,9 @@ describe("Persistencia del Carrito (cartStorage)", () => {
       lote_fefo_vencimiento: "2027-05-01",
     },
   ];
+
+  const scopeA: CartScope = { usuarioId: "user-1", boticaId: "botica-a", sucursalId: "sucursal-a" };
+  const scopeB: CartScope = { usuarioId: "user-1", boticaId: "botica-a", sucursalId: "sucursal-b" };
 
   it("debe guardar el carrito en almacenamiento persistente", async () => {
     await guardarCarritoStorage(cartMock);
@@ -57,5 +62,23 @@ describe("Persistencia del Carrito (cartStorage)", () => {
     await limpiarCarritoStorage();
     const resultado = await cargarCarritoStorage();
     expect(resultado).toEqual([]);
+  });
+
+  it("aísla el carrito por usuario, botica y sucursal", async () => {
+    await guardarCarritoStorage(cartMock, scopeA);
+
+    expect(await cargarCarritoStorage(scopeA)).toEqual(cartMock);
+    expect(await cargarCarritoStorage(scopeB)).toEqual([]);
+  });
+
+  it("limpia únicamente el carrito del alcance solicitado", async () => {
+    const otroCarrito = [{ ...cartMock[0], producto_comercial_id: "prod-2" }];
+    await guardarCarritoStorage(cartMock, scopeA);
+    await guardarCarritoStorage(otroCarrito, scopeB);
+
+    await limpiarCarritoStorage(scopeA);
+
+    expect(await cargarCarritoStorage(scopeA)).toEqual([]);
+    expect(await cargarCarritoStorage(scopeB)).toEqual(otroCarrito);
   });
 });

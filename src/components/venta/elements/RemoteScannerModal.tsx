@@ -11,6 +11,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { detectDevice } from "../../../utils/deviceDetector";
+import { resolveMobileScannerLink } from "../../../utils/networkUrls";
 
 interface Props {
   open: boolean;
@@ -21,7 +22,10 @@ interface Props {
   remoteDeviceName?: string | null;
   pingMs?: number | null;
   ultimoCodigoRemoto?: string | null;
-  onChangeSessionCode?: (newCode: string) => void;
+  expiresAt?: number | null;
+  expired?: boolean;
+  error?: string | null;
+  onRenewSession?: () => void;
 }
 
 export default function RemoteScannerModal({
@@ -33,26 +37,48 @@ export default function RemoteScannerModal({
   remoteDeviceName,
   pingMs,
   ultimoCodigoRemoto,
+  expiresAt,
+  expired = false,
+  error,
+  onRenewSession,
 }: Props) {
   const [copiado, setCopiado] = useState(false);
   const [urlEscanner, setUrlEscanner] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [urlWarning, setUrlWarning] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now());
   const device = detectDevice();
 
   useEffect(() => {
+    if (!open || !expiresAt) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [expiresAt, open]);
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      // En desarrollo el POS puede abrirse en localhost, pero el teléfono no
-      // puede resolverlo. En ese caso usamos la IP/host configurado para la API.
-      const apiUrl = String(import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
-      const apiHost = apiUrl ? new URL(apiUrl).hostname : "";
-      const origin = window.location.hostname === "localhost" && apiHost
-        ? `${window.location.protocol}//${apiHost}:${window.location.port || "5173"}`
-        : window.location.origin;
-      const url = `${origin}/escanner-remoto?session=${encodeURIComponent(sessionCode)}`;
-      setUrlEscanner(url);
+      if (!sessionCode || expired) {
+        setUrlEscanner("");
+        setQrDataUrl("");
+        setUrlWarning(null);
+        return;
+      }
+      const scannerLink = resolveMobileScannerLink(
+        sessionCode,
+        import.meta.env.VITE_PUBLIC_APP_URL,
+      );
+      console.log(scannerLink);
+      setUrlEscanner(scannerLink?.url || "");
+      setUrlWarning(scannerLink?.warning || null);
+
+      if (!scannerLink?.url) {
+        setQrDataUrl("");
+        return;
+      }
 
       // Generar imagen DataURL de código QR 2D real scaneable por cualquier celular
-      QRCode.toDataURL(url, {
+      QRCode.toDataURL(scannerLink.url, {
         margin: 1,
         width: 220,
         color: {
@@ -63,9 +89,14 @@ export default function RemoteScannerModal({
         .then((dataUri) => setQrDataUrl(dataUri))
         .catch((err) => console.error("Error al generar código QR:", err));
     }
-  }, [sessionCode]);
+  }, [expired, sessionCode]);
 
   if (!open) return null;
+
+  const segundosRestantes = expiresAt ? Math.max(0, Math.ceil((expiresAt - now) / 1000)) : null;
+  const minutosRestantes = segundosRestantes === null
+    ? null
+    : `${Math.floor(segundosRestantes / 60)}:${String(segundosRestantes % 60).padStart(2, "0")}`;
 
   const handleCopiarUrl = () => {
     navigator.clipboard.writeText(urlEscanner);
@@ -134,6 +165,30 @@ export default function RemoteScannerModal({
             )}
           </div>
 
+          {(error || expired) && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left text-xs text-amber-900">
+              <p className="font-extrabold">{expired ? "El emparejamiento expiró" : "No se pudo emparejar"}</p>
+              <p className="mt-1 font-medium">{error || "Genera un código nuevo para volver a conectar el celular."}</p>
+              {onRenewSession && (
+                <button type="button" onClick={() => onRenewSession()} className="mt-3 w-full rounded-xl bg-amber-600 px-3 py-2 font-extrabold text-white hover:bg-amber-700">
+                  Generar nuevo código seguro
+                </button>
+              )}
+            </div>
+          )}
+
+          {!expired && minutosRestantes && (
+            <p className="text-[11px] font-bold text-slate-500">
+              Este código de un solo uso expira en <span className="font-mono text-indigo-700">{minutosRestantes}</span>
+            </p>
+          )}
+
+          {urlWarning && !expired && (
+            <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left text-xs font-semibold text-amber-900">
+              {urlWarning}
+            </div>
+          )}
+
           <div className="space-y-1">
             <p className="text-xs text-slate-700 font-bold">
               Escanea este QR con la cámara de tu smartphone:
@@ -145,7 +200,7 @@ export default function RemoteScannerModal({
 
           {/* REAL 2D QR CODE IMAGE DISPLAY */}
           <div className="flex flex-col items-center justify-center bg-indigo-50/40 p-5 rounded-3xl border-2 border-dashed border-indigo-200 space-y-3">
-            {qrDataUrl ? (
+            {qrDataUrl && !expired ? (
               <img
                 src={qrDataUrl}
                 alt={`Código QR escaneable para sesión ${sessionCode}`}
@@ -153,12 +208,12 @@ export default function RemoteScannerModal({
               />
             ) : (
               <div className="w-48 h-48 bg-slate-100 animate-pulse rounded-2xl flex items-center justify-center text-xs text-slate-400 font-bold">
-                Generando Código QR...
+                {expired ? "Código expirado" : urlWarning ? "HTTPS requerido para usar la cámara" : "Solicitando código seguro al servidor..."}
               </div>
             )}
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-black text-indigo-700 bg-white px-3 py-1 rounded-xl border border-indigo-200 shadow-2xs">
-                {urlEscanner || "/escanner-remoto"}
+                {urlEscanner || "Enlace móvil no disponible"}
               </span>
             </div>
           </div>
@@ -180,13 +235,14 @@ export default function RemoteScannerModal({
               <button
                 type="button"
                 onClick={handleCopiarUrl}
+                disabled={!urlEscanner}
                 className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 {copiado ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
                 <span>{copiado ? "Copiado!" : "Copiar Enlace"}</span>
               </button>
 
-              {device.esMovil ? (
+              {device.esMovil && urlEscanner && !urlWarning ? (
                 <a
                   href={urlEscanner}
                   target="_blank"
@@ -200,11 +256,15 @@ export default function RemoteScannerModal({
                 <button
                   type="button"
                   disabled
-                  title={`Función no disponible en PC (${device.os}). Abre este enlace desde tu celular iOS o Android.`}
+                  title={device.esMovil
+                    ? (urlWarning || "El enlace móvil no está disponible.")
+                    : `Función no disponible en PC (${device.os}). Abre este enlace desde tu celular iOS o Android.`}
                   className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl text-xs font-bold cursor-not-allowed opacity-75"
                 >
-                  <Monitor size={15} className="text-slate-400" />
-                  <span>Modo Celular (Inactivo en PC)</span>
+                  {device.esMovil
+                    ? <Smartphone size={15} className="text-slate-400" />
+                    : <Monitor size={15} className="text-slate-400" />}
+                  <span>{device.esMovil ? "Modo Celular no disponible" : "Modo Celular (Inactivo en PC)"}</span>
                 </button>
               )}
             </div>

@@ -76,9 +76,16 @@ export default function UsuariosAdmin({
       setErrorForm("El correo electrónico no tiene un formato válido.");
       return;
     }
-    if (!userEdit && (!password || password.length < 6)) {
-      setErrorForm("La contraseña debe tener al menos 6 caracteres, con mayúscula, minúscula y número.");
-      return;
+    if (!userEdit) {
+      if (!password || password.length < 6) {
+        setErrorForm("La contraseña debe tener al menos 6 caracteres.");
+        return;
+      }
+    } else {
+      if (password.trim() && password.trim().length < 6) {
+        setErrorForm("La nueva contraseña debe tener al menos 6 caracteres.");
+        return;
+      }
     }
 
     setSaving(true);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { posApi } from "../../api/api.data";
+import { authService } from "../../../services/auth.service";
 
 export interface UsuarioItem {
   id: string;
@@ -46,9 +46,9 @@ export function useAdmin() {
     setError(null);
     try {
       const [uData, rData, sData] = await Promise.all([
-        posApi.getUsuarios(),
-        posApi.getRoles(),
-        posApi.getSucursalesAdmin(),
+        authService.getUsuarios(),
+        authService.getRoles(),
+        authService.getSucursalesAdmin(),
       ]);
       setUsuarios(uData || []);
       setRoles(rData || []);
@@ -66,27 +66,27 @@ export function useAdmin() {
   }, [fetchAll]);
 
   const crearUsuario = async (payload: Record<string, unknown>) => {
-    await posApi.crearUsuario(payload);
+    await authService.crearUsuario(payload);
     await fetchAll();
   };
 
   const actualizarUsuario = async (id: string, payload: Record<string, unknown>) => {
-    await posApi.actualizarUsuario(id, payload);
+    await authService.actualizarUsuario(id, payload);
     await fetchAll();
   };
 
   const eliminarUsuario = async (id: string) => {
-    await posApi.eliminarUsuario(id);
+    await authService.eliminarUsuario(id);
     await fetchAll();
   };
 
   const crearSucursal = async (payload: { nombre: string; direccion: string; telefono?: string }) => {
-    await posApi.crearSucursal(payload);
+    await authService.crearSucursal(payload);
     await fetchAll();
   };
 
   const actualizarRolPermisos = async (rolId: string, permisosIds: string[]) => {
-    await posApi.actualizarRolPermisos(rolId, permisosIds);
+    await authService.actualizarRolPermisos(rolId, permisosIds);
     await fetchAll();
   };
 
@@ -104,3 +104,4 @@ export function useAdmin() {
     refetch: fetchAll,
   };
 }
+

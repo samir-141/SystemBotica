@@ -10,6 +10,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { exportToCSV } from "../../../utils/csvExport";
+import { fechaCivil } from "../../../utils/localDate";
 
 type Props = {
   reporte: any;
@@ -43,7 +44,7 @@ export default function ReporteInventario({ reporte, loading }: Props) {
       l.dias_para_vencer,
     ]);
 
-    exportToCSV(`Reporte_Inventario_FEFO_${new Date().toISOString().split("T")[0]}.csv`, headers, rows);
+    exportToCSV(`Reporte_Inventario_FEFO_${fechaCivil()}.csv`, headers, rows);
   };
 
   return (

@@ -8,7 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    basicSsl(),
+    process.env.VITE_HTTP_PREVIEW === 'true' ? null : basicSsl(),
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
@@ -38,7 +38,7 @@ export default defineConfig({
         runtimeCaching: [],
       },
     }),
-  ],
+  ].filter(Boolean),
   server: {
     host: true,
     port: 5173,
@@ -46,6 +46,11 @@ export default defineConfig({
       '/api': {
         target: (process.env.VITE_API_URL || 'http://localhost:3000').trim(),
         changeOrigin: true,
+      },
+      '/socket.io': {
+        target: (process.env.VITE_SOCKET_URL || process.env.VITE_API_URL || 'http://localhost:3000').trim(),
+        changeOrigin: true,
+        ws: true,
       },
     },
   },

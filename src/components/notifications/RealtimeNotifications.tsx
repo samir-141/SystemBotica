@@ -1,4 +1,4 @@
-import { useSocket, type RealtimeNotification } from "../../contexts/SocketContext";
+import { useSocket, type RealtimeNotification } from "../../contexts/socket-context";
 import { AlertTriangle, AlertOctagon, CheckCircle2, Info, X } from "lucide-react";
 
 export default function RealtimeNotifications() {

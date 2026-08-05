@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { posApi } from "../../api/api.data";
+import { dashboardService } from "../../../services/dashboard.service";
 import { useAuth } from "../../../hooks/useAuth";
 
 export interface ResumenDashboard {
@@ -102,7 +102,7 @@ export function useDashboard() {
         setCargando(true);
         setError(null);
         try {
-            const data = await posApi.getDashboardResumen(sucursalActual?.id, rangoFecha);
+            const data = await dashboardService.getDashboardResumen(sucursalActual?.id, rangoFecha);
             setResumen(data);
         } catch (err: any) {
             console.error("Error al obtener datos del dashboard:", err);
@@ -125,3 +125,4 @@ export function useDashboard() {
         setRangoFecha,
     };
 }
+

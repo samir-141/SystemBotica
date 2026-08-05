@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { posApi } from "../../api/api.data";
+import { clientesService } from "../../../services/clientes.service";
 import type { Cliente } from "../types";
 
 export function useClientes() {
@@ -20,7 +20,7 @@ export function useClientes() {
     setLoading(true);
     setError(null);
     try {
-      const response = await posApi.getClientes({
+      const response = await clientesService.getClientes({
         page,
         limit: 20,
         buscar: busqueda || undefined,
@@ -34,6 +34,7 @@ export function useClientes() {
     } catch (err: any) {
       console.error("Error al cargar clientes:", err);
       setError(err.message || "Error al conectar con la gestión de clientes");
+      setClientes([]);
     } finally {
       setLoading(false);
     }
@@ -47,17 +48,17 @@ export function useClientes() {
   }, [fetchClientes]);
 
   const crearCliente = async (payload: any) => {
-    await posApi.crearCliente(payload);
+    await clientesService.crearCliente(payload);
     await fetchClientes();
   };
 
   const actualizarCliente = async (id: string, payload: any) => {
-    await posApi.actualizarCliente(id, payload);
+    await clientesService.actualizarCliente(id, payload);
     await fetchClientes();
   };
 
   const eliminarCliente = async (id: string) => {
-    await posApi.eliminarCliente(id);
+    await clientesService.eliminarCliente(id);
     await fetchClientes();
   };
 

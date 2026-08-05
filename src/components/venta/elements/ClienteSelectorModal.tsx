@@ -1,7 +1,7 @@
 // src/components/venta/elements/ClienteSelectorModal.tsx
 import { useState, useEffect, useCallback } from "react";
 import { X, Search, UserPlus, UserCheck, Loader2 } from "lucide-react";
-import { posApi } from "../../api/api.data";
+import { clientesService } from "../../../services/clientes.service";
 
 export interface Cliente {
   id: string;
@@ -36,7 +36,7 @@ export default function ClienteSelectorModal({ open, onClose, onSelect }: Props)
     }
     setLoading(true);
     try {
-      const res = await posApi.getClientes({ buscar: busqueda.trim(), limit: 10 });
+      const res = await clientesService.getClientes({ buscar: busqueda.trim(), limit: 10 });
       setClientes(res.data || []);
     } catch (err) {
       console.error("Error al buscar clientes:", err);
@@ -63,7 +63,7 @@ export default function ClienteSelectorModal({ open, onClose, onSelect }: Props)
     if (!esValido) return;
 
     try {
-      const res = await posApi.consultarDocumentoPadron(nuevoTipoDoc, nuevoNumero);
+      const res = await clientesService.consultarDocumentoPadron(nuevoTipoDoc, nuevoNumero);
       if (res.encontrado && res.nombre) {
         setNuevoNombre(res.nombre);
       }
@@ -82,7 +82,7 @@ export default function ClienteSelectorModal({ open, onClose, onSelect }: Props)
         nombre: nuevoNombre.trim(),
         tipo_cliente: nuevoTipoDoc === "RUC" ? "JURIDICO" : "NATURAL",
       };
-      await posApi.crearCliente(payload);
+      await clientesService.crearCliente(payload);
       setCrearOpen(false);
       setNuevoNumero("");
       setNuevoNombre("");

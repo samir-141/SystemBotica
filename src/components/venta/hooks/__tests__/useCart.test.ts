@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useCart } from "../useCart";
 
+vi.mock("../../../../hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: { id: "user-test" },
+    sucursalActual: { id: "sucursal-test", botica_id: "botica-test" },
+  }),
+}));
+
 describe("Hook useCart con Persistencia", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -12,6 +19,7 @@ describe("Hook useCart con Persistencia", () => {
 
   const productoMock = {
     producto_comercial_id: "prod-101",
+    presentacion_id: "presentacion-ibu-unidad",
     nombre_comercial: "Ibuprofeno 400mg",
     precio_actual: 15.0,
     stock_total: 10,
@@ -46,6 +54,7 @@ describe("Hook useCart con Persistencia", () => {
 
     expect(hookResult.current.carrito).toHaveLength(1);
     expect(hookResult.current.carrito[0].nombre_comercial).toBe("Ibuprofeno 400mg");
+    expect(hookResult.current.carrito[0].producto_presentacion_id).toBe("presentacion-ibu-unidad");
     expect(hookResult.current.carrito[0].cantidad).toBe(1);
     expect(hookResult.current.totalItems).toBe(1);
     expect(hookResult.current.montoBrutoFinal).toBe(15.0);
@@ -69,6 +78,30 @@ describe("Hook useCart con Persistencia", () => {
     expect(hookResult.current.carrito[0].cantidad).toBe(2);
     expect(hookResult.current.totalItems).toBe(2);
     expect(hookResult.current.montoBrutoFinal).toBe(30.0);
+  });
+
+  it("conserva el ID exacto de la presentación seleccionada", async () => {
+    let hookResult: any;
+    await act(async () => {
+      const { result } = renderHook(() => useCart());
+      hookResult = result;
+    });
+
+    await act(async () => {
+      hookResult.current.agregarAlCarrito(
+        productoMock,
+        10,
+        "Blíster",
+        12,
+        "presentacion-ibu-blister",
+      );
+    });
+
+    expect(hookResult.current.carrito[0]).toMatchObject({
+      producto_presentacion_id: "presentacion-ibu-blister",
+      presentacion_nombre: "Blíster",
+      unidades_base_por_pack: 10,
+    });
   });
 
   it("debe prevenir el agregado si se supera el stock disponible", async () => {

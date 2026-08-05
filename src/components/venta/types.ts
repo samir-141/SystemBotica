@@ -2,6 +2,7 @@
 
 export interface ItemCarrito {
   id_carrito: string;
+  producto_presentacion_id: string;
   producto_comercial_id: string;
   nombre_comercial: string;
   presentacion_nombre: string;
@@ -50,7 +51,7 @@ export interface ProductoAgrupado {
 }
 
 export interface DetalleVentaInput {
-  producto_presentacion_id?: string;
+  producto_presentacion_id: string;
   producto_comercial_id: string;
   presentacion_nombre: string;
   cantidad: number;
@@ -58,18 +59,18 @@ export interface DetalleVentaInput {
 }
 
 export interface CreateVentaPayload {
+  idempotency_key: string;
   tipo_comprobante: TipoComprobante;
   tipo_pago: TipoPago;
   metodo_pago: MetodoPago;
   monto_recibido?: number;
   vuelto?: number;
   datos_cliente?: DatosCliente;
-  subtotal: number;
-  igv: number;
-  total: number;
+  subtotal?: number;
+  igv?: number;
+  total?: number;
   items: DetalleVentaInput[];
 }
 
 // Re‑export product data types from the API layer for convenience
-export type { ProductoPOS, PaginatedResponse } from "../api/api.data";
-
+export type { ProductoPOS, PaginatedResponse } from "../../types/api.types";

@@ -16,7 +16,8 @@ export interface ProductoItemProps {
         producto: any,
         cantidad: number,
         presentacionNombre: string,
-        precioUnitario: number
+        precioUnitario: number,
+        productoPresentacionId: string
     ) => void;
     onSolicitarReceta?: (producto: any, presentacionSel: PresentacionOption) => void;
     feedbackId?: string | null;
@@ -116,7 +117,8 @@ export default function Item({
                 targetItem,
                 presentacionSel.cantidad_unidad_base,
                 presentacionSel.nombre,
-                presentacionSel.precio
+                presentacionSel.precio,
+                presentacionSel.id
             );
         }
     };

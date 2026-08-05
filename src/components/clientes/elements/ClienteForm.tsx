@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Save, Loader2, User, Hash, CheckCircle2 } from "lucide-react";
+import { clientesService } from "../../../services/clientes.service";
 import type { Cliente, ClienteFormData, FormMode, TipoDocumento, TipoCliente, CondicionContribuyente } from "../types";
 import type { CreateClienteDto, UpdateClienteDto } from "../../../types/dto";
 
@@ -97,8 +98,7 @@ export default function ClienteForm({
     setOrigenBadge(null);
 
     try {
-      const { posApi } = await import("../../api/api.data");
-      const res = await posApi.consultarDocumentoPadron(tipoDoc, numeroDoc);
+      const res = await clientesService.consultarDocumentoPadron(tipoDoc, numeroDoc);
       if (res.encontrado && res.nombre) {
         setForm((prev) => ({
           ...prev,
@@ -151,7 +151,31 @@ export default function ClienteForm({
 
     setSaving(true);
     try {
-      await onSave(form as CreateClienteDto, mode);
+      const payload: CreateClienteDto = {
+        tipo_documento: form.tipo_documento,
+        numero_documento: form.numero_documento.trim(),
+        nombre: form.nombre.trim(),
+        direccion: form.direccion?.trim() || undefined,
+        telefono: form.telefono?.trim() || undefined,
+        email: form.email?.trim() || undefined,
+        tipo_cliente: form.tipo_cliente || "NATURAL",
+        condicion_contribuyente: form.condicion_contribuyente || "HABIDO",
+        estado_sunat: form.estado_sunat || "ACTIVO",
+        estado: form.estado || "ACTIVO",
+        limite_credito: form.limite_credito === "" || isNaN(Number(form.limite_credito)) ? 0 : Number(form.limite_credito),
+        dias_credito: form.dias_credito === "" || isNaN(Number(form.dias_credito)) ? 0 : Number(form.dias_credito),
+        saldo_actual: form.saldo_actual === "" || isNaN(Number(form.saldo_actual)) ? 0 : Number(form.saldo_actual),
+        estado_credito: form.estado_credito || "AL CORRIENTE",
+        whatsapp: form.whatsapp?.trim() || undefined,
+        contacto_principal: form.contacto_principal?.trim() || undefined,
+        cargo_contacto: form.cargo_contacto?.trim() || undefined,
+        representante_legal: form.representante_legal?.trim() || undefined,
+        dni_representante: form.dni_representante?.trim() || undefined,
+        fecha_nacimiento: form.fecha_nacimiento || undefined,
+        observaciones: form.observaciones?.trim() || undefined,
+        origen: form.origen || "POS",
+      };
+      await onSave(payload, mode);
       onClose();
     } catch (err: any) {
       console.error(err);

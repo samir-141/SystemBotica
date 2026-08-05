@@ -57,6 +57,56 @@ body { background: #ffffff; }
 .marifarma-app .border-blue-200, .marifarma-app .border-indigo-200, .marifarma-app .border-purple-200 { border-color: #c9a400 !important; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   DINAMISMO Y COLORES PARA LAS BARRAS DEL GRÁFICO DE VENTAS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.chart-bar-inactive {
+  background-color: #cbd5e1 !important; /* Tailwind slate-300 default */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.marifarma-app .chart-bar-inactive {
+  background-color: #d4cfaa !important; /* Marifarma slate-300 brand style, but more visible */
+}
+
+/* Hover state for inactive bar when column is hovered */
+.group:hover .chart-bar-inactive {
+  background-color: #10b981 !important; /* Vibrant Emerald green hover */
+  transform: scaleY(1.05);
+  transform-origin: bottom;
+  filter: drop-shadow(0 4px 6px rgba(16, 185, 129, 0.25));
+}
+
+.marifarma-app .group:hover .chart-bar-inactive {
+  background-color: #00876c !important; /* Brand deep green/emerald hover */
+  filter: drop-shadow(0 4px 6px rgba(0, 135, 108, 0.25));
+}
+
+/* Active bar (Today) */
+.chart-bar-today {
+  background: linear-gradient(to top, #10b981, #34d399) !important;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.marifarma-app .chart-bar-today {
+  background: linear-gradient(to top, #003d31, #10b981) !important;
+  box-shadow: 0 4px 10px rgba(0, 61, 49, 0.25);
+}
+
+/* Hover state for active bar */
+.group:hover .chart-bar-today {
+  transform: scaleY(1.05);
+  transform-origin: bottom;
+  filter: brightness(1.1);
+  box-shadow: 0 6px 14px rgba(16, 185, 129, 0.3);
+}
+
+.marifarma-app .group:hover .chart-bar-today {
+  box-shadow: 0 6px 14px rgba(0, 61, 49, 0.35);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
    ESTILOS DE IMPRESIÓN PROPIOS PARA DASHBOARD & REPORTES (PRINT / SAVE AS PDF)
    ═══════════════════════════════════════════════════════════════════════════ */
 @media print {
@@ -82,7 +132,6 @@ body { background: #ffffff; }
   body,
   #root,
   main,
-  div,
   section,
   article,
   .h-svh,
@@ -146,4 +195,33 @@ body { background: #ffffff; }
 @page { size: A4; margin: 12mm; }
 @media print {
   body { background: #fff !important; }
+
+  /* Public receipt print cleanup */
+  .receipt-public-background {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+  .receipt-public-background article {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  /* Override marifarma-app background customizers during printing to prevent cream backgrounds */
+  .marifarma-app {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+  .marifarma-app .bg-white {
+    background-color: #ffffff !important;
+  }
+  .marifarma-app .bg-slate-50 {
+    background-color: #f8fafc !important; /* slate-50 light gray for table header */
+  }
 }

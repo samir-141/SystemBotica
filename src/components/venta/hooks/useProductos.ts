@@ -4,12 +4,14 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../../api/client";
-import type { ProductoPOS, PaginatedResponse } from "../../api/api.data";
+import { productosService } from "../../../services/productos.service";
+import type { ProductoPOS } from "../../../types/api.types";
 import type { PresentacionOption } from "../types";
 import { CACHE_STALE_TIMES, indexedDbPersister } from "../../../lib/queryClient";
+import { useAuth } from "../../../hooks/useAuth";
 
 export const useProductos = () => {
+  const { user, sucursalActual } = useAuth();
   const [busqueda, setBusqueda] = useState("");
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
 
@@ -26,16 +28,26 @@ export const useProductos = () => {
     error: errorQuery,
     refetch: fetchProductos,
   } = useQuery<ProductoPOS[]>({
-    queryKey: ["productos", busquedaDebounced],
+    queryKey: [
+      "productos",
+      sucursalActual?.botica_id || "sin-botica",
+      sucursalActual?.id || "sin-sucursal",
+      user?.id || "anonimo",
+      busquedaDebounced,
+    ],
     queryFn: async () => {
-      const cacheKey = `productos_${busquedaDebounced.trim().toLowerCase()}`;
+      const cacheKey = [
+        "productos",
+        sucursalActual?.botica_id || "sin-botica",
+        sucursalActual?.id || "sin-sucursal",
+        user?.id || "anonimo",
+        busquedaDebounced.trim().toLowerCase(),
+      ].map((part) => encodeURIComponent(part)).join("_");
       try {
-        const { data } = await api.get<PaginatedResponse<ProductoPOS>>("/productos", {
-          params: {
-            buscar: busquedaDebounced || undefined,
-            limit: 30,
-            orden: "nombre_asc",
-          },
+        const data = await productosService.getProductos({
+          buscar: busquedaDebounced || undefined,
+          limit: 30,
+          orden: "nombre_asc",
         });
         const soloConStock = (data.data || []).filter((p) => p.stock_total > 0);
         // Persistir en IndexedDB para funcionamiento offline/cache pesado
@@ -48,6 +60,7 @@ export const useProductos = () => {
         throw err;
       }
     },
+    enabled: Boolean(user?.id && sucursalActual?.id),
     staleTime: 0, // Invalidation instantánea para actualización de stock en tiempo real en el POS
   });
 
@@ -72,13 +85,14 @@ export const useProductos = () => {
         });
       }
       const itemAgrupado = mapa.get(key);
+      if (!prod.presentacion_id) return;
       const presExistente = itemAgrupado.presentaciones.some(
         (p: PresentacionOption) =>
-          p.id === (prod.presentacion_id || prod.presentacion_nombre)
+          p.id === prod.presentacion_id
       );
       if (!presExistente) {
         itemAgrupado.presentaciones.push({
-          id: prod.presentacion_id || `${prod.producto_comercial_id}_${prod.presentacion_nombre}`,
+          id: prod.presentacion_id,
           nombre: prod.presentacion_nombre || "Unidad",
           cantidad_unidad_base: prod.cantidad_unidad_base || 1,
           precio: prod.precio_actual,

@@ -1,5 +1,5 @@
 // src/components/productos/types.ts
-import type { ProductoPOS, ItemCatalogo, TipoCatalogo } from "../api/api.data";
+import type { ProductoPOS, ItemCatalogo, TipoCatalogo } from "../../types/api.types";
 
 /* ── Tipo para filas de la tabla ──────────────────────── */
 export type ProductoTableRow = ProductoPOS;
@@ -10,6 +10,11 @@ export interface ProductoFormData {
   nombre_comercial: string;
   sku: string;
   codigo_interno: string;
+  tipo_producto: "MEDICAMENTO" | "HIGIENE" | "BEBE" | "COSMETICO" | "ACCESORIO" | "OTRO";
+  controla_lote: boolean;
+  requiere_vencimiento: boolean;
+  atributo_nombre: string;
+  atributo_valor: string;
   principio_activo_id: string;
   forma_farmaceutica_id: string;
   laboratorio_id: string;

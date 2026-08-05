@@ -10,8 +10,8 @@ import {
   Package,
   FileText,
 } from "lucide-react";
-import type { ProductoPOS } from "../../api/api.data";
-import { posApi } from "../../api/api.data";
+import type { ProductoPOS } from "../../../types/api.types";
+import { productosService } from "../../../services/productos.service";
 
 type Props = {
   open: boolean;
@@ -44,7 +44,7 @@ export default function MovimientosModal({ open, producto, onClose }: Props) {
     if (!open || !producto) return;
     let activo = true;
     setLoading(true);
-    posApi.getProductoDetalle(producto.producto_comercial_id)
+    productosService.getProductoDetalle(producto.producto_comercial_id)
       .then((detalle) => {
         if (!activo) return;
         setLotes(detalle.lotes || []);

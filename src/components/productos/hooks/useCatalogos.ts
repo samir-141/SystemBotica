@@ -1,6 +1,6 @@
 // src/components/productos/hooks/useCatalogos.ts
 import { useState, useEffect, useCallback } from "react";
-import { posApi } from "../../api/api.data";
+import { inventarioService } from "../../../services/inventario.service";
 import type { ItemCatalogo, TipoCatalogo } from "../types";
 
 /* ── Catálogos que necesitamos en el formulario ───────── */
@@ -34,7 +34,7 @@ export function useCatalogos() {
     try {
       const results = await Promise.all(
         CATALOGO_TIPOS.map((tipo) =>
-          posApi
+          inventarioService
             .getCatalogo(tipo, { limit: 20, orden: "asc" })
             .then((res) => ({ tipo, items: res.data }))
             .catch(() => ({ tipo, items: [] as ItemCatalogo[] }))
@@ -60,7 +60,7 @@ export function useCatalogos() {
   /* refrescar un catálogo específico (ej: tras crear nuevo laboratorio) */
   const refreshCatalogo = useCallback(async (tipo: TipoCatalogo) => {
     try {
-      const res = await posApi.getCatalogo(tipo, { limit: 20, orden: "asc" });
+      const res = await inventarioService.getCatalogo(tipo, { limit: 20, orden: "asc" });
       setCatalogos((prev) => ({ ...prev, [tipo]: res.data }));
     } catch {
       /* silencioso — el select sigue mostrando los datos previos */
@@ -69,3 +69,4 @@ export function useCatalogos() {
 
   return { catalogos, loading, refreshCatalogo };
 }
+

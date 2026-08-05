@@ -1,5 +1,5 @@
 import { ShieldCheck, Wifi, WifiOff } from "lucide-react";
-import { useSocket } from "../../../contexts/SocketContext";
+import { useSocket } from "../../../contexts/socket-context";
 
 interface UsuarioperfilProps {
     isCollapsed: boolean;

@@ -10,7 +10,7 @@ import {
   PackagePlus,
 } from "lucide-react";
 import { Toast } from "primereact/toast";
-import type { ProductoPOS } from "../api/api.data";
+import type { ProductoPOS } from "../../types/api.types";
 import type { FormMode, TipoCatalogo } from "./types";
 import { useProductos } from "./hooks/useProductos";
 import { useCatalogos } from "./hooks/useCatalogos";
@@ -47,7 +47,7 @@ export default function ProductosPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [reabastecerOpen, setReabastecerOpen] = useState(false);
-  const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string } | null>(null);
+  const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string; controla_lote?: boolean; requiere_vencimiento?: boolean } | null>(null);
 
   const [movimientosOpen, setMovimientosOpen] = useState(false);
   const [productoMovimientos, setProductoMovimientos] = useState<ProductoPOS | null>(null);
@@ -82,6 +82,8 @@ export default function ProductosPage() {
         id: producto.producto_comercial_id,
         nombre_comercial: producto.nombre_comercial,
         sku: producto.sku,
+        controla_lote: producto.controla_lote,
+        requiere_vencimiento: producto.requiere_vencimiento,
       });
     } else {
       setProductoReabastecer(null);
@@ -107,7 +109,16 @@ export default function ProductosPage() {
       if (mode === "editar" && productoEditar) {
         await actualizarProducto(productoEditar.producto_comercial_id, data);
       } else {
-        await crearProducto(data);
+        const nuevo = await crearProducto(data);
+        const creado = nuevo as ProductoPOS;
+        setProductoReabastecer({
+          id: creado.producto_comercial_id,
+          nombre_comercial: creado.nombre_comercial || (data as CreateProductoDto).nombre_comercial || "Producto nuevo",
+          sku: creado.sku || (data as CreateProductoDto).sku,
+          controla_lote: creado.controla_lote ?? (data as CreateProductoDto).controla_lote ?? true,
+          requiere_vencimiento: creado.requiere_vencimiento ?? (data as CreateProductoDto).requiere_vencimiento ?? true,
+        });
+        setReabastecerOpen(true);
       }
     },
     [productoEditar, actualizarProducto, crearProducto]
@@ -288,6 +299,8 @@ export default function ProductosPage() {
             presentacion_id: p.presentacion_id,
             presentacion_nombre: p.presentacion_nombre,
             cantidad_unidad_base: p.cantidad_unidad_base,
+            controla_lote: p.controla_lote,
+            requiere_vencimiento: p.requiere_vencimiento,
           }))}
           onSuccess={() => refetch()}
         />

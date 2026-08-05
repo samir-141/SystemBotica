@@ -1,7 +1,7 @@
 // src/components/admin/elements/SeriesDocumentosAdmin.tsx
 import { useState, useEffect, useCallback } from "react";
 import { Hash, Plus, RefreshCw, X, Save, Loader2 } from "lucide-react";
-import { posApi } from "../../api/api.data";
+import { ventasService } from "../../../services/ventas.service";
 import { useAuth } from "../../../hooks/useAuth";
 
 type Props = {
@@ -19,7 +19,7 @@ type SerieDocumento = {
   activo: boolean;
 };
 
-const TIPOS_DOCUMENTO = ["BOLETA", "FACTURA", "NOTA_VENTA", "GUIA_REMISION"];
+const TIPOS_DOCUMENTO = ["BOLETA", "FACTURA", "NOTA_VENTA", "NOTA_CREDITO", "NOTA_DEBITO", "GUIA_REMISION"];
 
 export default function SeriesDocumentosAdmin({ sucursales }: Props) {
   const { sucursalActual } = useAuth();
@@ -42,7 +42,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await posApi.getSeriesDocumentos();
+      const { data } = await ventasService.getSeriesDocumentos();
       setSeries(data || []);
     } catch (err: any) {
       setError(err.message || "Error al cargar series");
@@ -99,9 +99,9 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
       };
 
       if (editItem) {
-        await posApi.actualizarSerieDocumento(editItem.id, payload);
+        await ventasService.actualizarSerieDocumento(editItem.id, payload);
       } else {
-        await posApi.crearSerieDocumento(payload);
+        await ventasService.crearSerieDocumento(payload);
       }
       setModalOpen(false);
       cargar();
@@ -115,7 +115,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar esta serie?")) return;
     try {
-      await posApi.eliminarSerieDocumento(id);
+      await ventasService.eliminarSerieDocumento(id);
       cargar();
     } catch (err: any) {
       setError(err.message || "Error al eliminar");

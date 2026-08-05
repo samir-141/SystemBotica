@@ -17,13 +17,15 @@ import {
   Plus,
   Trash2,
   ScanLine,
+  RefreshCw,
 } from "lucide-react";
-import type { ProductoPOS } from "../../api/api.data";
+import type { ProductoPOS } from "../../../types/api.types";
 import type { ProductoFormData, FormMode, TipoCatalogo } from "../types";
 import { VIAS_ADMINISTRACION, UNIDADES_CONCENTRACION } from "../types";
 import type { CatalogosMap } from "../hooks/useCatalogos";
 import type { CreateProductoDto, UpdateProductoDto } from "../../../types/dto";
 import CatalogoSelect from "./CatalogoSelect";
+import { generateSkuSuggestion } from "../../../utils/productCodes";
 
 type Props = {
   open: boolean;
@@ -40,6 +42,11 @@ const EMPTY_FORM: ProductoFormData = {
   nombre_comercial: "",
   sku: "",
   codigo_interno: "",
+  tipo_producto: "MEDICAMENTO",
+  controla_lote: true,
+  requiere_vencimiento: true,
+  atributo_nombre: "",
+  atributo_valor: "",
   principio_activo_id: "",
   forma_farmaceutica_id: "",
   laboratorio_id: "",
@@ -69,6 +76,7 @@ export default function ProductoForm({
   const [form, setForm] = useState<ProductoFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [skuManual, setSkuManual] = useState(false);
 
   const foundProduct = false;
 
@@ -114,12 +122,18 @@ export default function ProductoForm({
     if (!open) return;
     setError(null);
     setPresentacionesExtra([]);
+    setSkuManual(false);
 
     if (isEdit && producto) {
       setForm({
         nombre_comercial: producto.nombre_comercial,
         sku: producto.sku,
         codigo_interno: producto.codigo_interno || "",
+        tipo_producto: (producto.tipo_producto as ProductoFormData["tipo_producto"]) || "MEDICAMENTO",
+        controla_lote: producto.controla_lote ?? true,
+        requiere_vencimiento: producto.requiere_vencimiento ?? true,
+        atributo_nombre: "",
+        atributo_valor: "",
         principio_activo_id: "",
         forma_farmaceutica_id: "",
         laboratorio_id: "",
@@ -157,6 +171,46 @@ export default function ProductoForm({
     ).catch(() => setError("No se pudo abrir la cámara. Puedes escribir o usar un lector USB en el campo de código."));
     return () => reader.reset();
   }, [scannerAbierto]);
+
+  /* Generación automática de SKU sugerido */
+  const suggestedSku = useMemo(() => {
+    if (isEdit || skuManual || !form.nombre_comercial.trim()) return "";
+
+    const esMedicamento = form.tipo_producto === "MEDICAMENTO";
+    const unidadBase = catalogos["unidades-presentacion"].find(
+      (u) => u.id === form.presentacion_id,
+    );
+
+    return generateSkuSuggestion({
+      nombreComercial: form.nombre_comercial,
+      laboratorioNombre: catalogos.laboratorios.find(
+        (l) => l.id === form.laboratorio_id,
+      )?.nombre,
+      categoriaNombre: catalogos.categorias.find(
+        (c) => c.id === form.categoria_id,
+      )?.nombre,
+      cantidad: esMedicamento ? form.concentracion : undefined,
+      unidadMedida: esMedicamento
+        ? form.unidad_concentracion
+        : unidadBase?.abreviatura,
+    });
+  }, [
+    isEdit,
+    skuManual,
+    form.nombre_comercial,
+    form.tipo_producto,
+    form.concentracion,
+    form.unidad_concentracion,
+    form.laboratorio_id,
+    form.categoria_id,
+    form.presentacion_id,
+    catalogos,
+  ]);
+
+  useEffect(() => {
+    if (!suggestedSku || suggestedSku === form.sku) return;
+    setForm((prev) => ({ ...prev, sku: suggestedSku }));
+  }, [suggestedSku, form.sku]);
 
   const unidadesSugeridas = useMemo(() => {
     const todas = catalogos["unidades-presentacion"];
@@ -196,17 +250,19 @@ export default function ProductoForm({
     setError(null);
 
     if (!isEdit) {
-      if (!form.principio_activo_id) {
-        setError("Selecciona un principio activo.");
-        return;
-      }
-      if (!form.forma_farmaceutica_id) {
-        setError("Selecciona una forma farmacéutica.");
-        return;
-      }
-      if (!form.laboratorio_id) {
-        setError("Selecciona un laboratorio.");
-        return;
+      if (form.tipo_producto === "MEDICAMENTO") {
+        if (!form.principio_activo_id) {
+          setError("Selecciona un principio activo.");
+          return;
+        }
+        if (!form.forma_farmaceutica_id) {
+          setError("Selecciona una forma farmacéutica.");
+          return;
+        }
+        if (!form.laboratorio_id) {
+          setError("Selecciona un laboratorio.");
+          return;
+        }
       }
       if (!form.categoria_id) {
         setError("Selecciona una categoría.");
@@ -240,12 +296,31 @@ export default function ProductoForm({
     setSaving(true);
     try {
       const data = isEdit
-        ? form as UpdateProductoDto
-        : {
+        ? ({
+            producto_comercial_id: producto?.producto_comercial_id || "",
+            presentacion_id: form.presentacion_id,
+            nombre_comercial: form.nombre_comercial.trim(),
+            tipo_producto: form.tipo_producto,
+            controla_lote: form.controla_lote,
+            requiere_vencimiento: form.requiere_vencimiento,
+            precio_actual: Number(form.precio_actual),
+            codigo_barras: form.codigo_barras || undefined,
+            requiere_receta: form.requiere_receta,
+            afecto_igv: form.afecto_igv,
+            registro_sanitario: form.registro_sanitario || undefined,
+          } as UpdateProductoDto)
+        : ({
             ...form,
             producto_comercial_id: undefined,
             unidad_base_id: form.presentacion_id,
             cantidad_unidad_base: 1,
+            ...(form.tipo_producto !== "MEDICAMENTO" ? {
+              principio_activo_id: undefined,
+              forma_farmaceutica_id: undefined,
+              concentracion: undefined,
+              unidad_concentracion: undefined,
+              via_administracion: undefined,
+            } : {}),
             presentaciones: [
               {
                 unidad_presentacion_id: form.presentacion_id,
@@ -260,7 +335,7 @@ export default function ProductoForm({
                 codigo_barras: p.codigo_barras || undefined,
               })),
             ],
-          } as CreateProductoDto;
+          } as CreateProductoDto);
       await onSave(data, mode);
       onClose();
     } catch (err: any) {
@@ -282,12 +357,19 @@ export default function ProductoForm({
               </div>
               <div>
                 <h2 className="text-base font-bold">
-                  {isEdit ? "Editar Producto" : "Nuevo Producto Farmacéutico"}
+                  {isEdit 
+                    ? "Editar Producto" 
+                    : form.tipo_producto === "MEDICAMENTO" 
+                      ? "Nuevo Producto Farmacéutico" 
+                      : "Nuevo Producto General"
+                  }
                 </h2>
                 <p className="text-xs text-slate-400">
                   {isEdit
                     ? `Modificando: ${producto?.nombre_comercial ?? ""}`
-                    : "Registro unificado de medicamentos y presentaciones"}
+                    : form.tipo_producto === "MEDICAMENTO"
+                      ? "Registro unificado de medicamentos y presentaciones"
+                      : "Registro unificado de productos y empaques comerciales"}
                 </p>
               </div>
             </div>
@@ -317,6 +399,40 @@ export default function ProductoForm({
 
                 <div>
                   <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                    Tipo de Producto <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    value={form.tipo_producto}
+                    onChange={(e) => {
+                      const tipo = e.target.value as ProductoFormData["tipo_producto"];
+                      setForm((prev) => ({
+                        ...prev,
+                        tipo_producto: tipo,
+                        ...(tipo !== "MEDICAMENTO" ? {
+                          principio_activo_id: "",
+                          forma_farmaceutica_id: "",
+                          concentracion: "",
+                          registro_sanitario: "",
+                          via_administracion: "Oral",
+                          unidad_concentracion: "mg",
+                          requiere_receta: false,
+                        } : {}),
+                      }));
+                    }}
+                    className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-semibold focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition cursor-pointer"
+                    required
+                  >
+                    <option value="MEDICAMENTO">💊 Medicamento / Fármaco</option>
+                    <option value="HIGIENE">🧴 Higiene / Cuidado Personal</option>
+                    <option value="BEBE">🍼 Bebé y Maternidad (Pañales, Fórmulas, etc.)</option>
+                    <option value="COSMETICO">💅 Cosmético / Estética</option>
+                    <option value="ACCESORIO">🩹 Accesorio Médico / Material de Botiquín</option>
+                    <option value="OTRO">🥤 Otros (Aguas, Snacks, Bebidas, etc.)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
                     Nombre Comercial <span className="text-rose-400">*</span>
                   </label>
                   <input
@@ -335,14 +451,35 @@ export default function ProductoForm({
                     <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
                       SKU / Código Unificado
                     </label>
-                    <input
-                      type="text"
-                      value={form.sku}
-                      onChange={(e) => set("sku", e.target.value)}
-                      disabled={foundProduct}
-                      placeholder="ej. PAR-500-TAB"
-                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={form.sku}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          set("sku", value);
+                          setSkuManual(value.trim() !== "");
+                        }}
+                        disabled={foundProduct}
+                        placeholder="Se genera automáticamente"
+                        className="min-w-0 flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
+                      />
+                      {!isEdit && (
+                        <button
+                          type="button"
+                          onClick={() => setSkuManual(false)}
+                          title="Regenerar SKU sugerido"
+                          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-teal-200 bg-teal-50 px-2.5 text-xs font-bold text-teal-700 hover:bg-teal-100 disabled:opacity-50"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {!isEdit && !skuManual && form.sku && (
+                      <p className="mt-1 text-[10px] text-teal-600">
+                        SKU sugerido automáticamente. Escribe para editarlo manualmente.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
@@ -353,13 +490,16 @@ export default function ProductoForm({
                       value={form.codigo_interno}
                       onChange={(e) => set("codigo_interno", e.target.value)}
                       disabled={foundProduct}
-                      placeholder="ej. INT-0091"
+                      placeholder="Automático: PRD-XXXXXX"
                       className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
                     />
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Si lo dejas vacío, el sistema generará un código interno seguro.
+                    </p>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                      REG. SANITARIO (DIGEMID)
+                    <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1 text-ellipsis overflow-hidden whitespace-nowrap">
+                      {form.tipo_producto === "MEDICAMENTO" ? "REG. SANITARIO (DIGEMID)" : "REG. SANITARIO (DIGESA/OTROS)"}
                     </label>
                     <input
                       type="text"
@@ -397,7 +537,7 @@ export default function ProductoForm({
             )}
 
             {/* ─── Sección: Ficha Farmacéutica ──────────── */}
-            {!isEdit && (
+            {!isEdit && form.tipo_producto === "MEDICAMENTO" && (
               <fieldset className="space-y-3">
                 <legend className="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
                   <Pill className="w-3 h-3" /> Ficha Farmacéutica
@@ -519,7 +659,7 @@ export default function ProductoForm({
                 <>
                   <CatalogoSelect
                     tipo="unidades-presentacion"
-                    label="Unidad base del medicamento"
+                    label={form.tipo_producto === "MEDICAMENTO" ? "Unidad base del medicamento" : "Unidad base del producto"}
                     items={unidadesBaseSugeridas}
                     value={form.presentacion_id}
                     onChange={(id) => {
@@ -530,9 +670,12 @@ export default function ProductoForm({
                     required
                   />
                   <p className="-mt-2 text-[10px] text-slate-400">
-                    {formaSeleccionada
-                      ? `Unidad base para ${formaSeleccionada}. Los empaques se seleccionan abajo.`
-                      : "Primero selecciona la forma farmacéutica para filtrar la unidad base."}
+                    {form.tipo_producto === "MEDICAMENTO"
+                      ? (formaSeleccionada
+                          ? `Unidad base para ${formaSeleccionada}. Los empaques se seleccionan abajo.`
+                          : "Primero selecciona la forma farmacéutica para filtrar la unidad base.")
+                      : "Unidad física de consumo (ej. Unidad, Botella, Frasco, Paquete). Las presentaciones compuestas se añaden abajo."
+                    }
                   </p>
 
                   {/* Preajustes rápidos de equivalencia */}
@@ -674,10 +817,16 @@ export default function ProductoForm({
                   )}
                   {presentacionesExtra.map((pres, index) => (
                     <div key={index} className="grid grid-cols-2 gap-2 rounded-lg border border-teal-100 bg-white p-2.5">
-                      <select value={pres.unidad_presentacion_id} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, unidad_presentacion_id: e.target.value } : item))} className="col-span-2 w-full rounded-lg border border-slate-200 px-2 py-2 text-xs">
-                        <option value="">Seleccionar presentación</option>
-                        {catalogos["unidades-presentacion"].map((unidad) => <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>)}
-                      </select>
+                      <div className="col-span-2">
+                        <CatalogoSelect
+                          tipo="unidades-presentacion"
+                          label="Presentación"
+                          items={catalogos["unidades-presentacion"]}
+                          value={pres.unidad_presentacion_id}
+                          onChange={(id) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, unidad_presentacion_id: id } : item))}
+                          onItemCreated={onCatalogoRefresh}
+                        />
+                      </div>
                       <input type="number" min={2} placeholder="Equivale a (base)" value={pres.cantidad_unidad_base} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, cantidad_unidad_base: e.target.value === "" ? "" : Number(e.target.value) } : item))} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" />
                       <input type="number" min={0} step={0.01} placeholder="Precio S/" value={pres.precio_actual} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, precio_actual: e.target.value === "" ? "" : Number(e.target.value) } : item))} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" />
                       <input type="text" placeholder="Código de barras (opcional)" value={pres.codigo_barras} onChange={(e) => setPresentacionesExtra((prev) => prev.map((item, i) => i === index ? { ...item, codigo_barras: e.target.value } : item))} className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" />
@@ -691,22 +840,24 @@ export default function ProductoForm({
             {/* ─── Sección: Opciones ────────────────────── */}
             <fieldset className="space-y-3">
               <legend className="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
-                Opciones Farmacéuticas
+                {form.tipo_producto === "MEDICAMENTO" ? "Opciones Farmacéuticas" : "Opciones de Configuración"}
               </legend>
 
-              <button
-                type="button"
-                onClick={() => !foundProduct && set("requiere_receta", !form.requiere_receta)}
-                disabled={foundProduct}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:bg-slate-50 disabled:cursor-not-allowed transition cursor-pointer"
-              >
-                <span className="text-sm text-slate-700 font-medium">Requiere Receta Médica</span>
-                {form.requiere_receta ? (
-                  <ToggleRight className={`w-6 h-6 ${foundProduct ? "text-teal-400" : "text-teal-600"}`} />
-                ) : (
-                  <ToggleLeft className="w-6 h-6 text-slate-300" />
-                )}
-              </button>
+              {form.tipo_producto === "MEDICAMENTO" && (
+                <button
+                  type="button"
+                  onClick={() => !foundProduct && set("requiere_receta", !form.requiere_receta)}
+                  disabled={foundProduct}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:bg-slate-50 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <span className="text-sm text-slate-700 font-medium">Requiere Receta Médica</span>
+                  {form.requiere_receta ? (
+                    <ToggleRight className={`w-6 h-6 ${foundProduct ? "text-teal-400" : "text-teal-600"}`} />
+                  ) : (
+                    <ToggleLeft className="w-6 h-6 text-slate-300" />
+                  )}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -727,20 +878,24 @@ export default function ProductoForm({
             {isEdit && producto && (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs text-slate-500">
                 <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">
-                  Información de Referencia Farmacéutica
+                  {producto.tipo_producto === "MEDICAMENTO" ? "Información de Referencia Farmacéutica" : "Información de Referencia"}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
+                  {producto.tipo_producto === "MEDICAMENTO" && (
+                    <>
+                      <div>
+                        <span className="text-slate-400">Principio Activo:</span>
+                        <p className="font-medium text-slate-700">{producto.principio_activo || "No registrado"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Forma:</span>
+                        <p className="font-medium text-slate-700">{producto.forma_farmaceutica || "No registrado"}</p>
+                      </div>
+                    </>
+                  )}
                   <div>
-                    <span className="text-slate-400">Principio Activo:</span>
-                    <p className="font-medium text-slate-700">{producto.principio_activo}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Forma:</span>
-                    <p className="font-medium text-slate-700">{producto.forma_farmaceutica}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400">Laboratorio:</span>
-                    <p className="font-medium text-slate-700">{producto.laboratorio}</p>
+                    <span className="text-slate-400">Laboratorio / Marca:</span>
+                    <p className="font-medium text-slate-700">{producto.laboratorio || "No registrado"}</p>
                   </div>
                   <div>
                     <span className="text-slate-400">Categoría:</span>

@@ -14,8 +14,8 @@ import {
   FolderOpen,
   Ruler,
 } from "lucide-react";
-import { posApi } from "../../api/api.data";
-import type { TipoCatalogo, ItemCatalogo } from "../../api/api.data";
+import { inventarioService } from "../../../services/inventario.service";
+import type { TipoCatalogo, ItemCatalogo } from "../../../types/api.types";
 
 type Props = {};
 
@@ -41,7 +41,7 @@ export default function CatalogosAdmin(_props: Props) {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await posApi.getCatalogo(tipoActivo, { buscar: busqueda || undefined, page: 1, limit: 50 });
+      const res = await inventarioService.getCatalogo(tipoActivo, { buscar: busqueda || undefined, page: 1, limit: 50 });
       setItems(res.data || []);
     } catch (err: any) {
       setError(err.message || "Error al cargar catálogo");
@@ -83,9 +83,9 @@ export default function CatalogosAdmin(_props: Props) {
     setSaving(true);
     try {
       if (editItem) {
-        await posApi.actualizarItemCatalogo(tipoActivo, editItem.id, form);
+        await inventarioService.actualizarItemCatalogo(tipoActivo, editItem.id, form);
       } else {
-        await posApi.crearItemCatalogo(tipoActivo, form);
+        await inventarioService.crearItemCatalogo(tipoActivo, form);
       }
       setModalOpen(false);
       cargar();
@@ -99,7 +99,7 @@ export default function CatalogosAdmin(_props: Props) {
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar este registro?")) return;
     try {
-      await posApi.eliminarItemCatalogo(tipoActivo, id);
+      await inventarioService.eliminarItemCatalogo(tipoActivo, id);
       cargar();
     } catch (err: any) {
       setError(err.message || "Error al eliminar");

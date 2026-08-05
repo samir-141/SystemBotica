@@ -24,16 +24,28 @@ import {
   Share2,
   Copy,
 } from "lucide-react";
-import ImpresionComprobanteModal, { type ComprobanteData } from "../../reportes/elements/ImpresionComprobanteModal";
+import ImpresionComprobanteModal from "../../reportes/elements/ImpresionComprobanteModal";
+import type { ComprobanteData } from "../../reportes/elements/comprobanteDocument";
 import type {
   ItemCarrito,
   TipoComprobante,
   MetodoPago,
   DatosCliente,
 } from "../types";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { formatMoney } from "../utils/calculosVenta";
-import { posApi } from "../../api/api.data";
+import { ventasService } from "../../../services/ventas.service";
+import { clientesService } from "../../../services/clientes.service";
+import { facturacionService } from "../../../services/facturacion.service";
+import type { EstadoComprobanteVenta } from "../../../types/dto";
+import {
+  buildComprobanteSnapshot,
+  buildVentaPayload,
+  enlaceComprobante,
+  estadoComprobanteDe,
+  nuevaClaveIdempotencia,
+} from "./checkoutContract";
+import type { ReceiptLink } from "../../../utils/networkUrls";
 
 
 type Props = {
@@ -99,97 +111,13 @@ const METODOS_PAGO: {
 
 const PASO_LABELS = ["Comprobante", "Datos y Pago", "Impresión"];
 
-function buildVentaPayload(opts: {
-  tipoComprobante: TipoComprobante | null;
-  tipoPago: "CONTADO" | "ABONO" | "ANTICIPO";
-  metodoPago: MetodoPago;
-  montoRecibido: string;
-  montoBrutoFinal: number;
-  baseImponible: number;
-  igvCalculado: number;
-  incluyeIGV: boolean;
-  datosCliente: DatosCliente;
-  carrito: ItemCarrito[];
-}): any {
-  const vuelto = Math.max(
-    opts.metodoPago === "EFECTIVO" && opts.montoRecibido
-      ? parseFloat(opts.montoRecibido) - opts.montoBrutoFinal
-      : 0,
-    0
-  );
-  return {
-    tipo_comprobante: opts.tipoComprobante,
-    tipo_pago: opts.tipoPago,
-    metodo_pago: opts.metodoPago,
-    monto_recibido: opts.montoRecibido ? parseFloat(opts.montoRecibido) : opts.montoBrutoFinal,
-    vuelto,
-    datos_cliente: opts.tipoComprobante !== "NOTA_VENTA" ? opts.datosCliente : undefined,
-    subtotal: opts.incluyeIGV ? opts.baseImponible : opts.montoBrutoFinal,
-    igv: opts.incluyeIGV ? opts.igvCalculado : 0,
-    total: opts.montoBrutoFinal,
-    items: opts.carrito.map((item) => ({
-      producto_comercial_id: item.producto_comercial_id,
-      presentacion_nombre: item.presentacion_nombre,
-      unidades_base_por_pack: item.unidades_base_por_pack,
-      cantidad: item.cantidad,
-      precio_unitario: item.precio_unitario,
-    })),
-  };
-}
-
-function buildComprobanteSnapshot(opts: {
-  tipoComprobante: TipoComprobante | null;
-  serieNumero: string;
-  datosCliente: DatosCliente;
-  carrito: ItemCarrito[];
-  baseImponible: number;
-  igvCalculado: number;
-  montoBrutoFinal: number;
-  metodoPago: MetodoPago;
-  montoRecibido: string;
-}): ComprobanteData {
-  const vuelto = Math.max(
-    opts.metodoPago === "EFECTIVO" && opts.montoRecibido
-      ? parseFloat(opts.montoRecibido) - opts.montoBrutoFinal
-      : 0,
-    0
-  );
-  return {
-    tipoComprobante: opts.tipoComprobante || "BOLETA",
-    serieNumero: opts.serieNumero,
-    fechaEmision: new Date().toISOString(),
-    cliente: {
-      nombre: opts.datosCliente.nombre_razon_social || "CLIENTE VARIOS",
-      tipoDocumento: opts.datosCliente.tipo_documento || "DNI",
-      numeroDocumento: opts.datosCliente.numero_documento || "",
-      direccion: opts.datosCliente.direccion,
-    },
-    items: opts.carrito.map((i) => ({
-      descripcion: i.nombre_comercial,
-      presentacion: i.presentacion_nombre,
-      cantidad: i.cantidad,
-      precioUnitario: i.precio_unitario,
-      subtotal: i.precio_unitario * i.cantidad,
-    })),
-    subtotal: opts.baseImponible,
-    igv: opts.igvCalculado,
-    total: opts.montoBrutoFinal,
-    metodoPago: opts.metodoPago || "EFECTIVO",
-    montoRecibido: opts.montoRecibido ? parseFloat(opts.montoRecibido) : opts.montoBrutoFinal,
-    vuelto,
-  };
-}
-
 export default function CheckoutModal({
   open,
   onClose,
   carrito,
   montoBrutoFinal,
-  baseImponible,
-  igvCalculado,
   tipoPago,
   onVentaExitosa,
-  incluyeIGV = true,
   clientePreseleccionado,
 }: Props) {
   const queryClient = useQueryClient();
@@ -212,9 +140,36 @@ export default function CheckoutModal({
   const [showImpresionModal, setShowImpresionModal] = useState(false);
   const [formatoSeleccionado, setFormatoSeleccionado] = useState<"80mm" | "58mm" | "A4" | "xml">("80mm");
   const [comprobanteEmitidoSnapshot, setComprobanteEmitidoSnapshot] = useState<ComprobanteData | null>(null);
-  const [comprobantePublicoUrl, setComprobantePublicoUrl] = useState<string | null>(null);
+  const [comprobanteLink, setComprobanteLink] = useState<ReceiptLink | null>(null);
+  const [estadoComprobante, setEstadoComprobante] = useState<EstadoComprobanteVenta | null>(null);
+  const [mensajeComprobante, setMensajeComprobante] = useState<string | null>(null);
+
+  // Configuración tributaria de la empresa (régimen, ambiente SUNAT)
+  const { data: configTributaria } = useQuery({
+    queryKey: ["config-tributaria"],
+    queryFn: () => facturacionService.obtenerConfiguracion(),
+    staleTime: 60_000,
+    retry: false,
+  });
+  // Matriz de emisión: qué puede emitir la empresa según su RUC/régimen.
+  // Sin configuración tributaria no se ofrecen comprobantes electrónicos.
+  const comprobantesPermitidos = configTributaria?.comprobantes_permitidos ?? [];
+  const motivoBloqueoComprobante = (key: TipoComprobante): string | null => {
+    if (key === "NOTA_VENTA") return null; // documento interno, no SUNAT
+    if (!configTributaria) {
+      return "Configura primero la facturación electrónica (Administración → Facturación)";
+    }
+    const tipo = key === "FACTURA" ? "01" : "03";
+    if (!comprobantesPermitidos.includes(tipo)) {
+      return configTributaria.regimen_tributario === "NUEVO_RUS" && tipo === "01"
+        ? "Una empresa en Nuevo RUS no puede emitir facturas"
+        : `El régimen ${configTributaria.regimen_tributario} no permite emitir ${key === "FACTURA" ? "facturas" : "boletas"}`;
+    }
+    return null;
+  };
 
   const panelRef = useRef<HTMLDivElement>(null);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -243,6 +198,9 @@ export default function CheckoutModal({
       setConsultandoPadron(false);
       setOrigenBadge(null);
       setComprobanteEmitidoSnapshot(null);
+      setComprobanteLink(null);
+      setEstadoComprobante(null);
+      setMensajeComprobante(null);
     }
   }, [open, clientePreseleccionado]);
 
@@ -258,7 +216,7 @@ export default function CheckoutModal({
     setOrigenBadge(null);
 
     try {
-      const res = await posApi.consultarDocumentoPadron(tipoDoc, numeroDoc);
+      const res = await clientesService.consultarDocumentoPadron(tipoDoc, numeroDoc);
       if (res.encontrado && res.nombre) {
         setDatosCliente((prev) => ({
           ...prev,
@@ -279,6 +237,14 @@ export default function CheckoutModal({
 
   const handleEmitirVenta = async () => {
     if (!tipoComprobante) return;
+
+    // Bloqueo por matriz de emisión (RUC/régimen) — defensa adicional al backend
+    const motivoBloqueo = motivoBloqueoComprobante(tipoComprobante);
+    if (motivoBloqueo) {
+      setErrorVenta(motivoBloqueo);
+      setProcesando(false);
+      return;
+    }
 
     // Pre-validaciones por normativa SUNAT
     if (tipoComprobante === "FACTURA") {
@@ -303,74 +269,80 @@ export default function CheckoutModal({
     setErrorVenta(null);
 
     try {
+      idempotencyKeyRef.current ??= nuevaClaveIdempotencia();
       const payload = buildVentaPayload({
+        idempotencyKey: idempotencyKeyRef.current,
         tipoComprobante,
         tipoPago,
         metodoPago,
         montoRecibido,
-        montoBrutoFinal,
-        baseImponible,
-        igvCalculado,
-        incluyeIGV,
         datosCliente,
         carrito,
       });
 
-      const ventaRegistrada = await posApi.registrarVenta(payload);
-      setComprobantePublicoUrl(ventaRegistrada?.comprobante_url ? `${window.location.origin}${ventaRegistrada.comprobante_url}` : null);
+      const ventaRegistrada = await ventasService.registrarVenta(payload);
+      let estado = estadoComprobanteDe(ventaRegistrada);
+      let mensaje = ventaRegistrada.comprobante_error
+        || ventaRegistrada.comprobante?.mensaje
+        || null;
 
-      await queryClient.invalidateQueries({ queryKey: ["productos"] });
-
-      if (tipoComprobante !== "NOTA_VENTA") {
+      // Emisión electrónica SUNAT (boleta/factura). La venta ya quedó
+      // registrada: si SUNAT falla, el comprobante queda reintentable.
+      if (tipoComprobante === "BOLETA" || tipoComprobante === "FACTURA") {
         try {
-          const facturacionPayload = {
-            tipoDocumento: tipoComprobante === "FACTURA" ? "01" : "03",
-            serie: tipoComprobante === "FACTURA" ? "F001" : "B001",
-            correlativo: 1,
-            fechaEmision: new Date().toISOString(),
-            moneda: "PEN",
-            cliente: {
-              tipoDocumento: datosCliente.tipo_documento === "RUC" ? "6" : datosCliente.tipo_documento === "DNI" ? "1" : "0",
-              numeroDocumento: datosCliente.numero_documento,
-              razonSocial: datosCliente.nombre_razon_social || "CLIENTE VARIOS",
-              direccion: datosCliente.direccion,
-            },
-            items: carrito.map((item) => ({
-              codigoProducto: item.producto_comercial_id,
-              descripcion: item.nombre_comercial,
-              unidadMedida: "NIU",
-              cantidad: item.cantidad,
-              valorUnitario: item.precio_unitario / 1.18,
-              precioUnitario: item.precio_unitario,
-              subtotal: item.precio_unitario * item.cantidad / 1.18,
-              igv: item.precio_unitario * item.cantidad - item.precio_unitario * item.cantidad / 1.18,
-              total: item.precio_unitario * item.cantidad,
-              tipoAfectacionIgv: "10",
-            })),
-            totalGravadas: incluyeIGV ? baseImponible : 0,
-            totalExoneradas: 0,
-            totalInafectas: 0,
-            totalIgv: incluyeIGV ? igvCalculado : 0,
-            importeTotal: montoBrutoFinal,
-          };
-          await posApi.emitirComprobante(facturacionPayload);
-        } catch (factErr) {
-          console.warn("Facturacion stub no disponible:", factErr);
+          const series = await ventasService.getSeriesDocumentos();
+          const sucursalActual = localStorage.getItem("sucursalId");
+          const candidatas = (Array.isArray(series) ? series : []).filter(
+            (s: any) => s.activo && s.tipo_documento === tipoComprobante,
+          );
+          const serie =
+            candidatas.find((s: any) => s.sucursal_id && s.sucursal_id === sucursalActual)
+            || candidatas.find((s: any) => !s.sucursal_id)
+            || candidatas[0];
+
+          if (!serie) {
+            estado = "PENDIENTE";
+            mensaje = `No hay serie activa para ${tipoComprobante === "FACTURA" ? "facturas" : "boletas"}; emita el comprobante desde el historial.`;
+          } else {
+            const emitido = await facturacionService.emitir({
+              ventaId: ventaRegistrada.venta_id,
+              tipoComprobante: tipoComprobante === "FACTURA" ? "01" : "03",
+              serieId: serie.id,
+            });
+            estado = emitido.estado.startsWith("ACEPTADO") ? "GENERADO" : "ERROR";
+            mensaje = emitido.mensaje_respuesta
+              || (emitido.estado.startsWith("ACEPTADO")
+                ? `Comprobante ${emitido.numero} aceptado por SUNAT`
+                : `Comprobante ${emitido.numero} en estado ${emitido.estado}; puede reintentarlo desde el historial.`);
+          }
+        } catch (errEmision: any) {
+          estado = "PENDIENTE";
+          mensaje = `La venta se registró; el comprobante quedó pendiente (${errEmision.message || "error de emisión"}).`;
         }
       }
 
+      setEstadoComprobante(estado);
+      setMensajeComprobante(
+        mensaje
+          || (estado === "PENDIENTE" ? "La venta quedó registrada; el comprobante todavía está pendiente." : null),
+      );
+      setComprobanteLink(enlaceComprobante(
+        ventaRegistrada.comprobante_url,
+        ventaRegistrada.comprobante_token,
+      ));
+
+      await queryClient.invalidateQueries({ queryKey: ["productos"] });
+
       const snapshot = buildComprobanteSnapshot({
+        venta: ventaRegistrada,
         tipoComprobante,
-        serieNumero,
         datosCliente,
         carrito,
-        baseImponible,
-        igvCalculado,
-        montoBrutoFinal,
         metodoPago,
         montoRecibido,
       });
       setComprobanteEmitidoSnapshot(snapshot);
+      idempotencyKeyRef.current = null;
 
       if (onVentaExitosa) {
         onVentaExitosa();
@@ -387,6 +359,7 @@ export default function CheckoutModal({
   };
 
   const handleClose = () => {
+    idempotencyKeyRef.current = null;
     setAnimatingOut(true);
     setTimeout(() => {
       setAnimatingOut(false);
@@ -449,13 +422,6 @@ export default function CheckoutModal({
   }, [tipoComprobante]);
 
   if (!open) return null;
-
-  const serieNumero =
-    tipoComprobante === "BOLETA"
-      ? "B001-00004821"
-      : tipoComprobante === "FACTURA"
-        ? "F001-00001247"
-        : "NV01-00009103";
 
    return (
     <>
@@ -557,12 +523,16 @@ export default function CheckoutModal({
                   {COMPROBANTES.map((c) => {
                     const Icon = c.icon;
                     const selected = tipoComprobante === c.key;
+                    const motivoBloqueo = motivoBloqueoComprobante(c.key);
                     return (
                       <button
                         key={c.key}
                         type="button"
-                        onClick={() => setTipoComprobante(c.key)}
+                        disabled={Boolean(motivoBloqueo)}
+                        title={motivoBloqueo ?? undefined}
+                        onClick={() => !motivoBloqueo && setTipoComprobante(c.key)}
                         className={`relative w-full text-left p-4 rounded-xl border-2 transition-all duration-200
+                          ${motivoBloqueo ? "opacity-40 cursor-not-allowed border-slate-200 bg-slate-50" : ""}
                           ${selected
                             ? `border-teal-500 bg-gradient-to-r ${c.bgGradient} shadow-md shadow-teal-500/10 ring-2 ring-teal-200`
                             : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
@@ -578,6 +548,11 @@ export default function CheckoutModal({
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-slate-800">{c.label}</p>
                             <p className="text-xs text-slate-500 mt-0.5">{c.desc}</p>
+                            {motivoBloqueo && (
+                              <p className="text-[10px] text-amber-600 font-bold mt-1 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> {motivoBloqueo}
+                              </p>
+                            )}
                           </div>
                           {selected && (
                             <CheckCircle2 className="w-5 h-5 text-teal-500 shrink-0" />
@@ -814,9 +789,19 @@ export default function CheckoutModal({
                   <div>
                     <h3 className="text-2xl font-black text-slate-800 tracking-tight">¡Venta Registrada!</h3>
                     <p className="text-sm text-slate-500 font-medium mt-1">
-                      El comprobante se generó exitosamente. Selecciona un formato para imprimir.
+                      {estadoComprobante === "GENERADO"
+                        ? "El backend generó el comprobante. Selecciona un formato para imprimir."
+                        : estadoComprobante === "NO_APLICA"
+                          ? "La nota de venta quedó registrada correctamente."
+                          : "La venta quedó registrada, pero el comprobante aún no está disponible."}
                     </p>
                   </div>
+
+                  {(estadoComprobante === "PENDIENTE" || estadoComprobante === "ERROR") && (
+                    <div className={`w-full rounded-xl border px-4 py-3 text-left text-xs font-semibold ${estadoComprobante === "ERROR" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                      {mensajeComprobante || "El comprobante está pendiente. Podrás consultarlo nuevamente desde el historial de ventas."}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-xl mt-4">
                     <button
@@ -886,7 +871,35 @@ export default function CheckoutModal({
                       </div>
                     </button>
                   </div>
-                  {comprobantePublicoUrl && <div className="flex flex-wrap justify-center gap-2"><button onClick={() => navigator.clipboard.writeText(comprobantePublicoUrl)} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700"><Copy size={14}/> Copiar enlace</button><button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Tu comprobante: ${comprobantePublicoUrl}`)}`, "_blank", "noopener,noreferrer")} className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Share2 size={14}/> Compartir WhatsApp</button></div>}
+                  {comprobanteLink && (
+                    <div className="flex w-full max-w-xl flex-col items-center gap-2">
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void navigator.clipboard.writeText(comprobanteLink.url)}
+                          className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700"
+                        >
+                          <Copy size={14}/>
+                          {comprobanteLink.externallyShareable ? "Copiar enlace público" : "Copiar enlace local"}
+                        </button>
+                        {comprobanteLink.externallyShareable && (
+                          <button
+                            type="button"
+                            onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Tu comprobante: ${comprobanteLink.url}`)}`, "_blank", "noopener,noreferrer")}
+                            className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white"
+                          >
+                            <Share2 size={14}/>
+                            Compartir WhatsApp
+                          </button>
+                        )}
+                      </div>
+                      {comprobanteLink.warning && (
+                        <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] font-semibold text-amber-800">
+                          {comprobanteLink.warning}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   
                 </div>
               </div>

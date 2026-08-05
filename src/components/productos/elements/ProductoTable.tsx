@@ -12,7 +12,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
-import type { ProductoPOS } from "../../api/api.data";
+import type { ProductoPOS } from "../../../types/api.types";
 
 type Props = {
   productos: ProductoPOS[];
@@ -45,7 +45,10 @@ export default function ProductoTable({
     return Array.from(grupos.values()).map((items) => ({ principal: items[0], presentaciones: items.sort((a, b) => a.cantidad_unidad_base - b.cantidad_unidad_base) }));
   }, [productos]);
   const toggleExpandido = (id: string) => setExpandidos((prev) => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
   });
   /* ── Helper de cálculo de días para vencimiento ──────── */
   const calcularDiasVencimiento = (fechaStr: string) => {

@@ -1,7 +1,7 @@
 // src/components/productos/hooks/useProductos.ts
 import { useState, useEffect, useCallback } from "react";
-import { posApi } from "../../api/api.data";
-import type { ProductoPOS, QueryParamsProductos, PaginatedResponse } from "../../api/api.data";
+import { productosService } from "../../../services/productos.service";
+import type { ProductoPOS, QueryParamsProductos, PaginatedResponse } from "../../../types/api.types";
 
 interface Meta {
   total: number;
@@ -32,7 +32,7 @@ export function useProductos() {
     setLoading(true);
     setError(null);
     try {
-      const res: PaginatedResponse<ProductoPOS> = await posApi.getProductos(p);
+      const res: PaginatedResponse<ProductoPOS> = await productosService.getProductos(p);
       setProductos(res.data ?? []);
       setMeta(res.meta ?? { total: 0, page: 1, limit: 20, totalPages: 1 });
     } catch (err: any) {
@@ -64,19 +64,19 @@ export function useProductos() {
 
   /* ── CRUD ────────────────────────────────────────────── */
   const crearProducto = async (data: any) => {
-    const nuevo = await posApi.crearProducto(data);
+    const nuevo = await productosService.crearProducto(data);
     await fetchProductos(params); // refrescar tabla
     return nuevo;
   };
 
   const actualizarProducto = async (id: string, data: any) => {
-    const actualizado = await posApi.actualizarProducto(id, data);
+    const actualizado = await productosService.actualizarProducto(id, data);
     await fetchProductos(params);
     return actualizado;
   };
 
   const eliminarProducto = async (id: string) => {
-    await posApi.eliminarProducto(id);
+    await productosService.eliminarProducto(id);
     await fetchProductos(params);
   };
 
@@ -96,3 +96,4 @@ export function useProductos() {
     refetch: () => fetchProductos(params),
   };
 }
+

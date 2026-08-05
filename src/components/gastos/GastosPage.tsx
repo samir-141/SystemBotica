@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { posApi } from '../api/api.data';
+import { gastosService } from '../../services/gastos.service';
+import { fechaCivil } from '../../utils/localDate';
 import { useAuth } from '../../hooks/useAuth';
 
 type Tipo = 'OPERATIVO' | 'INVERSION';
 type Gasto = { id: string; tipo: Tipo; categoria: string; descripcion?: string | null; monto: number | string; fecha: string };
-const fechaHoy = () => new Date().toISOString().slice(0, 10);
+const fechaHoy = () => fechaCivil();
 
 export default function GastosPage() {
   const { sucursalActual } = useAuth();
@@ -13,17 +14,17 @@ export default function GastosPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState({ tipo: 'OPERATIVO' as Tipo, categoria: '', monto: '', descripcion: '', fecha: fechaHoy() });
 
-  const cargar = async () => {
-    try { setGastos(await posApi.getGastos({ sucursal_id: sucursalActual?.id })); }
+  const cargar = useCallback(async () => {
+    try { setGastos(await gastosService.getGastos({ sucursal_id: sucursalActual?.id })); }
     catch (e: any) { setError(e?.message || 'No se pudieron cargar los gastos.'); }
-  };
-  useEffect(() => { cargar(); }, [sucursalActual?.id]);
+  }, [sucursalActual?.id]);
+  useEffect(() => { void cargar(); }, [cargar]);
 
   const guardar = async (event: FormEvent) => {
     event.preventDefault(); setError('');
     if (!form.categoria.trim() || Number(form.monto) <= 0) { setError('Indica categoría y monto válido.'); return; }
     try {
-      await posApi.crearGasto({ ...form, monto: Number(form.monto), sucursal_id: sucursalActual?.id });
+      await gastosService.crearGasto({ ...form, monto: Number(form.monto), sucursal_id: sucursalActual?.id });
       setForm({ tipo: 'OPERATIVO', categoria: '', monto: '', descripcion: '', fecha: fechaHoy() });
       await cargar();
     } catch (e: any) { setError(e?.message || 'No se pudo registrar el gasto.'); }

@@ -1,7 +1,7 @@
 // src/components/admin/elements/DiagnosticosAdmin.tsx
 import { useState, useEffect } from "react";
 import { Stethoscope, RefreshCw, Route } from "lucide-react";
-import { posApi } from "../../api/api.data";
+import { diagnosticosService } from "../../../services/diagnosticos.service";
 
 type Props = {};
 
@@ -27,8 +27,8 @@ export default function DiagnosticosAdmin(_props: Props) {
     setLoading(true);
     try {
       const [rutasRes, modulosRes] = await Promise.all([
-        posApi.getDiagnosticoRutas(),
-        posApi.getDiagnosticoModulos(),
+        diagnosticosService.getDiagnosticoRutas(),
+        diagnosticosService.getDiagnosticoModulos(),
       ]);
       setRutas(rutasRes.rutas || []);
       setModulos(modulosRes);

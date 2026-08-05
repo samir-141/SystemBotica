@@ -1,6 +1,7 @@
 // src/components/venta/hooks/useCart.ts
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ItemCarrito } from "../types";
+import { useAuth } from "../../../hooks/useAuth";
 import { calcularTotales, formatMoney } from "../utils/calculosVenta";
 import {
   cargarCarritoStorage,
@@ -12,14 +13,25 @@ import {
 type CartErrorHandler = (message: string) => void;
 
 export const useCart = (onError?: CartErrorHandler) => {
+  const { user, sucursalActual } = useAuth();
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [isCargado, setIsCargado] = useState(false);
   const isBroadcastingRef = useRef(false);
+  const cartScope = useMemo(
+    () => ({
+      usuarioId: user?.id || "anonimo",
+      boticaId: sucursalActual?.botica_id || "sin-botica",
+      sucursalId: sucursalActual?.id || "sin-sucursal",
+    }),
+    [sucursalActual?.botica_id, sucursalActual?.id, user?.id],
+  );
 
   // Cargar carrito persistido en IndexedDB al montar
   useEffect(() => {
     let cancelado = false;
-    cargarCarritoStorage().then(cargado => {
+    setIsCargado(false);
+    setCarrito([]);
+    cargarCarritoStorage(cartScope).then(cargado => {
       if (!cancelado) {
         setCarrito(cargado);
         setIsCargado(true);
@@ -27,7 +39,7 @@ export const useCart = (onError?: CartErrorHandler) => {
     });
 
     // Suscribirse a actualizaciones de otras pestañas en tiempo real
-    const desuscribir = suscribirCambiosCarrito(nuevoCarrito => {
+    const desuscribir = suscribirCambiosCarrito(cartScope, nuevoCarrito => {
       isBroadcastingRef.current = true;
       setCarrito(nuevoCarrito);
     });
@@ -36,7 +48,7 @@ export const useCart = (onError?: CartErrorHandler) => {
       cancelado = true;
       desuscribir();
     };
-  }, []);
+  }, [cartScope]);
 
   // Persistir cambios del carrito en IndexedDB y notificar a otras pestañas
   useEffect(() => {
@@ -47,8 +59,8 @@ export const useCart = (onError?: CartErrorHandler) => {
       return;
     }
 
-    guardarCarritoStorage(carrito);
-  }, [carrito, isCargado]);
+    void guardarCarritoStorage(carrito, cartScope);
+  }, [carrito, cartScope, isCargado]);
 
   const agregarAlCarrito = useCallback(
     (
@@ -56,9 +68,14 @@ export const useCart = (onError?: CartErrorHandler) => {
       equivBase = 1,
       presentacionNombre = "Unidad",
       precio = producto.precio_actual,
+      productoPresentacionId = producto.presentacion_id,
       numeroReceta?: string
     ) => {
-      const idCarrito = `${producto.producto_comercial_id}_${presentacionNombre}`;
+      if (!productoPresentacionId) {
+        onError?.("No se puede agregar el producto: selecciona una presentación válida.");
+        return;
+      }
+      const idCarrito = `${producto.producto_comercial_id}_${productoPresentacionId}`;
       setCarrito(prev => {
         const unidadesAnteriores = prev
           .filter(i => i.producto_comercial_id === producto.producto_comercial_id)
@@ -84,6 +101,7 @@ export const useCart = (onError?: CartErrorHandler) => {
           ...prev,
           {
             id_carrito: idCarrito,
+            producto_presentacion_id: productoPresentacionId,
             producto_comercial_id: producto.producto_comercial_id,
             nombre_comercial: producto.nombre_comercial,
             presentacion_nombre: presentacionNombre,
@@ -141,8 +159,8 @@ export const useCart = (onError?: CartErrorHandler) => {
 
   const limpiarCarrito = useCallback(async () => {
     setCarrito([]);
-    await limpiarCarritoStorage();
-  }, []);
+    await limpiarCarritoStorage(cartScope);
+  }, [cartScope]);
 
   const totalItems = carrito.reduce((acc, i) => acc + i.cantidad, 0);
   const totales = calcularTotales(carrito);

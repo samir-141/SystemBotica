@@ -16,6 +16,7 @@ describe("Cálculos Financieros de Ventas (calculosVenta)", () => {
     const carrito: ItemCarrito[] = [
       {
         id_carrito: "1_Unidad",
+        producto_presentacion_id: "presentacion-1",
         producto_comercial_id: "1",
         nombre_comercial: "Paracetamol 500mg",
         presentacion_nombre: "Caja x 100",
@@ -39,6 +40,7 @@ describe("Cálculos Financieros de Ventas (calculosVenta)", () => {
     const carrito: ItemCarrito[] = [
       {
         id_carrito: "2_Unidad",
+        producto_presentacion_id: "presentacion-2",
         producto_comercial_id: "2",
         nombre_comercial: "Amoxicilina 500mg",
         presentacion_nombre: "Blister",

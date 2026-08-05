@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Receipt,
@@ -22,11 +23,17 @@ import {
   PackageCheck,
   XCircle,
   Share2,
+  Download,
 } from "lucide-react";
 import { Toast } from "primereact/toast";
-import ImpresionComprobanteModal, { type ComprobanteData } from "./ImpresionComprobanteModal";
+import ImpresionComprobanteModal from "./ImpresionComprobanteModal";
+import type { ComprobanteData } from "./comprobanteDocument";
 import { formatMoney } from "../../venta/utils/calculosVenta";
-import { posApi } from "../../api/api.data";
+import { ventasService } from "../../../services/ventas.service";
+import { reportesService } from "../../../services/reportes.service";
+import { clientesService } from "../../../services/clientes.service";
+import { comprobantesService } from "../../../services/comprobantes.service";
+import { facturacionService, type ComprobanteEmitido } from "../../../services/facturacion.service";
 
 interface Props {
   ventasLista?: any[];
@@ -41,6 +48,12 @@ interface Props {
 type ComprobanteConCliente = ComprobanteData & {
   clienteId?: string;
   telefonoCliente?: string;
+  comprobanteElectronicoId?: string;
+  comprobanteElectronicoEstado?: string;
+  comprobanteElectronicoMensaje?: string | null;
+  tieneXml?: boolean;
+  tieneCdr?: boolean;
+  tienePdf?: boolean;
 };
 
 export default function ReporteComprobantes({
@@ -79,6 +92,19 @@ export default function ReporteComprobantes({
   const [telefonoEnvio, setTelefonoEnvio] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  // Comprobantes electrónicos reales (SUNAT) indexados por venta
+  const { data: comprobantesElectronicos } = useQuery({
+    queryKey: ["comprobantes-electronicos"],
+    queryFn: () => facturacionService.listarComprobantes({ limite: 100 }),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const comprobantesPorVenta = useMemo(() => {
+    const mapa = new Map<string, ComprobanteEmitido>();
+    comprobantesElectronicos?.datos?.forEach((c) => mapa.set(c.venta_id, c));
+    return mapa;
+  }, [comprobantesElectronicos]);
+
   // Transformar ventas reales en lista enriquecida de comprobantes con detalle de productos comprados
   const comprobantesFormat: ComprobanteConCliente[] = useMemo(() => {
     if (!ventasLista) return [];
@@ -96,7 +122,10 @@ export default function ReporteComprobantes({
       }
 
       const serie = tipoComp === "FACTURA" ? "F001" : tipoComp === "NOTA_VENTA" ? "NV01" : "B001";
-      const numStr = String(idx + 1).padStart(8, "0");
+      const numStr = String(ventasLista.length - idx).padStart(8, "0");
+
+      // Si la venta ya tiene comprobante electrónico emitido, usar datos reales
+      const electronico = v.id ? comprobantesPorVenta.get(v.id) : undefined;
 
       const docParts = v.cliente_documento?.split(":") || [];
       const numDoc = docParts[1]?.trim() || (v.cliente_documento !== "S/D" ? v.cliente_documento : "");
@@ -133,8 +162,8 @@ export default function ReporteComprobantes({
       return {
         id: v.id || `v-${idx}`,
         tipoComprobante: tipoComp,
-        serieNumero: `${serie}-${numStr}`,
-        fechaEmision: v.fecha || new Date().toISOString(),
+        serieNumero: electronico?.numero ?? `${serie}-${numStr}`,
+        fechaEmision: electronico?.fecha_emision ?? v.fecha ?? new Date().toISOString(),
         cliente: {
           nombre: v.cliente_nombre || (tipoComp === "NOTA_VENTA" ? "VENTA GENERAL" : "CLIENTE VARIOS"),
           tipoDocumento: tipoComp === "FACTURA" ? "RUC" : tipoComp === "BOLETA" ? "DNI" : "NINGUNO",
@@ -147,10 +176,16 @@ export default function ReporteComprobantes({
         igv: v.igv || (v.total ? v.total - v.total / 1.18 : 0),
         total: v.total || 0,
         metodoPago: metodoPagoReal,
-        estadoSunat: estadoReal as any,
+        estadoSunat: (electronico?.estado ?? estadoReal) as any,
+        comprobanteElectronicoId: electronico?.id,
+        comprobanteElectronicoEstado: electronico?.estado,
+        comprobanteElectronicoMensaje: electronico?.mensaje_respuesta,
+        tieneXml: electronico?.tiene_xml,
+        tieneCdr: electronico?.tiene_cdr,
+        tienePdf: electronico?.tiene_pdf,
       };
     });
-  }, [ventasLista]);
+  }, [ventasLista, comprobantesPorVenta]);
 
   // Filtrado Avanzado
   const comprobantesFiltrados = useMemo(() => {
@@ -221,7 +256,7 @@ export default function ReporteComprobantes({
     if (!comprobanteParaAnular || !comprobanteParaAnular.id) return;
     setAnulando(true);
     try {
-      await posApi.anularVenta(comprobanteParaAnular.id);
+      await ventasService.anularVenta(comprobanteParaAnular.id);
       if (onRefresh) onRefresh();
       setComprobanteParaAnular(null);
     } catch (err: any) {
@@ -231,9 +266,49 @@ export default function ReporteComprobantes({
     }
   };
 
+  // Descargar artefacto SUNAT real (XML firmado, CDR o PDF)
+  const descargarArtefacto = async (
+    c: ComprobanteConCliente,
+    tipo: "xml" | "cdr" | "pdf",
+  ) => {
+    if (!c.comprobanteElectronicoId) return;
+    try {
+      await facturacionService.descargar(c.comprobanteElectronicoId, tipo);
+    } catch (err: any) {
+      toast.current?.show({
+        severity: "error",
+        summary: "Descarga",
+        detail: err.message || `No se pudo descargar el ${tipo.toUpperCase()}`,
+        life: 3000,
+      });
+    }
+  };
+
+  // Reintentar envío a SUNAT (mismo correlativo, sin duplicar comprobante)
+  const reintentarComprobante = async (c: ComprobanteConCliente) => {
+    if (!c.comprobanteElectronicoId) return;
+    try {
+      const resultado = await facturacionService.reintentar(c.comprobanteElectronicoId);
+      toast.current?.show({
+        severity: resultado.estado.startsWith("ACEPTADO") ? "success" : "warn",
+        summary: `Comprobante ${resultado.numero}`,
+        detail: resultado.mensaje_respuesta || `Estado: ${resultado.estado}`,
+        life: 5000,
+      });
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.current?.show({
+        severity: "error",
+        summary: "Reintento",
+        detail: err.message || "No se pudo reintentar el envío",
+        life: 4000,
+      });
+    }
+  };
+
   const handleDownloadPLE = async () => {
     try {
-      const res = await posApi.getLibroVentasPLE();
+      const res = await reportesService.getLibroVentasPLE();
       if (res && res.contenido_txt) {
         const blob = new Blob([res.contenido_txt], { type: "text/plain;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -286,13 +361,13 @@ export default function ReporteComprobantes({
       const numeroGuardado = (comprobante.telefonoCliente || "").replace(/\D/g, "");
       const numeroNormalizado = `51${numeroNacional}`;
       if (comprobante.clienteId && numeroGuardado !== numeroNormalizado && numeroGuardado !== numeroNacional) {
-        await posApi.actualizarCliente(comprobante.clienteId, {
+        await clientesService.actualizarCliente(comprobante.clienteId, {
           id: comprobante.clienteId,
           telefono: numeroNacional,
           whatsapp: numeroNacional,
         });
       }
-      const enlace = await posApi.obtenerEnlaceComprobante(comprobante.id);
+      const enlace = await comprobantesService.obtenerEnlaceComprobante(comprobante.id);
       if (!enlace.disponible) throw new Error("El enlace ya no est\u00e1 disponible.");
       const url = `${window.location.origin}${enlace.url}`;
       const mensaje = `Hola, te compartimos tu comprobante ${comprobante.serieNumero}: ${url}`;
@@ -746,6 +821,51 @@ export default function ReporteComprobantes({
                             <Share2 size={12} />
                             <span>Enviar</span>
                           </button>
+
+                          {/* Artefactos SUNAT reales (cuando existe comprobante electrónico) */}
+                          {c.comprobanteElectronicoId && c.tieneXml && (
+                            <button
+                              onClick={() => descargarArtefacto(c, "xml")}
+                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-slate-300"
+                              title="Descargar XML firmado"
+                            >
+                              <Download size={12} />
+                              <span>XML</span>
+                            </button>
+                          )}
+                          {c.comprobanteElectronicoId && c.tieneCdr && (
+                            <button
+                              onClick={() => descargarArtefacto(c, "cdr")}
+                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-slate-300"
+                              title="Descargar CDR (constancia SUNAT)"
+                            >
+                              <Download size={12} />
+                              <span>CDR</span>
+                            </button>
+                          )}
+                          {c.comprobanteElectronicoId && c.tienePdf && (
+                            <button
+                              onClick={() => descargarArtefacto(c, "pdf")}
+                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-slate-300"
+                              title="Descargar representación impresa (PDF)"
+                            >
+                              <Download size={12} />
+                              <span>PDF</span>
+                            </button>
+                          )}
+                          {c.comprobanteElectronicoId &&
+                            ["ERROR_ENVIO", "ERROR_RESPUESTA", "ERROR_LOCAL", "PENDIENTE"].includes(
+                              c.comprobanteElectronicoEstado ?? "",
+                            ) && (
+                              <button
+                                onClick={() => reintentarComprobante(c)}
+                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-amber-200"
+                                title={`Reintentar envío a SUNAT (${c.comprobanteElectronicoMensaje ?? "pendiente"})`}
+                              >
+                                <RefreshCw size={12} />
+                                <span>Reintentar</span>
+                              </button>
+                            )}
 
                           {/* Botón Anular / Cancelar */}
                           {c.estadoSunat === "ANULADO" ? (

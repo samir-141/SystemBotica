@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, User, Phone, Mail, MapPin, Calendar, Receipt, Loader2, FileCheck } from "lucide-react";
-import { posApi } from "../../api/api.data";
+import { clientesService } from "../../../services/clientes.service";
 import type { Cliente } from "../types";
 
 type Props = {
@@ -16,7 +16,7 @@ export default function ClienteDetailModal({ open, cliente, onClose }: Props) {
   useEffect(() => {
     if (!open || !cliente) return;
     setLoading(true);
-    posApi.getClienteById(cliente.id)
+    clientesService.getClienteById(cliente.id)
       .then((data) => setDetalle(data))
       .catch((err) => console.error("Error al cargar detalle del cliente:", err))
       .finally(() => setLoading(false));

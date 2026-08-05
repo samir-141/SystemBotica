@@ -1,7 +1,7 @@
 // src/components/productos/elements/CatalogoModal.tsx
 import { useState } from "react";
 import { X, Plus, Loader2 } from "lucide-react";
-import { posApi } from "../../api/api.data";
+import { inventarioService } from "../../../services/inventario.service";
 import type { TipoCatalogo, ItemCatalogo } from "../types";
 import { CATALOGO_LABELS } from "../types";
 
@@ -50,7 +50,7 @@ export default function CatalogoModal({ open, tipo, onClose, onCreated }: Props)
         payload.abreviatura = abreviatura.trim();
       }
 
-      const created = await posApi.crearItemCatalogo(tipo, payload);
+      const created = await inventarioService.crearItemCatalogo(tipo, payload);
       onCreated(created);
       resetForm();
     } catch (err: any) {

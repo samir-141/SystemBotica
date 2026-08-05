@@ -11,6 +11,7 @@ import {
   Monitor,
   Wallet,
   Lock,
+  Camera,
 } from "lucide-react";
 import type { ProductoAgrupado } from "../types";
 import type { EstadoPeriferico } from "../hooks/usePerifericosStatus";
@@ -42,6 +43,7 @@ interface Props {
   onAbrirAperturaModal?: () => void;
   onAbrirCierreModal?: () => void;
   carrito?: any[];
+  onToggleLocalCamera?: () => void;
 }
 
 export default function MosProducto({
@@ -63,8 +65,9 @@ export default function MosProducto({
   onAbrirAperturaModal,
   onAbrirCierreModal,
   carrito = [],
+  onToggleLocalCamera,
 }: Props) {
-  const { scannerConectado, impresoraDisponible, deviceInfo } = perifericosStatus;
+  const { scannerConectado, impresoraDisponible, deviceInfo, esCelular } = perifericosStatus;
   const internalSearchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -119,7 +122,7 @@ export default function MosProducto({
         {/* Controles derechos */}
         <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
           {/* Botón Celular Escáner Remoto */}
-          {onAbrirEscannerRemoto && (
+          {!esCelular && onAbrirEscannerRemoto && (
             <button
               type="button"
               onClick={onAbrirEscannerRemoto}
@@ -127,7 +130,20 @@ export default function MosProducto({
               className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-2xs active:scale-95"
             >
               <Smartphone size={15} className="text-indigo-600" />
-              <span className="hidden sm:inline">Móvil QR</span>
+              <span>Escáner Celular</span>
+            </button>
+          )}
+
+          {/* Botón Cámara de Venta Local */}
+          {esCelular && onToggleLocalCamera && (
+            <button
+              type="button"
+              onClick={onToggleLocalCamera}
+              title="Escanear códigos de barras usando la cámara de este dispositivo"
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-2xs active:scale-95 animate-pulse"
+            >
+              <Camera size={15} className="text-emerald-600" />
+              <span>Escanear con Cámara</span>
             </button>
           )}
 

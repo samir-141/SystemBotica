@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { posApi } from "../../api/api.data";
+import { cajasService } from "../../../services/cajas.service";
 
 export interface EstadoCaja {
   caja_id: string;
@@ -25,7 +25,7 @@ export function useCaja() {
     setLoading(true);
     setError(null);
     try {
-      const res = await posApi.getEstadoCaja();
+      const res = await cajasService.getEstadoCaja();
       setEstadoCaja(res);
     } catch (err: any) {
       console.error("Error al obtener estado de caja:", err);
@@ -40,19 +40,19 @@ export function useCaja() {
   }, [fetchEstadoCaja]);
 
   const aperturarCaja = async (montoInicial: number, observacion?: string) => {
-    const res = await posApi.aperturarCaja({ monto_inicial: montoInicial, observacion });
+    const res = await cajasService.aperturarCaja({ monto_inicial: montoInicial, observacion });
     await fetchEstadoCaja();
     return res;
   };
 
   const registrarMovimiento = async (tipo: "INGRESO" | "EGRESO", monto: number, observacion: string) => {
-    const res = await posApi.registrarMovimientoCaja({ tipo, monto, observacion });
+    const res = await cajasService.registrarMovimientoCaja({ tipo, monto, observacion });
     await fetchEstadoCaja();
     return res;
   };
 
   const cerrarCaja = async (efectivoContado: number, observacion?: string) => {
-    const res = await posApi.cerrarCaja({ efectivo_contado: efectivoContado, observacion });
+    const res = await cajasService.cerrarCaja({ efectivo_contado: efectivoContado, observacion });
     await fetchEstadoCaja();
     return res;
   };
@@ -67,3 +67,4 @@ export function useCaja() {
     cerrarCaja,
   };
 }
+

@@ -1,199 +1,170 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
-import { io, Socket } from "socket.io-client";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { io, type Socket } from "socket.io-client";
 import { useAuth } from "../hooks/useAuth";
+import { socketBaseUrl } from "../utils/networkUrls";
+import { SocketContext, type ConnectedUser, type RealtimeNotification } from "./socket-context";
 
-export interface RealtimeNotification {
-  id: string;
-  titulo: string;
-  mensaje: string;
-  tipo: "INFO" | "SUCCESS" | "WARNING" | "DANGER";
-  timestamp: Date;
+function authErrorMessage(message?: string): string {
+  const detail = String(message || "No autorizado");
+  return `${/sucursal|botica|pertenece/i.test(detail) ? "403" : "401"} — ${detail}`;
 }
-
-export interface ConnectedUser {
-  socketId: string;
-  usuarioId: string;
-  nombre: string;
-  rol: string;
-  sucursalId: string;
-  connectedAt: string;
-}
-
-interface SocketContextType {
-  socket: Socket | null;
-  isConnected: boolean;
-  isReconnecting: boolean;
-  usuariosConectados: ConnectedUser[];
-  notificaciones: RealtimeNotification[];
-  descartarNotificacion: (id: string) => void;
-  reconnect: () => void;
-}
-
-const SocketContext = createContext<SocketContextType>({
-  socket: null,
-  isConnected: false,
-  isReconnecting: false,
-  usuariosConectados: [],
-  notificaciones: [],
-  descartarNotificacion: () => {},
-  reconnect: () => {},
-});
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, sucursalActual } = useAuth();
+  const { token, user, isAuthenticated, isLoading, sucursalActual } = useAuth();
+  const queryClient = useQueryClient();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [socketError, setSocketError] = useState<string | null>(null);
   const [usuariosConectados, setUsuariosConectados] = useState<ConnectedUser[]>([]);
   const [notificaciones, setNotificaciones] = useState<RealtimeNotification[]>([]);
   const socketRef = useRef<Socket | null>(null);
 
-  const getSocketUrl = useCallback(() => {
-    const envUrl = import.meta.env.VITE_API_URL || "";
-    if (envUrl) {
-      return envUrl.trim().replace(/\/api\/?$/, "");
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !token || !user) {
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      setSocket(null);
+      setIsConnected(false);
+      setIsReconnecting(false);
+      setSocketError(null);
+      setUsuariosConectados([]);
+      setNotificaciones([]);
+      return;
     }
-    if (typeof window !== "undefined") {
-      return `${window.location.protocol}//${window.location.hostname}:3000`;
-    }
-    return "http://localhost:3000";
-  }, []);
 
-  const conectarSocket = useCallback(() => {
-    const serverHost = getSocketUrl();
-    if (!serverHost) return;
-
-    if (socketRef.current?.connected) return;
-
-    const s = io(serverHost, {
+    const current = io(socketBaseUrl, {
+      auth: { token },
       transports: ["websocket", "polling"],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
       timeout: 10000,
     });
+    socketRef.current = current;
+    setSocket(current);
 
-    socketRef.current = s;
-    setSocket(s);
+    const invalidateProductos = () => {
+      void queryClient.invalidateQueries({ queryKey: ["productos"] });
+    };
+    const invalidateInventario = () => {
+      invalidateProductos();
+      void queryClient.invalidateQueries({ queryKey: ["reportes-inventario"] });
+    };
+    const invalidateClientes = () => {
+      void queryClient.invalidateQueries({ queryKey: ["clientes"] });
+    };
+    const invalidateVentas = () => {
+      void queryClient.invalidateQueries({ queryKey: ["ventas"] });
+      invalidateProductos();
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["reportes-ventas"] });
+    };
 
-    s.on("connect", () => {
-      console.info("[SocketContext] Conectado al servidor WebSocket en tiempo real");
+    current.on("connect", () => {
       setIsConnected(true);
       setIsReconnecting(false);
-
-      // Identificar usuario y sucursal activa
-      if (user) {
-        s.emit("identify_user", {
-          usuarioId: user.id,
-          nombre: user.nombre || user.correo || "Usuario POS",
-          rol: user.rol || "USUARIO",
-          sucursalId: sucursalActual?.id || "GLOBAL",
-        });
-      }
+      setSocketError(null);
     });
-
-    s.on("disconnect", (reason) => {
-      console.warn(`[SocketContext] Desconectado: ${reason}`);
+    current.on("disconnect", () => {
       setIsConnected(false);
-      if (reason === "io server disconnect") {
-        s.connect();
-      }
+      setUsuariosConectados([]);
     });
-
-    s.io.on("reconnect_attempt", () => {
-      setIsReconnecting(true);
+    current.on("auth_error", (data?: { message?: string }) => {
+      setSocketError(authErrorMessage(data?.message));
+      setIsConnected(false);
     });
-
-    s.io.on("reconnect", () => {
+    current.on("connect_error", (error: Error) => {
+      setSocketError(authErrorMessage(error.message));
+      setIsConnected(false);
+    });
+    current.io.on("reconnect_attempt", () => setIsReconnecting(true));
+    current.io.on("reconnect", () => {
       setIsConnected(true);
       setIsReconnecting(false);
     });
 
-    s.on("users.active_list", (lista: ConnectedUser[]) => {
-      setUsuariosConectados(lista || []);
+    current.on("users.active_list", (users: ConnectedUser[]) => {
+      setUsuariosConectados(Array.isArray(users) ? users : []);
     });
-
-    s.on("notification.created", (data: any) => {
-      const nuevaNotif: RealtimeNotification = {
+    current.on("notification.created", (data?: Partial<RealtimeNotification>) => {
+      const notification: RealtimeNotification = {
         id: `notif_${Date.now()}_${Math.random()}`,
-        titulo: data.titulo || "Notificación de Sistema",
-        mensaje: data.mensaje || "",
-        tipo: data.tipo || "INFO",
+        titulo: data?.titulo || "Notificación de Sistema",
+        mensaje: data?.mensaje || "",
+        tipo: data?.tipo || "INFO",
         timestamp: new Date(),
       };
-      setNotificaciones((prev) => [nuevaNotif, ...prev.slice(0, 9)]);
+      setNotificaciones((previous) => [notification, ...previous.slice(0, 9)]);
+    });
+    current.on("stock.minimum", (data?: { mensaje?: string }) => {
+      setNotificaciones((previous) => [{
+        id: `stock_min_${Date.now()}`,
+        titulo: "Alerta de Stock Mínimo",
+        mensaje: data?.mensaje || "Producto en stock crítico",
+        tipo: "WARNING",
+        timestamp: new Date(),
+      }, ...previous.slice(0, 9)]);
+    });
+    current.on("stock.out", (data?: { mensaje?: string }) => {
+      setNotificaciones((previous) => [{
+        id: `stock_out_${Date.now()}`,
+        titulo: "Producto AGOTADO",
+        mensaje: data?.mensaje || "El producto se ha agotado",
+        tipo: "DANGER",
+        timestamp: new Date(),
+      }, ...previous.slice(0, 9)]);
     });
 
-    s.on("stock.minimum", (data: any) => {
-      setNotificaciones((prev) => [
-        {
-          id: `stock_min_${Date.now()}`,
-          titulo: "Alerta de Stock Mínimo",
-          mensaje: data.mensaje || `Producto en stock crítico`,
-          tipo: "WARNING",
-          timestamp: new Date(),
-        },
-        ...prev.slice(0, 9),
-      ]);
+    ["producto.creado", "producto.actualizado", "producto.eliminado", "precio.actualizado"]
+      .forEach((event) => current.on(event, invalidateProductos));
+    current.on("inventario.actualizado", invalidateInventario);
+    current.on("stock.actualizado", invalidateInventario);
+    current.on("cliente.creado", invalidateClientes);
+    current.on("cliente.actualizado", invalidateClientes);
+    current.on("venta.creada", invalidateVentas);
+    current.on("venta.anulada", invalidateVentas);
+    current.on("dashboard.actualizado", () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     });
 
-    s.on("stock.out", (data: any) => {
-      setNotificaciones((prev) => [
-        {
-          id: `stock_out_${Date.now()}`,
-          titulo: "Producto AGOTADO",
-          mensaje: data.mensaje || `El producto se ha agotado`,
-          tipo: "DANGER",
-          timestamp: new Date(),
-        },
-        ...prev.slice(0, 9),
-      ]);
-    });
-  }, [getSocketUrl, user, sucursalActual]);
+    return () => {
+      current.disconnect();
+      if (socketRef.current === current) socketRef.current = null;
+      setSocket(null);
+      setIsConnected(false);
+      setIsReconnecting(false);
+    };
+  }, [isAuthenticated, isLoading, queryClient, token, user]);
 
   useEffect(() => {
-    conectarSocket();
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, [conectarSocket]);
+    if (!socket?.connected || !sucursalActual?.id) return;
+    socket.emit("identify_user", { sucursalId: sucursalActual.id }, (ack?: { success?: boolean; error?: string }) => {
+      if (ack?.success === false) setSocketError(authErrorMessage(ack.error));
+    });
+  }, [isConnected, socket, sucursalActual?.id]);
 
   const descartarNotificacion = useCallback((id: string) => {
-    setNotificaciones((prev) => prev.filter((n) => n.id !== id));
+    setNotificaciones((previous) => previous.filter((notification) => notification.id !== id));
   }, []);
 
   const reconnect = useCallback(() => {
-    if (socketRef.current) {
-      socketRef.current.connect();
-    } else {
-      conectarSocket();
-    }
-  }, [conectarSocket]);
+    if (!token || !isAuthenticated) return;
+    socketRef.current?.connect();
+  }, [isAuthenticated, token]);
 
   return (
-    <SocketContext.Provider
-      value={{
-        socket,
-        isConnected,
-        isReconnecting,
-        usuariosConectados,
-        notificaciones,
-        descartarNotificacion,
-        reconnect,
-      }}
-    >
+    <SocketContext.Provider value={{
+      socket,
+      isConnected,
+      isReconnecting,
+      socketError,
+      usuariosConectados,
+      notificaciones,
+      descartarNotificacion,
+      reconnect,
+    }}>
       {children}
     </SocketContext.Provider>
   );
 };
-
-export const useSocket = () => useContext(SocketContext);
