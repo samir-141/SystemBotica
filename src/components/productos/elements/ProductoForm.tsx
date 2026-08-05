@@ -250,19 +250,17 @@ export default function ProductoForm({
     setError(null);
 
     if (!isEdit) {
-      if (form.tipo_producto === "MEDICAMENTO") {
-        if (!form.principio_activo_id) {
-          setError("Selecciona un principio activo.");
-          return;
-        }
-        if (!form.forma_farmaceutica_id) {
-          setError("Selecciona una forma farmacéutica.");
-          return;
-        }
-        if (!form.laboratorio_id) {
-          setError("Selecciona un laboratorio.");
-          return;
-        }
+      if (!form.principio_activo_id) {
+        setError("Selecciona un principio activo.");
+        return;
+      }
+      if (!form.forma_farmaceutica_id) {
+        setError("Selecciona una forma farmacéutica.");
+        return;
+      }
+      if (!form.laboratorio_id) {
+        setError("Selecciona un laboratorio.");
+        return;
       }
       if (!form.categoria_id) {
         setError("Selecciona una categoría.");
@@ -272,6 +270,10 @@ export default function ProductoForm({
         setError("Selecciona la unidad base del producto.");
         return;
       }
+      if (form.concentracion === "" || !Number.isFinite(Number(form.concentracion)) || Number(form.concentracion) < 0) {
+        setError("Ingresa una concentración numérica válida (0 o mayor). ");
+        return;
+      }
       const unidadesSeleccionadas = [form.presentacion_id, ...presentacionesExtra.map((p) => p.unidad_presentacion_id)];
       if (unidadesSeleccionadas.some((id) => !id) || new Set(unidadesSeleccionadas).size !== unidadesSeleccionadas.length) {
         setError("Cada presentación debe tener una unidad distinta.");
@@ -279,6 +281,11 @@ export default function ProductoForm({
       }
       if (presentacionesExtra.some((p) => !p.cantidad_unidad_base || Number(p.cantidad_unidad_base) <= 1 || p.precio_actual === "" || Number(p.precio_actual) < 0)) {
         setError("Completa equivalencia y precio de cada presentación adicional. Deben contener más de una unidad base.");
+        return;
+      }
+      const codigosBarras = [form.codigo_barras.trim(), ...presentacionesExtra.map((p) => p.codigo_barras.trim())].filter(Boolean);
+      if (new Set(codigosBarras).size !== codigosBarras.length) {
+        setError("No repitas el mismo código de barras en dos presentaciones.");
         return;
       }
     }
@@ -297,45 +304,49 @@ export default function ProductoForm({
     try {
       const data = isEdit
         ? ({
-            producto_comercial_id: producto?.producto_comercial_id || "",
-            presentacion_id: form.presentacion_id,
-            nombre_comercial: form.nombre_comercial.trim(),
-            tipo_producto: form.tipo_producto,
-            controla_lote: form.controla_lote,
-            requiere_vencimiento: form.requiere_vencimiento,
-            precio_actual: Number(form.precio_actual),
-            codigo_barras: form.codigo_barras || undefined,
-            requiere_receta: form.requiere_receta,
-            afecto_igv: form.afecto_igv,
-            registro_sanitario: form.registro_sanitario || undefined,
-          } as UpdateProductoDto)
+          producto_comercial_id: producto?.producto_comercial_id || "",
+          presentacion_id: form.presentacion_id,
+          nombre_comercial: form.nombre_comercial.trim(),
+          tipo_producto: form.tipo_producto,
+          controla_lote: form.controla_lote,
+          requiere_vencimiento: form.requiere_vencimiento,
+          precio_actual: Number(form.precio_actual),
+          codigo_barras: form.codigo_barras || undefined,
+          requiere_receta: form.requiere_receta,
+          afecto_igv: form.afecto_igv,
+          registro_sanitario: form.registro_sanitario || undefined,
+        } as UpdateProductoDto)
         : ({
-            ...form,
-            producto_comercial_id: undefined,
-            unidad_base_id: form.presentacion_id,
-            cantidad_unidad_base: 1,
-            ...(form.tipo_producto !== "MEDICAMENTO" ? {
-              principio_activo_id: undefined,
-              forma_farmaceutica_id: undefined,
-              concentracion: undefined,
-              unidad_concentracion: undefined,
-              via_administracion: undefined,
-            } : {}),
-            presentaciones: [
-              {
-                unidad_presentacion_id: form.presentacion_id,
-                cantidad_unidad_base: 1,
-                precio_actual: Number(form.precio_actual),
-                codigo_barras: form.codigo_barras || undefined,
-              },
-              ...presentacionesExtra.map((p) => ({
-                unidad_presentacion_id: p.unidad_presentacion_id,
-                cantidad_unidad_base: Number(p.cantidad_unidad_base),
-                precio_actual: Number(p.precio_actual),
-                codigo_barras: p.codigo_barras || undefined,
-              })),
-            ],
-          } as CreateProductoDto);
+          ...form,
+          producto_comercial_id: undefined,
+          nombre_comercial: form.nombre_comercial.trim(),
+          sku: form.sku.trim().toUpperCase(),
+          codigo_interno: form.codigo_interno.trim() || undefined,
+          registro_sanitario: form.registro_sanitario.trim() || undefined,
+          unidad_base_id: form.presentacion_id,
+          cantidad_unidad_base: 1,
+          ...(form.tipo_producto !== "MEDICAMENTO" ? {
+            principio_activo_id: undefined,
+            forma_farmaceutica_id: undefined,
+            concentracion: undefined,
+            unidad_concentracion: undefined,
+            via_administracion: undefined,
+          } : {}),
+          presentaciones: [
+            {
+              unidad_presentacion_id: form.presentacion_id,
+              cantidad_unidad_base: 1,
+              precio_actual: Number(form.precio_actual),
+              codigo_barras: form.codigo_barras || undefined,
+            },
+            ...presentacionesExtra.map((p) => ({
+              unidad_presentacion_id: p.unidad_presentacion_id,
+              cantidad_unidad_base: Number(p.cantidad_unidad_base),
+              precio_actual: Number(p.precio_actual),
+              codigo_barras: p.codigo_barras || undefined,
+            })),
+          ],
+        } as CreateProductoDto);
       await onSave(data, mode);
       onClose();
     } catch (err: any) {
@@ -357,10 +368,10 @@ export default function ProductoForm({
               </div>
               <div>
                 <h2 className="text-base font-bold">
-                  {isEdit 
-                    ? "Editar Producto" 
-                    : form.tipo_producto === "MEDICAMENTO" 
-                      ? "Nuevo Producto Farmacéutico" 
+                  {isEdit
+                    ? "Editar Producto"
+                    : form.tipo_producto === "MEDICAMENTO"
+                      ? "Nuevo Producto Farmacéutico"
                       : "Nuevo Producto General"
                   }
                 </h2>
@@ -672,8 +683,8 @@ export default function ProductoForm({
                   <p className="-mt-2 text-[10px] text-slate-400">
                     {form.tipo_producto === "MEDICAMENTO"
                       ? (formaSeleccionada
-                          ? `Unidad base para ${formaSeleccionada}. Los empaques se seleccionan abajo.`
-                          : "Primero selecciona la forma farmacéutica para filtrar la unidad base.")
+                        ? `Unidad base para ${formaSeleccionada}. Los empaques se seleccionan abajo.`
+                        : "Primero selecciona la forma farmacéutica para filtrar la unidad base.")
                       : "Unidad física de consumo (ej. Unidad, Botella, Frasco, Paquete). Las presentaciones compuestas se añaden abajo."
                     }
                   </p>

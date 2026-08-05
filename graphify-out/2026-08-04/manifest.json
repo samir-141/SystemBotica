@@ -25,9 +25,9 @@
     "semantic_hash": "f9165cf3f35d86dfc550b4ad7c6bf2a6"
   },
   "package.json": {
-    "mtime": 1785386821.973691,
-    "ast_hash": "893acef760a967fb74dc1a5ede4f70ff",
-    "semantic_hash": "893acef760a967fb74dc1a5ede4f70ff"
+    "mtime": 1785905606.2723644,
+    "ast_hash": "176d7e60ef90a534cf29cee7eedc7473",
+    "semantic_hash": ""
   },
   "src/App.tsx": {
     "mtime": 1785812566.048998,

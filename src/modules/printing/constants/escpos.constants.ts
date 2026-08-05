@@ -1,0 +1,23 @@
+export const ESC_POS = {
+  INIT: "\x1B\x40",
+  ALIGN_LEFT: "\x1B\x61\x00",
+  ALIGN_CENTER: "\x1B\x61\x01",
+  ALIGN_RIGHT: "\x1B\x61\x02",
+  BOLD_ON: "\x1B\x45\x01",
+  BOLD_OFF: "\x1B\x45\x00",
+  UNDERLINE_ON: "\x1B\x2D\x01",
+  UNDERLINE_OFF: "\x1B\x2D\x00",
+  FONT_A: "\x1B\x4D\x00",
+  FONT_B: "\x1B\x4D\x01",
+  CUT_FULL: "\x1D\x56\x00",
+  CUT_PARTIAL: "\x1D\x56\x01",
+  OPEN_DRAWER: "\x1B\x70\x00\x19\xFA",
+  FEED_LINE: "\x0A",
+  FEED_LINES: (n: number) => "\x1B\x64" + String.fromCharCode(n),
+  SET_CHAR_SIZE: (h: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8, w?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) =>
+    "\x1D\x21" + String.fromCharCode((h - 1) * 16 + ((w ?? h) - 1)),
+  INVERSE_ON: "\x1D\x42\x01",
+  INVERSE_OFF: "\x1D\x42\x00",
+  STRIKE_ON: "\x1B\x47\x01",
+  STRIKE_OFF: "\x1B\x47\x00",
+} as const;

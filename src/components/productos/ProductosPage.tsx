@@ -47,7 +47,7 @@ export default function ProductosPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [reabastecerOpen, setReabastecerOpen] = useState(false);
-  const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string; controla_lote?: boolean; requiere_vencimiento?: boolean } | null>(null);
+  const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string } | null>(null);
 
   const [movimientosOpen, setMovimientosOpen] = useState(false);
   const [productoMovimientos, setProductoMovimientos] = useState<ProductoPOS | null>(null);
@@ -77,6 +77,7 @@ export default function ProductosPage() {
   };
 
   const handleAbrirReabastecer = (producto?: ProductoPOS) => {
+    setIngresoInicial(false);
     if (producto) {
       setProductoReabastecer({
         id: producto.producto_comercial_id,
@@ -109,16 +110,7 @@ export default function ProductosPage() {
       if (mode === "editar" && productoEditar) {
         await actualizarProducto(productoEditar.producto_comercial_id, data);
       } else {
-        const nuevo = await crearProducto(data);
-        const creado = nuevo as ProductoPOS;
-        setProductoReabastecer({
-          id: creado.producto_comercial_id,
-          nombre_comercial: creado.nombre_comercial || (data as CreateProductoDto).nombre_comercial || "Producto nuevo",
-          sku: creado.sku || (data as CreateProductoDto).sku,
-          controla_lote: creado.controla_lote ?? (data as CreateProductoDto).controla_lote ?? true,
-          requiere_vencimiento: creado.requiere_vencimiento ?? (data as CreateProductoDto).requiere_vencimiento ?? true,
-        });
-        setReabastecerOpen(true);
+        await crearProducto(data);
       }
     },
     [productoEditar, actualizarProducto, crearProducto]
@@ -187,11 +179,10 @@ export default function ProductosPage() {
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
-              showFilters
+            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${showFilters
                 ? "bg-teal-50 border-teal-300 text-teal-700"
                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
+              }`}
           >
             <Filter className="w-3.5 h-3.5" />
             Filtros
@@ -199,12 +190,12 @@ export default function ProductosPage() {
           </button>
         </div>
 
-      {showFilters && (
-        <div className="px-4 pb-4 md:px-6 border-t border-slate-100 pt-3 animate-fadeDown">
+        {showFilters && (
+          <div className="px-4 pb-4 md:px-6 border-t border-slate-100 pt-3 animate-fadeDown">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                    Laboratorio
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                  Laboratorio
                 </label>
                 <select
                   onChange={(e) => setFiltro("laboratorio_id", e.target.value)}
@@ -217,9 +208,9 @@ export default function ProductosPage() {
                 </select>
               </div>
 
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                    Categoría
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                  Categoría
                 </label>
                 <select
                   onChange={(e) => setFiltro("categoria_id", e.target.value)}
@@ -232,9 +223,9 @@ export default function ProductosPage() {
                 </select>
               </div>
 
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                    Principio Activo
+              <div>
+                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                  Principio Activo
                 </label>
                 <select
                   onChange={(e) => setFiltro("principio_activo_id", e.target.value)}
@@ -291,6 +282,7 @@ export default function ProductosPage() {
           open={reabastecerOpen}
           onClose={() => setReabastecerOpen(false)}
           producto={productoReabastecer}
+          modo={ingresoInicial ? "nuevo-lote" : "reabastecer"}
           productosLista={productos.map((p) => ({
             producto_comercial_id: p.producto_comercial_id,
             nombre_comercial: p.nombre_comercial,

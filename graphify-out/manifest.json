@@ -863,5 +863,25 @@
     "mtime": 1782955404.1758,
     "ast_hash": "9960a24288958394ac50e57ff638b036",
     "semantic_hash": ""
+  },
+  "src/modules/printing/services/printer-config.service.ts": {
+    "mtime": 1785905700.2464113,
+    "ast_hash": "5a3dd78ff5fe4f89b97a450a91a3927d",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/services/printer.service.ts": {
+    "mtime": 1785905743.1459801,
+    "ast_hash": "dbeef9d5ce7d86c3056eeb7bc7b650ed",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/services/qz.service.ts": {
+    "mtime": 1785905696.235655,
+    "ast_hash": "800b170863d480fa20f09e47d59f25b3",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/services/receipt-builder.service.ts": {
+    "mtime": 1785905715.6802652,
+    "ast_hash": "7457ba0209aefec7a7ca9210616a28ed",
+    "semantic_hash": ""
   }
 }
