@@ -34,6 +34,9 @@ const ComprasPage = lazy(() => import("./components/compras/ComprasPage"));
 const ComprobantePublicoPage = lazy(
   () => import("./pages/comprobantes/ComprobantePublicoPage"),
 );
+const PrinterConfigPage = lazy(
+  () => import("./modules/printing/components/PrinterConfiguration").then(m => ({ default: m.PrinterConfigurationPage })),
+);
 
 const RouteFallback = () => (
   <div
@@ -127,6 +130,10 @@ const AppContent: React.FC = () => {
                 <Route
                   path="/admin/series-documentos"
                   element={<AdminPage />}
+                />
+                <Route
+                  path="/admin/impresion"
+                  element={<PrinterConfigPage />}
                 />
               </Route>
 

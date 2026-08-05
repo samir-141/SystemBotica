@@ -36,7 +36,6 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
   const [mostrarProductos, setMostrarProductos] = useState(false);
   const [scannerAbierto, setScannerAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
-  const [presentacionesDetalle, setPresentacionesDetalle] = useState<ProductoIngreso[]>([]);
 
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
@@ -58,7 +57,7 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
   useEffect(() => {
     if (!open) return;
     setSelectedProdId(producto?.id || ""); setPresentacionId(""); setBuscarProducto("");
-    setCantidad(""); setNumeroLote(""); setFechaVencimiento(""); setPrecioCompraPresentacion(""); setLotesExistentes([]); setPresentacionesDetalle([]); setBuscarLote(""); setMostrarProductos(false); setScannerAbierto(false);
+    setCantidad(""); setNumeroLote(""); setFechaVencimiento(""); setPrecioCompraPresentacion(""); setLotesExistentes([]); setBuscarLote(""); setMostrarProductos(false); setScannerAbierto(false);
   }, [open, producto]);
 
   const productosUnicos = useMemo(() => {
@@ -67,7 +66,16 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
       && (vistos.add(p.producto_comercial_id), !texto || p.nombre_comercial.toLowerCase().includes(texto)));
   }, [productosLista, buscarProducto]);
   const prodId = producto?.id || selectedProdId;
-  const esReabastecimientoDeLote = Boolean(producto);
+  const esReabastecimientoDeLote = Boolean(producto) && modo !== "nuevo-lote";
+
+  const productoEncontrado = useMemo(() => {
+    if (producto) return producto;
+    return productosLista.find(p => p.producto_comercial_id === selectedProdId);
+  }, [producto, productosLista, selectedProdId]);
+
+  const controlaLote = productoEncontrado?.controla_lote ?? false;
+  const requiereVencimiento = productoEncontrado?.requiere_vencimiento ?? false;
+
   const presentaciones = useMemo(() => productosLista.filter(p => p.producto_comercial_id === prodId && p.presentacion_id), [productosLista, prodId]);
   const presentacion = presentaciones.find(p => p.presentacion_id === presentacionId);
   const equivalencia = Number(presentacion?.cantidad_unidad_base || 1);
@@ -76,11 +84,12 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
   useEffect(() => {
     if (!open || !prodId) return;
     let activo = true;
-    posApi.getProductoDetalle(prodId)
-      .then((detalle) => activo && setLotesExistentes(detalle.lotes || []))
+    productosService.getProductoDetalle(prodId)
+      .then((detalle: any) => activo && setLotesExistentes(detalle.lotes || []))
       .catch(() => activo && setLotesExistentes([]));
     return () => { activo = false; };
   }, [open, prodId]);
+
 
   const seleccionarProducto = useCallback((item: ProductoIngreso) => {
     setSelectedProdId(item.producto_comercial_id);

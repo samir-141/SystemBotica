@@ -1,14 +1,15 @@
 import type { ReceiptData } from "../types/receipt.types";
-import type { PrinterConfiguration, PrintResult, ValidationResult } from "../types/printer.types";
+import type { PrintResult, ValidationResult } from "../types/printer.types";
 import { qzService } from "./qz.service";
 import { loadPrinterConfiguration, validatePrinterConfiguration } from "./printer-config.service";
 import { buildReceiptCommands, buildTestPageCommands, buildCashDrawerCommand } from "./receipt-builder.service";
 
-let printQueue: Promise<void> = Promise.resolve();
+let printQueue: Promise<unknown> = Promise.resolve();
 
-function enqueuePrint(task: () => Promise<void>): Promise<void> {
-  printQueue = printQueue.then(task, task);
-  return printQueue;
+function enqueuePrint<T>(task: () => Promise<T>): Promise<T> {
+  const result = printQueue.then(task, task);
+  printQueue = result;
+  return result;
 }
 
 async function ensureConnected(): Promise<void> {

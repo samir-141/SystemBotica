@@ -3,9 +3,11 @@ import type {
   PaperWidth,
 } from "../types/printer.types";
 import {
+  DEFAULT_PRINTER_CONFIG,
+} from "../types/printer.types";
+import {
   CONFIG_STORAGE_KEY,
   DEVICE_ID_KEY,
-  DEFAULT_PRINTER_CONFIG,
 } from "../constants/paper.constants";
 import { PAPER_CONFIG } from "../constants/paper.constants";
 

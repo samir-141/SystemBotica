@@ -1,57 +1,78 @@
-import type { QzPrinter, QzSecurityCertificate } from "../types/qz.types";
+import type { Qz } from "qz-tray";
+import type { QzSecurityCertificate } from "../types/qz.types";
 
-type QzModule = typeof import("qz-tray");
+let qzInstance: Qz | null = null;
+let connectionPromise: Promise<Qz> | null = null;
 
-let qzModule: QzModule | null = null;
-
-async function loadQz(): Promise<QzModule> {
-  if (!qzModule) {
-    qzModule = await import("qz-tray");
+async function loadQz(): Promise<Qz> {
+  if (qzInstance) {
+    return qzInstance;
   }
-  return qzModule;
+
+  const imported = await import("qz-tray");
+  const qz = (imported.default ?? imported) as Qz;
+
+  if (!qz || !qz.websocket) {
+    throw new Error(
+      "QZ Tray fue importado correctamente pero websocket no existe."
+    );
+  }
+
+  qzInstance = qz;
+  return qzInstance;
 }
 
-let connectionPromise: Promise<void> | null = null;
-let connected = false;
+async function connectQz(): Promise<Qz> {
+  const qz = await loadQz();
+
+  if (qz.websocket.isActive()) {
+    return qz;
+  }
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
+  connectionPromise = (async () => {
+    qz.api.setVersionPromise(true);
+    await qz.websocket.connect();
+    const version = await qz.api.getVersion();
+    console.log(`QZ Tray conectado\nVersión: ${version}`);
+    return qz;
+  })().finally(() => {
+    connectionPromise = null;
+  });
+
+  return connectionPromise;
+}
 
 export const qzService = {
+  async connectQz(): Promise<Qz> {
+    return connectQz();
+  },
+
   async connect(): Promise<void> {
-    if (connected) return;
-
-    if (connectionPromise) {
-      return connectionPromise;
-    }
-
-    connectionPromise = (async () => {
-      const qz = await loadQz();
-
-      qz.api.setVersionPromise(true);
-      qz.api.disconnect();
-
-      await qz.api.connect();
-      connected = true;
-    })().finally(() => {
-      connectionPromise = null;
-    });
-
-    return connectionPromise;
+    await connectQz();
   },
 
   async disconnect(): Promise<void> {
-    if (!connected) return;
     const qz = await loadQz();
-    await qz.api.disconnect();
-    connected = false;
+    if (qz.websocket.isActive()) {
+      await qz.websocket.disconnect();
+    }
   },
 
   isConnected(): boolean {
-    return connected;
+    return qzInstance ? qzInstance.websocket.isActive() : false;
   },
 
   async getPrinters(): Promise<string[]> {
     const qz = await loadQz();
-    const printers = await qz.api.getPrinters();
-    return printers.map((p: QzPrinter) => p.name);
+    const result = await qz.printers.find();
+    if (Array.isArray(result)) {
+      return result;
+    }
+    return result ? [result] : [];
   },
 
   async findPrinter(name: string): Promise<string> {
@@ -67,7 +88,7 @@ export const qzService = {
 
   async printRaw(printerName: string, commands: (string | Uint8Array)[]): Promise<void> {
     const qz = await loadQz();
-    await qz.api.print(printerName, commands);
+    await qz.print({ printer: printerName }, commands);
   },
 
   async getSignaturePromise(): Promise<string> {
@@ -84,4 +105,22 @@ export const qzService = {
       qz.security.setSignatureAlgorithm(_cert.algorithm);
     }
   },
+
+  async testConnection(): Promise<{ success: boolean; version?: string; printers?: string[]; error?: string }> {
+    try {
+      const qz = await this.connectQz();
+      const version = await qz.api.getVersion();
+      const printers = await this.getPrinters();
+      console.log("Prueba de QZ Tray completada con éxito:", { version, printers });
+      return { success: true, version, printers };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error("Prueba de QZ Tray falló:", error);
+      return { success: false, error: errorMsg };
+    }
+  }
 };
+
+if (typeof window !== "undefined") {
+  (window as any).testQz = () => qzService.testConnection();
+}

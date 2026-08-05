@@ -47,7 +47,8 @@ export default function ProductosPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [reabastecerOpen, setReabastecerOpen] = useState(false);
-  const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string } | null>(null);
+  const [productoReabastecer, setProductoReabastecer] = useState<{ id: string; nombre_comercial: string; sku?: string; controla_lote?: boolean; requiere_vencimiento?: boolean } | null>(null);
+  const [ingresoInicial, setIngresoInicial] = useState(false);
 
   const [movimientosOpen, setMovimientosOpen] = useState(false);
   const [productoMovimientos, setProductoMovimientos] = useState<ProductoPOS | null>(null);
@@ -110,7 +111,18 @@ export default function ProductosPage() {
       if (mode === "editar" && productoEditar) {
         await actualizarProducto(productoEditar.producto_comercial_id, data);
       } else {
-        await crearProducto(data);
+        const nuevo = await crearProducto(data);
+        const creado = data as CreateProductoDto;
+        setProductoReabastecer({
+          id: nuevo.producto_comercial_id,
+          nombre_comercial: creado.nombre_comercial || "Producto nuevo",
+          sku: creado.sku,
+          controla_lote: creado.controla_lote,
+          requiere_vencimiento: creado.requiere_vencimiento,
+        });
+        setIngresoInicial(true);
+        setReabastecerOpen(true);
+        toast.current?.show({ severity: "success", summary: "Producto creado", detail: "Ahora registra el primer lote para habilitar su venta.", life: 3500 });
       }
     },
     [productoEditar, actualizarProducto, crearProducto]

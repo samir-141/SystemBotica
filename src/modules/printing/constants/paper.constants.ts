@@ -1,5 +1,3 @@
-import type { PaperWidth } from "../types/printer.types";
-
 export const PAPER_CONFIG = {
   "58mm": {
     previewWidthMm: 58,
