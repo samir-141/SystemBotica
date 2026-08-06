@@ -159,7 +159,6 @@ export function resolveReceiptLink(
 
   try {
     const fallbackBase = origin || "http://localhost";
-    console.log(fallbackBase)
     const source = new URL(receiptUrl, fallbackBase);
     const configuredPublicBase = publicAppUrl.trim();
     const trustedBase = new URL(configuredPublicBase || fallbackBase);

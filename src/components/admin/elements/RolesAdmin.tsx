@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Shield, KeyRound, Loader2, Plus, Pencil, Trash, Check, X } from "lucide-react";
 import type { RolItem } from "../hooks/useAdmin";
 import { useAuth } from "../../../hooks/useAuth";
@@ -13,11 +13,58 @@ type Props = {
 };
 
 const MODULOS_SISTEMA = [
-  { codigo: "ventas", nombre: "Ventas (POS)", desc: "Apertura de caja, emisión de boletas/facturas y cobro" },
-  { codigo: "inventario", nombre: "Inventario & Productos", desc: "Gestión de catálogo, lotes FEFO y precios" },
-  { codigo: "clientes", nombre: "Clientes", desc: "Registro, búsqueda DNI/RUC e historial de compras" },
-  { codigo: "reportes", nombre: "Reportes & Analítica", desc: "Reporte de ventas, finanzas e inventario por fecha" },
-  { codigo: "admin", nombre: "Administración & ERP", desc: "Gestión de usuarios, roles, permisos y sucursales" },
+  { codigo: "ventas.ver", nombre: "Ventas", desc: "Ver historial de ventas", grupo: "Ventas (POS)" },
+  { codigo: "ventas.crear", nombre: "Ventas", desc: "Registrar nuevas ventas", grupo: "Ventas (POS)" },
+  { codigo: "ventas.anular", nombre: "Ventas", desc: "Anular ventas existentes", grupo: "Ventas (POS)" },
+  { codigo: "inventario.ver", nombre: "Inventario", desc: "Ver productos y stock", grupo: "Inventario & Productos" },
+  { codigo: "inventario.crear", nombre: "Inventario", desc: "Crear nuevos productos", grupo: "Inventario & Productos" },
+  { codigo: "inventario.editar", nombre: "Inventario", desc: "Editar productos existentes", grupo: "Inventario & Productos" },
+  { codigo: "inventario.eliminar", nombre: "Inventario", desc: "Eliminar productos", grupo: "Inventario & Productos" },
+  { codigo: "inventario.reabastecer", nombre: "Inventario", desc: "Reabastecer stock de productos", grupo: "Inventario & Productos" },
+  { codigo: "inventario.presentaciones", nombre: "Inventario", desc: "Gestionar presentaciones de venta", grupo: "Inventario & Productos" },
+  { codigo: "compras.ver", nombre: "Compras", desc: "Ver historial de compras", grupo: "Compras" },
+  { codigo: "compras.crear", nombre: "Compras", desc: "Registrar nuevas compras", grupo: "Compras" },
+  { codigo: "cajas.ver", nombre: "Cajas", desc: "Ver estado de cajas", grupo: "Cajas & Turnos" },
+  { codigo: "cajas.abrir", nombre: "Cajas", desc: "Aperturar turno de caja", grupo: "Cajas & Turnos" },
+  { codigo: "cajas.cerrar", nombre: "Cajas", desc: "Cerrar turno de caja (Cierre Z)", grupo: "Cajas & Turnos" },
+  { codigo: "cajas.movimientos", nombre: "Cajas", desc: "Registrar movimientos de caja", grupo: "Cajas & Turnos" },
+  { codigo: "clientes.ver", nombre: "Clientes", desc: "Ver listado de clientes", grupo: "Clientes" },
+  { codigo: "clientes.crear", nombre: "Clientes", desc: "Registrar nuevos clientes", grupo: "Clientes" },
+  { codigo: "clientes.editar", nombre: "Clientes", desc: "Editar información de clientes", grupo: "Clientes" },
+  { codigo: "clientes.eliminar", nombre: "Clientes", desc: "Eliminar clientes", grupo: "Clientes" },
+  { codigo: "usuarios.ver", nombre: "Usuarios", desc: "Ver listado de usuarios", grupo: "Usuarios & Administración" },
+  { codigo: "usuarios.crear", nombre: "Usuarios", desc: "Registrar nuevos usuarios", grupo: "Usuarios & Administración" },
+  { codigo: "usuarios.editar", nombre: "Usuarios", desc: "Editar información de usuarios", grupo: "Usuarios & Administración" },
+  { codigo: "usuarios.eliminar", nombre: "Usuarios", desc: "Eliminar usuarios", grupo: "Usuarios & Administración" },
+  { codigo: "roles.gestionar", nombre: "Roles", desc: "Crear, editar y eliminar roles", grupo: "Usuarios & Administración" },
+  { codigo: "sucursales.ver", nombre: "Sucursales", desc: "Ver sucursales", grupo: "Usuarios & Administración" },
+  { codigo: "sucursales.crear", nombre: "Sucursales", desc: "Crear nuevas sucursales", grupo: "Usuarios & Administración" },
+  { codigo: "reportes.ventas", nombre: "Reportes", desc: "Reporte financiero de ventas", grupo: "Reportes & Analítica" },
+  { codigo: "reportes.inventario", nombre: "Reportes", desc: "Reporte de valorización de inventario", grupo: "Reportes & Analítica" },
+  { codigo: "reportes.financiero", nombre: "Reportes", desc: "Reporte administrativo financiero", grupo: "Reportes & Analítica" },
+  { codigo: "reportes.ple", nombre: "Reportes", desc: "Generar archivo PLE (SUNAT)", grupo: "Reportes & Analítica" },
+  { codigo: "facturacion.emitir", nombre: "Facturación", desc: "Emitir comprobantes electrónicos", grupo: "Facturación Electrónica" },
+  { codigo: "facturacion.enviar", nombre: "Facturación", desc: "Enviar comprobantes a SUNAT", grupo: "Facturación Electrónica" },
+  { codigo: "facturacion.ver", nombre: "Facturación", desc: "Ver historial de comprobantes", grupo: "Facturación Electrónica" },
+  { codigo: "facturacion.config", nombre: "Facturación", desc: "Configuración tributaria y certificados", grupo: "Facturación Electrónica" },
+  { codigo: "facturacion.resumenes", nombre: "Facturación", desc: "Gestionar resúmenes diarios SUNAT", grupo: "Facturación Electrónica" },
+  { codigo: "posventa.devoluciones", nombre: "Posventa", desc: "Registrar devoluciones", grupo: "Posventa" },
+  { codigo: "posventa.cambios", nombre: "Posventa", desc: "Registrar cambios de producto", grupo: "Posventa" },
+  { codigo: "posventa.garantias", nombre: "Posventa", desc: "Registrar garantías", grupo: "Posventa" },
+  { codigo: "posventa.reclamos", nombre: "Posventa", desc: "Registrar reclamos", grupo: "Posventa" },
+  { codigo: "series.ver", nombre: "Series", desc: "Ver series de documentos", grupo: "Series de Documentos" },
+  { codigo: "series.gestionar", nombre: "Series", desc: "Crear y editar series de documentos", grupo: "Series de Documentos" },
+  { codigo: "proveedores.ver", nombre: "Proveedores", desc: "Ver listado de proveedores", grupo: "Proveedores" },
+  { codigo: "proveedores.crear", nombre: "Proveedores", desc: "Registrar nuevos proveedores", grupo: "Proveedores" },
+  { codigo: "proveedores.editar", nombre: "Proveedores", desc: "Editar información de proveedores", grupo: "Proveedores" },
+  { codigo: "proveedores.eliminar", nombre: "Proveedores", desc: "Eliminar proveedores", grupo: "Proveedores" },
+  { codigo: "catalogos.ver", nombre: "Catálogos", desc: "Ver catálogos maestros", grupo: "Catálogos" },
+  { codigo: "catalogos.gestionar", nombre: "Catálogos", desc: "Crear, editar y eliminar catálogos", grupo: "Catálogos" },
+  { codigo: "gastos.ver", nombre: "Gastos", desc: "Ver gastos operativos", grupo: "Gastos" },
+  { codigo: "gastos.crear", nombre: "Gastos", desc: "Registrar gastos", grupo: "Gastos" },
+  { codigo: "gastos.eliminar", nombre: "Gastos", desc: "Eliminar gastos", grupo: "Gastos" },
+  { codigo: "dashboard.ver", nombre: "Dashboard", desc: "Ver métricas del dashboard", grupo: "Dashboard" },
+  { codigo: "comprobantes.imprimir", nombre: "Impresión", desc: "Imprimir comprobantes", grupo: "Impresión" },
 ];
 
 export default function RolesAdmin({
@@ -59,8 +106,10 @@ export default function RolesAdmin({
     ).values()
   );
 
+  const getModulePrefix = (codigo: string) => codigo.split(".")[0];
+
   const getModuleColorClasses = (codigo: string) => {
-    switch (codigo) {
+    switch (getModulePrefix(codigo)) {
       case "ventas":
         return "peer-checked:bg-emerald-600";
       case "inventario":
@@ -69,15 +118,37 @@ export default function RolesAdmin({
         return "peer-checked:bg-cyan-600";
       case "reportes":
         return "peer-checked:bg-amber-500";
-      case "admin":
+      case "usuarios":
+      case "roles":
+      case "sucursales":
         return "peer-checked:bg-rose-600";
+      case "facturacion":
+        return "peer-checked:bg-indigo-600";
+      case "posventa":
+        return "peer-checked:bg-teal-600";
+      case "compras":
+        return "peer-checked:bg-orange-500";
+      case "cajas":
+        return "peer-checked:bg-violet-600";
+      case "proveedores":
+        return "peer-checked:bg-lime-600";
+      case "catalogos":
+        return "peer-checked:bg-fuchsia-600";
+      case "gastos":
+        return "peer-checked:bg-red-500";
+      case "dashboard":
+        return "peer-checked:bg-sky-600";
+      case "series":
+        return "peer-checked:bg-pink-500";
+      case "comprobantes":
+        return "peer-checked:bg-slate-600";
       default:
         return "peer-checked:bg-purple-600";
     }
   };
 
   const getModuleDotColor = (codigo: string) => {
-    switch (codigo) {
+    switch (getModulePrefix(codigo)) {
       case "ventas":
         return "bg-emerald-500";
       case "inventario":
@@ -86,8 +157,30 @@ export default function RolesAdmin({
         return "bg-cyan-500";
       case "reportes":
         return "bg-amber-500";
-      case "admin":
+      case "usuarios":
+      case "roles":
+      case "sucursales":
         return "bg-rose-500";
+      case "facturacion":
+        return "bg-indigo-500";
+      case "posventa":
+        return "bg-teal-500";
+      case "compras":
+        return "bg-orange-500";
+      case "cajas":
+        return "bg-violet-500";
+      case "proveedores":
+        return "bg-lime-500";
+      case "catalogos":
+        return "bg-fuchsia-500";
+      case "gastos":
+        return "bg-red-500";
+      case "dashboard":
+        return "bg-sky-500";
+      case "series":
+        return "bg-pink-500";
+      case "comprobantes":
+        return "bg-slate-500";
       default:
         return "bg-purple-500";
     }
@@ -327,47 +420,70 @@ export default function RolesAdmin({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {MODULOS_SISTEMA.map((m) => (
-                  <tr key={m.nombre} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${getModuleDotColor(m.codigo)}`}></span>
-                        <div className="font-bold text-slate-900">{m.nombre}</div>
-                      </div>
-                      <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5 pl-4">{m.desc}</p>
-                    </td>
-                    {roles.map((r) => {
-                      const tienePermiso = r.rol_permisos?.some((rp) => rp.permisos?.codigo === m.codigo) || false;
-                      const isUpdating = updatingRoleId === r.id;
-                      const isSelectedRoleColumn = r.id === activeRolId;
-
-                      return (
+                {(() => {
+                  const grouped: Record<string, typeof MODULOS_SISTEMA> = {};
+                  for (const m of MODULOS_SISTEMA) {
+                    if (!grouped[m.grupo]) grouped[m.grupo] = [];
+                    grouped[m.grupo].push(m);
+                  }
+                  return Object.entries(grouped).map(([grupo, items]) => (
+                    <React.Fragment key={grupo}>
+                      <tr>
                         <td
-                          key={r.id}
-                          className={`py-3 px-4 text-center align-middle transition-colors
-                            ${isSelectedRoleColumn ? "bg-emerald-50/15" : ""}`}
+                          colSpan={roles.length + 1}
+                          className="py-2 px-4 bg-slate-50/80 border-b border-slate-200"
                         >
-                          <div className="flex justify-center items-center min-h-[44px]">
-                            {isUpdating ? (
-                              <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
-                            ) : (
-                              <label className={`relative inline-flex items-center ${esUsuarioAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={tienePermiso}
-                                  disabled={!esUsuarioAdmin || isUpdating}
-                                  onChange={(e) => handleToggle(r.id, m.codigo, e.target.checked)}
-                                  className="sr-only peer"
-                                />
-                                <div className={`w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all ${getModuleColorClasses(m.codigo)}`}></div>
-                              </label>
-                            )}
-                          </div>
+                          <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+                            {grupo}
+                          </span>
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      </tr>
+                      {items.map((m) => (
+                        <tr key={m.codigo} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-2.5 px-4 pl-8">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${getModuleDotColor(m.codigo)}`}></span>
+                              <div>
+                                <span className="font-medium text-slate-800 text-xs">{m.nombre}</span>
+                                <span className="text-[10px] text-slate-400 ml-2">{m.desc}</span>
+                              </div>
+                            </div>
+                          </td>
+                          {roles.map((r) => {
+                            const tienePermiso = r.rol_permisos?.some((rp) => rp.permisos?.codigo === m.codigo) || false;
+                            const isUpdating = updatingRoleId === r.id;
+                            const isSelectedRoleColumn = r.id === activeRolId;
+
+                            return (
+                              <td
+                                key={r.id}
+                                className={`py-2.5 px-4 text-center align-middle transition-colors
+                                  ${isSelectedRoleColumn ? "bg-emerald-50/15" : ""}`}
+                              >
+                                <div className="flex justify-center items-center min-h-[36px]">
+                                  {isUpdating ? (
+                                    <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+                                  ) : (
+                                    <label className={`relative inline-flex items-center ${esUsuarioAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
+                                      <input
+                                        type="checkbox"
+                                        checked={tienePermiso}
+                                        disabled={!esUsuarioAdmin || isUpdating}
+                                        onChange={(e) => handleToggle(r.id, m.codigo, e.target.checked)}
+                                        className="sr-only peer"
+                                      />
+                                      <div className={`w-8 h-4.5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all ${getModuleColorClasses(m.codigo)}`}></div>
+                                    </label>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>

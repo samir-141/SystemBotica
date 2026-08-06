@@ -14,6 +14,9 @@ export interface AuthSucursal {
     empresa: string;
     botica_id?: string;
     es_principal: boolean;
+    botica_ruc?: string;
+    botica_direccion?: string;
+    botica_telefono?: string;
 }
 
 export interface AuthContextValue {

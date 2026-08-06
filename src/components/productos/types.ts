@@ -29,6 +29,7 @@ export interface ProductoFormData {
   precio_actual: number | "";
   codigo_barras: string;
   registro_sanitario: string;
+  es_generico?: boolean;
 }
 
 /* ── Constantes de formulario ─────────────────────────── */

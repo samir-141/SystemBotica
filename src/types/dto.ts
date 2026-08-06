@@ -144,7 +144,7 @@ export interface CreateCompraDetalleDto {
 }
 
 export interface CreateCompraDto {
-  proveedor_id: string;
+  proveedor_id?: string;
   sucursal_id?: string;
   serie: string;
   numero: string;

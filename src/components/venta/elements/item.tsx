@@ -144,11 +144,22 @@ export default function Item({
       `}
         >
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-1 text-[11px] font-medium flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                     {targetItem.laboratorio && (
-                        <span className="text-slate-500 font-semibold truncate max-w-[130px]">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 border border-slate-200/50 px-2 py-0.5 rounded-md">
                             {targetItem.laboratorio}
                         </span>
+                    )}
+                    {targetItem.tipo_producto === "MEDICAMENTO" && (
+                        targetItem.atributos?.es_generico === "true" || targetItem.atributos?.es_generico === true ? (
+                            <span className="text-[10px] uppercase font-black tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                Genérico
+                            </span>
+                        ) : (
+                            <span className="text-[10px] uppercase font-black tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                                Marca
+                            </span>
+                        )
                     )}
                     {requiereReceta && (
                         <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-md text-[10px] font-extrabold border border-red-200">

@@ -85,6 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             empresa: s.empresa || 'Botica Marifarma',
                             botica_id: s.botica_id,
                             es_principal: !!s.es_principal,
+                            botica_ruc: s.botica_ruc || s.boticas?.ruc,
+                            botica_direccion: s.botica_direccion || s.boticas?.direccion,
+                            botica_telefono: s.botica_telefono || s.boticas?.telefono,
                         }));
                         setSucursales(formatted);
                         localStorage.setItem('sucursales', JSON.stringify(formatted));

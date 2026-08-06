@@ -47,6 +47,18 @@ export function buildComprobanteSnapshot(opts: {
   carrito: ItemCarrito[];
   metodoPago: MetodoPago;
   montoRecibido: string;
+  configTributaria?: {
+    ruc: string;
+    razon_social: string;
+    nombre_comercial: string | null;
+    direccion_fiscal: string;
+  } | null;
+  sucursalActual?: {
+    empresa: string;
+    botica_ruc?: string;
+    botica_direccion?: string;
+    botica_telefono?: string;
+  } | null;
 }): ComprobanteData {
   const vuelto = Math.max(
     opts.metodoPago === "EFECTIVO" && opts.montoRecibido
@@ -54,11 +66,28 @@ export function buildComprobanteSnapshot(opts: {
       : 0,
     0,
   );
+
+  // Datos de la empresa desde la configuración tributaria (base de datos) o sesión local
+  const boticaData = opts.configTributaria
+    ? {
+        nombre: opts.configTributaria.nombre_comercial || opts.configTributaria.razon_social,
+        ruc: opts.configTributaria.ruc,
+        direccion: opts.configTributaria.direccion_fiscal,
+        telefono: "",
+      }
+    : (opts.sucursalActual ? {
+        nombre: opts.sucursalActual.empresa,
+        ruc: opts.sucursalActual.botica_ruc || "",
+        direccion: opts.sucursalActual.botica_direccion || "",
+        telefono: opts.sucursalActual.botica_telefono || "",
+      } : undefined);
+
   return {
     id: opts.venta.venta_id,
     tipoComprobante: opts.tipoComprobante,
     serieNumero: opts.venta.comprobante?.serie_numero || opts.venta.venta_id,
     fechaEmision: new Date().toISOString(),
+    botica: boticaData,
     cliente: {
       nombre: opts.datosCliente.nombre_razon_social || "CLIENTE VARIOS",
       tipoDocumento: opts.datosCliente.tipo_documento || "DNI",
@@ -100,8 +129,5 @@ export function estadoComprobanteDe(venta: VentaRegistradaResponse): EstadoCompr
 
 export function enlaceComprobante(url?: string | null, token?: string | null): ReceiptLink | null {
   const target = url || (token ? `/c/${encodeURIComponent(token)}` : null);
-
-  console.log(import.meta.env.VITE_PUBLIC_APP_URL)
-  console.log(target)
   return resolveReceiptLink(target, import.meta.env.VITE_PUBLIC_APP_URL);
 }

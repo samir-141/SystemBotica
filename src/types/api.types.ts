@@ -65,6 +65,8 @@ export interface QueryParamsProductos {
   laboratorio_id?: string;
   categoria_id?: string;
   principio_activo_id?: string;
+  sucursalId?: string;
+  solo_con_stock?: string;
   orden?:
     | "nombre_asc"
     | "nombre_desc"
@@ -150,8 +152,10 @@ export interface PublicReceiptItem {
 export interface PublicReceiptResponse {
   plantilla_version: string;
   snapshot: {
-    emisor?: { razon_social?: string; nombre?: string; ruc?: string; direccion?: string };
-    cliente?: { nombre?: string; documento?: string };
+    venta_id?: string;
+    metodo_pago?: string;
+    emisor?: { razon_social?: string; nombre?: string; ruc?: string; direccion?: string; telefono?: string };
+    cliente?: { nombre?: string; documento?: string; direccion?: string };
     tipo_comprobante: string;
     emitido_at: string;
     items: PublicReceiptItem[];

@@ -36,8 +36,6 @@ async function connectQz(): Promise<Qz> {
   connectionPromise = (async () => {
     qz.api.setVersionPromise(true);
     await qz.websocket.connect();
-    const version = await qz.api.getVersion();
-    console.log(`QZ Tray conectado\nVersión: ${version}`);
     return qz;
   })().finally(() => {
     connectionPromise = null;
@@ -111,7 +109,6 @@ export const qzService = {
       const qz = await this.connectQz();
       const version = await qz.api.getVersion();
       const printers = await this.getPrinters();
-      console.log("Prueba de QZ Tray completada con éxito:", { version, printers });
       return { success: true, version, printers };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);

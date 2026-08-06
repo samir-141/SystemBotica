@@ -68,7 +68,6 @@ export default function RemoteScannerModal({
         sessionCode,
         import.meta.env.VITE_PUBLIC_APP_URL,
       );
-      console.log(scannerLink);
       setUrlEscanner(scannerLink?.url || "");
       setUrlWarning(scannerLink?.warning || null);
 

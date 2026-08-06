@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1785929538.0025444,
-    "ast_hash": "e6e708dc30c39719f5fa48f949075c92",
+    "mtime": 1785987514.0400367,
+    "ast_hash": "c704adb388376134f2b24233cce44a4b",
     "semantic_hash": ""
   },
   "src/__tests__/App.lazy.test.tsx": {
@@ -40,8 +40,8 @@
     "semantic_hash": "b1bcd1ccd2c91b6e9b1de82dcc8f8b43"
   },
   "src/components/admin/AdminPage.tsx": {
-    "mtime": 1785942851.0597844,
-    "ast_hash": "296ce6637193e40995f03ff3f4267352",
+    "mtime": 1785987481.0530043,
+    "ast_hash": "e7675fd44e5ff27a1326b8fce09b06af",
     "semantic_hash": ""
   },
   "src/components/admin/elements/CatalogosAdmin.tsx": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "src/modules/printing/components/PrinterStatus.tsx": {
-    "mtime": 1785927881.9454727,
-    "ast_hash": "60d0d47a1645fa82de7f0e30ba2544c2",
+    "mtime": 1785987495.902265,
+    "ast_hash": "ce97a56c1f8493d6a88e19dcc4cdeff4",
     "semantic_hash": ""
   },
   "src/modules/printing/components/ReceiptPreview.tsx": {

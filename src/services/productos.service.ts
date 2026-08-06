@@ -7,6 +7,14 @@ export const productosService = {
   getProductos: async (
     params?: QueryParamsProductos,
   ): Promise<PaginatedResponse<ProductoPOS>> => {
+    if (params?.sucursalId) {
+      const { sucursalId, ...rest } = params;
+      const { data } = await api.get<PaginatedResponse<ProductoPOS>>(
+        `/productos/sucursal/${sucursalId}`,
+        { params: rest },
+      );
+      return data;
+    }
     const { data } = await api.get<PaginatedResponse<ProductoPOS>>(
       "/productos",
       { params },
@@ -64,10 +72,6 @@ export const productosService = {
     sucursalId: string,
     params?: QueryParamsProductos,
   ): Promise<PaginatedResponse<ProductoPOS>> => {
-    const { data } = await api.get<PaginatedResponse<ProductoPOS>>(
-      `/productos/sucursal/${sucursalId}`,
-      { params },
-    );
-    return data;
+    return productosService.getProductos({ ...params, sucursalId });
   },
 };

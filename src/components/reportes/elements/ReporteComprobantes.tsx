@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { api } from "../../../services/api";
 import {
   Search,
   Receipt,
@@ -54,6 +55,7 @@ type ComprobanteConCliente = ComprobanteData & {
   tieneXml?: boolean;
   tieneCdr?: boolean;
   tienePdf?: boolean;
+  boticaId?: string;
 };
 
 export default function ReporteComprobantes({
@@ -164,6 +166,7 @@ export default function ReporteComprobantes({
         tipoComprobante: tipoComp,
         serieNumero: electronico?.numero ?? `${serie}-${numStr}`,
         fechaEmision: electronico?.fecha_emision ?? v.fecha ?? new Date().toISOString(),
+        boticaId: v.botica_id,
         cliente: {
           nombre: v.cliente_nombre || (tipoComp === "NOTA_VENTA" ? "VENTA GENERAL" : "CLIENTE VARIOS"),
           tipoDocumento: tipoComp === "FACTURA" ? "RUC" : tipoComp === "BOLETA" ? "DNI" : "NINGUNO",
@@ -333,7 +336,15 @@ export default function ReporteComprobantes({
   const totalMonto = comprobantesFiltrados.reduce((acc, c) => acc + c.total, 0);
   const aceptadosSunat = comprobantesFiltrados.filter((c) => c.estadoSunat === "ACEPTADO").length;
 
-  const abrirModal = (c: ComprobanteData, formato: "80mm" | "58mm" | "A4" | "xml") => {
+  const abrirModal = async (c: ComprobanteData, formato: "80mm" | "58mm" | "A4" | "xml") => {
+    if (c.boticaId) {
+      try {
+        const { data } = await api.get(`/boticas/${c.boticaId}`);
+        c = { ...c, botica: data };
+      } catch {
+        // Si falla, usar los datos del comprobante tal cual
+      }
+    }
     setComprobanteSeleccionado(c);
     setFormatoInicialModal(formato);
     setModalOpen(true);

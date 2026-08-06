@@ -48,6 +48,7 @@ export const useProductos = () => {
           buscar: busquedaDebounced || undefined,
           limit: 30,
           orden: "nombre_asc",
+          solo_con_stock: "true",
         });
         const soloConStock = (data.data || []).filter((p) => p.stock_total > 0);
         // Persistir en IndexedDB para funcionamiento offline/cache pesado

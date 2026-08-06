@@ -1,26 +1,26 @@
 # Graph Report - PosFrontend  (2026-08-05)
 
 ## Corpus Check
-- 192 files · ~107,727 words
+- 192 files · ~108,188 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 959 nodes · 1757 edges · 83 communities (46 shown, 37 thin omitted)
+- 958 nodes · 1753 edges · 82 communities (46 shown, 36 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8cb97c55`
+- Built from commit: `1b13d9ed`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- CheckoutModal.tsx
-- inventario.service.ts
+- ReporteComprobantes.tsx
+- api.types.ts
 - useAuth
 - SocketContext.tsx
-- venta.tsx
-- AdminPage.tsx
+- CheckoutModal.tsx
+- react
 - App.tsx
 - ClientesPage.tsx
 - QzApi
@@ -29,7 +29,7 @@
 - compilerOptions
 - productCodes.ts
 - devDependencies
-- plugins
+- ReportesPage.tsx
 - dependencies
 - What You Must Do When Invoked
 - Trabajo actual: generación de SKU y código interno
@@ -62,13 +62,16 @@
 - yarn
 - @zxing/library
 - @zxing/browser
-- api.types.ts
+- dto.ts
+- receipt-format.utils.ts
+- productos.service.ts
 - ProductoForm.tsx
-- DashboardPage.tsx
+- recharts
 - graphify reference: extra exports and benchmark
 - graphify reference: extra exports and benchmark
-- api.ts
-- react
+- ProveedorModal.tsx
+- ProductoPOS
+- zustand
 - graphify reference: query, path, explain
 - graphify reference: query, path, explain
 - graphify reference: add a URL and watch a folder
@@ -87,10 +90,6 @@
 - .claude/skills/graphify/references/extraction-spec.md
 - .opencode/skills/graphify/references/extraction-spec.md
 - Instalador de Impresion POS Marifarma
-- ReabastecerModal.tsx
-- qrcode
-- socket.io-client
-- @tanstack/react-query
 
 ## God Nodes (most connected - your core abstractions)
 1. `react` - 69 edges
@@ -119,35 +118,35 @@
 ## Import Cycles
 - None detected.
 
-## Communities (83 total, 37 thin omitted)
+## Communities (82 total, 36 thin omitted)
 
-### Community 0 - "CheckoutModal.tsx"
-Cohesion: 0.06
-Nodes (46): estadoInicial, FacturacionAdmin(), REGIMENES, ComprobanteData, generarXmlUbl21(), ImpresionComprobanteModal(), Props, ComprobanteConCliente (+38 more)
+### Community 0 - "ReporteComprobantes.tsx"
+Cohesion: 0.09
+Nodes (23): estadoInicial, FacturacionAdmin(), REGIMENES, ComprobanteData, generarXmlUbl21(), ImpresionComprobanteModal(), Props, ComprobanteConCliente (+15 more)
 
-### Community 1 - "inventario.service.ts"
-Cohesion: 0.24
-Nodes (10): CatalogosAdmin(), Props, TIPOS_CATALOGO, CatalogoModal(), Props, Props, CATALOGO_LABELS, inventarioService (+2 more)
+### Community 1 - "api.types.ts"
+Cohesion: 0.19
+Nodes (13): CatalogosAdmin(), Props, TIPOS_CATALOGO, CatalogoModal(), Props, Props, CATALOGO_LABELS, inventarioService (+5 more)
 
 ### Community 2 - "useAuth"
-Cohesion: 0.05
-Nodes (52): Props, SerieDocumento, SeriesDocumentosAdmin(), TIPOS_DOCUMENTO, MarifarmaBrand(), Props, fechaHoy(), Gasto (+44 more)
+Cohesion: 0.07
+Nodes (40): Props, SerieDocumento, SeriesDocumentosAdmin(), TIPOS_DOCUMENTO, MarifarmaBrand(), Props, DashboardPage(), ResumenDashboard (+32 more)
 
 ### Community 3 - "SocketContext.tsx"
 Cohesion: 0.13
 Nodes (17): Usuarioperfil(), UsuarioperfilProps, RealtimeNotifications(), ConnectedUser, RealtimeNotification, SocketContext, SocketContextValue, useSocket() (+9 more)
 
-### Community 4 - "venta.tsx"
-Cohesion: 0.08
-Nodes (41): Props, EstadoCaja, useCaja(), BarraAtajos(), Props, CartSummary(), Props, Item() (+33 more)
+### Community 4 - "CheckoutModal.tsx"
+Cohesion: 0.06
+Nodes (57): useCaja(), BarraAtajos(), Props, CartSummary(), Props, buildComprobanteSnapshot(), buildVentaPayload(), enlaceComprobante() (+49 more)
 
-### Community 5 - "AdminPage.tsx"
-Cohesion: 0.11
-Nodes (16): AdminPage(), AdminTab, ModulosInfo, Props, RutaInfo, MODULOS_SISTEMA, Props, RolesAdmin() (+8 more)
+### Community 5 - "react"
+Cohesion: 0.06
+Nodes (27): plugins, rules, react/only-export-components, react/rules-of-hooks, $schema, oxc, react, typescript (+19 more)
 
 ### Community 6 - "App.tsx"
 Cohesion: 0.07
-Nodes (32): AdminPage, App(), ClientesPage, ComprasPage, ComprobantePublicoPage, DashboardPage, GastosPage, HomePage (+24 more)
+Nodes (31): AdminPage, App(), ClientesPage, ComprasPage, ComprobantePublicoPage, DashboardPage, GastosPage, HomePage (+23 more)
 
 ### Community 7 - "ClientesPage.tsx"
 Cohesion: 0.12
@@ -177,13 +176,13 @@ Nodes (14): abbreviateUnit(), ARTICLES, buildPrefix(), extractRelevantWords(), f
 Cohesion: 0.04
 Nodes (46): @babel/core, babel-plugin-react-compiler, jsdom, oxlint, devDependencies, @babel/core, babel-plugin-react-compiler, jsdom (+38 more)
 
-### Community 14 - "plugins"
-Cohesion: 0.22
-Nodes (8): plugins, rules, react/only-export-components, react/rules-of-hooks, $schema, oxc, typescript, warn
+### Community 14 - "ReportesPage.tsx"
+Cohesion: 0.13
+Nodes (20): fechaHoy(), Gasto, GastosPage(), Tipo, dinero(), Props, ReporteFinanciero(), Props (+12 more)
 
 ### Community 15 - "dependencies"
 Cohesion: 0.22
-Nodes (9): axios, dependencies, axios, recharts, @types/qrcode, zustand, recharts, @types/qrcode (+1 more)
+Nodes (9): axios, dependencies, axios, socket.io-client, @tanstack/react-query, @types/qrcode, socket.io-client, @tanstack/react-query (+1 more)
 
 ### Community 16 - "What You Must Do When Invoked"
 Cohesion: 0.08
@@ -194,28 +193,32 @@ Cohesion: 0.10
 Nodes (20): Archivos modificados, Archivos sensibles o que no deben modificarse sin revisión, Arquitectura relevante, Contexto para agentes, Convenciones de backend, Convenciones de frontend, Decisiones tomadas, Estado inicial encontrado (+12 more)
 
 ### Community 27 - "networkUrls.ts"
-Cohesion: 0.13
-Nodes (23): Props, RemoteScannerModal(), baseProps, mocks, detectarCamara(), detectarImpresoraHeuristica(), EstadoPeriferico, usePerifericosStatus() (+15 more)
+Cohesion: 0.12
+Nodes (25): qrcode, qrcode, Props, RemoteScannerModal(), baseProps, mocks, detectarCamara(), detectarImpresoraHeuristica() (+17 more)
 
 ### Community 35 - "ComprasPage.tsx"
-Cohesion: 0.22
-Nodes (17): calcularTotales(), CompraLineDraft, EstadoLote, estadoLotePorVencimiento(), LoteExistente, lotesConFechaVencimiento(), mensajeCompraError(), nuevaLineaCompra() (+9 more)
+Cohesion: 0.31
+Nodes (13): calcularTotales(), CompraLineDraft, EstadoLote, estadoLotePorVencimiento(), LoteExistente, lotesConFechaVencimiento(), mensajeCompraError(), nuevaLineaCompra() (+5 more)
 
 ### Community 40 - "index.ts"
-Cohesion: 0.05
-Nodes (67): PrinterConfigurationPage(), PrintErrorModal(), PrintErrorModalProps, PrinterStatus(), PrinterStatusProps, ReceiptPreview(), ReceiptPreviewProps, ESC_POS (+59 more)
+Cohesion: 0.06
+Nodes (61): PrinterConfigurationPage(), PrintErrorModal(), PrintErrorModalProps, PrinterStatus(), PrinterStatusProps, ReceiptPreview(), ReceiptPreviewProps, ESC_POS (+53 more)
 
-### Community 49 - "api.types.ts"
+### Community 47 - "dto.ts"
+Cohesion: 0.18
+Nodes (11): api, authService, comprasService, CompraRegistradaDto, CompraResumenDto, LoginResponse, CreateCompraDetalleDto, CreateCompraDto (+3 more)
+
+### Community 48 - "receipt-format.utils.ts"
+Cohesion: 0.46
+Nodes (6): formatDate(), formatMoney(), formatMoneyWithSymbol(), formatQuantity(), padLeft(), padRight()
+
+### Community 49 - "productos.service.ts"
 Cohesion: 0.17
-Nodes (14): MedicamentoAgrupado, Props, SelectMedicamento(), LoteDetalle, PresentacionDetalle, Props, Meta, productosService (+6 more)
+Nodes (10): LoteDetalle, PresentacionDetalle, Props, ProductoIngreso, Props, ReabastecerModal(), Meta, productosService (+2 more)
 
 ### Community 50 - "ProductoForm.tsx"
 Cohesion: 0.18
 Nodes (13): EMPTY_FORM, Props, CATALOGO_TIPOS, CatalogosMap, useCatalogos(), useProductos(), FormMode, ProductoFormData (+5 more)
-
-### Community 51 - "DashboardPage.tsx"
-Cohesion: 0.28
-Nodes (8): DashboardPage(), ResumenDashboard, useDashboard(), calcularMargenBruto(), calcularMarkup(), enmascararDocumento(), esMargenAnomalo(), dashboardService
 
 ### Community 52 - "graphify reference: extra exports and benchmark"
 Cohesion: 0.22
@@ -225,13 +228,13 @@ Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only
 Cohesion: 0.22
 Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag), Step 7d - MCP server (only if --mcp flag), Step 8 - Token reduction benchmark (only if total_words > 5000)
 
-### Community 54 - "api.ts"
-Cohesion: 0.29
-Nodes (7): Props, ProveedorModal(), api, proveedoresService, LoginResponse, ProveedorDto, CreateProveedorDto
+### Community 54 - "ProveedorModal.tsx"
+Cohesion: 0.48
+Nodes (5): Props, ProveedorModal(), proveedoresService, ProveedorDto, CreateProveedorDto
 
-### Community 55 - "react"
-Cohesion: 0.20
-Nodes (6): react, Props, getPageNumber(), ProductoTable(), Props, Props
+### Community 55 - "ProductoPOS"
+Cohesion: 0.28
+Nodes (7): MedicamentoAgrupado, Props, SelectMedicamento(), getPageNumber(), ProductoTable(), Props, ProductoPOS
 
 ### Community 61 - "graphify reference: query, path, explain"
 Cohesion: 0.33
@@ -273,29 +276,25 @@ Nodes (3): Expanding the Oxlint configuration, React Compiler, React + TypeScrip
 Cohesion: 0.33
 Nodes (5): Archivos, Instalacion rapida, Instalador de Impresion POS Marifarma, Requisitos, Solucion de problemas
 
-### Community 81 - "ReabastecerModal.tsx"
-Cohesion: 0.50
-Nodes (3): ProductoIngreso, Props, ReabastecerModal()
-
 ## Knowledge Gaps
-- **338 isolated node(s):** `AdminTab`, `Props`, `MODULOS_SISTEMA`, `Requisitos`, `Instalacion rapida` (+333 more)
+- **337 isolated node(s):** `LoginForm`, `VentaPos`, `ProductosPage`, `Nav`, `HomePage` (+332 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **37 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **36 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `react` to `CheckoutModal.tsx`, `inventario.service.ts`, `useAuth`, `ComprasPage.tsx`, `venta.tsx`, `AdminPage.tsx`, `App.tsx`, `ClientesPage.tsx`, `SocketContext.tsx`, `index.ts`, `plugins`, `api.types.ts`, `ProductoForm.tsx`, `DashboardPage.tsx`, `ReabastecerModal.tsx`, `api.ts`, `networkUrls.ts`?**
-  _High betweenness centrality (0.305) - this node is a cross-community bridge._
-- **Why does `dependencies` connect `dependencies` to `devDependencies`, `add`, `class-variance-authority`, `clsx`, `dotenv`, `@hookform/resolvers`, `idb-keyval`, `lucide-react`, `o`, `qz-tray`, `primeflex`, `primeicons`, `primereact`, `@primeuix/themes`, `react`, `react-dom`, `react-hook-form`, `react-router-dom`, `tailwind-merge`, `tailwindcss`, `@tailwindcss/vite`, `yarn`, `@zxing/library`, `@zxing/browser`, `qrcode`, `socket.io-client`, `@tanstack/react-query`?**
+- **Why does `react` connect `react` to `ReporteComprobantes.tsx`, `api.types.ts`, `useAuth`, `ComprasPage.tsx`, `CheckoutModal.tsx`, `SocketContext.tsx`, `App.tsx`, `ClientesPage.tsx`, `index.ts`, `ReportesPage.tsx`, `productos.service.ts`, `ProductoForm.tsx`, `ProveedorModal.tsx`, `ProductoPOS`, `networkUrls.ts`?**
+  _High betweenness centrality (0.297) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `dependencies` to `devDependencies`, `add`, `class-variance-authority`, `clsx`, `dotenv`, `@hookform/resolvers`, `idb-keyval`, `networkUrls.ts`, `lucide-react`, `o`, `qz-tray`, `primeflex`, `primeicons`, `primereact`, `@primeuix/themes`, `react`, `react-dom`, `react-hook-form`, `react-router-dom`, `tailwind-merge`, `tailwindcss`, `@tailwindcss/vite`, `yarn`, `@zxing/library`, `@zxing/browser`, `recharts`, `zustand`?**
   _High betweenness centrality (0.146) - this node is a cross-community bridge._
-- **Why does `RemoteScannerModal()` connect `networkUrls.ts` to `venta.tsx`, `qrcode`?**
+- **Why does `RemoteScannerModal()` connect `networkUrls.ts` to `CheckoutModal.tsx`?**
   _High betweenness centrality (0.140) - this node is a cross-community bridge._
-- **What connects `AdminTab`, `Props`, `MODULOS_SISTEMA` to the rest of the system?**
-  _338 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `CheckoutModal.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.05913461538461538 - nodes in this community are weakly interconnected._
+- **What connects `LoginForm`, `VentaPos`, `ProductosPage` to the rest of the system?**
+  _337 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `ReporteComprobantes.tsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.09411764705882353 - nodes in this community are weakly interconnected._
 - **Should `useAuth` be split into smaller, more focused modules?**
-  _Cohesion score 0.05290490100616683 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06554019457245264 - nodes in this community are weakly interconnected._
 - **Should `SocketContext.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.12923076923076923 - nodes in this community are weakly interconnected._

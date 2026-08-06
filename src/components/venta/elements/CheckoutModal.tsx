@@ -23,11 +23,9 @@ import {
   AlertTriangle,
   Share2,
   Copy,
-  Settings,
 } from "lucide-react";
 import ImpresionComprobanteModal from "../../reportes/elements/ImpresionComprobanteModal";
 import type { ComprobanteData } from "../../reportes/elements/comprobanteDocument";
-import { printerService, type ReceiptData } from "../../../modules/printing";
 import type {
   ItemCarrito,
   TipoComprobante,
@@ -47,8 +45,7 @@ import {
   estadoComprobanteDe,
   nuevaClaveIdempotencia,
 } from "./checkoutContract";
-import type { ReceiptLink } from "../../../utils/networkUrls";
-import { loadPrinterConfiguration, validatePrinterConfiguration } from "../../../modules/printing";
+import { useAuth } from "../../../hooks/useAuth";
 
 
 type Props = {
@@ -124,6 +121,7 @@ export default function CheckoutModal({
   clientePreseleccionado,
 }: Props) {
   const queryClient = useQueryClient();
+  const { sucursalActual } = useAuth();
   const [paso, setPaso] = useState(0);
   const [tipoComprobante, setTipoComprobante] = useState<TipoComprobante | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
@@ -143,11 +141,9 @@ export default function CheckoutModal({
   const [showImpresionModal, setShowImpresionModal] = useState(false);
   const [formatoSeleccionado, setFormatoSeleccionado] = useState<"80mm" | "58mm" | "A4" | "xml">("80mm");
   const [comprobanteEmitidoSnapshot, setComprobanteEmitidoSnapshot] = useState<ComprobanteData | null>(null);
-  const [comprobanteLink, setComprobanteLink] = useState<ReceiptLink | null>(null);
+  const [comprobanteLink, setComprobanteLink] = useState<any | null>(null);
   const [estadoComprobante, setEstadoComprobante] = useState<EstadoComprobanteVenta | null>(null);
   const [mensajeComprobante, setMensajeComprobante] = useState<string | null>(null);
-  const [imprimiendoDirecto, setImprimiendoDirecto] = useState(false);
-  const [errorImpresion, setErrorImpresion] = useState<string | null>(null);
 
   // Configuración tributaria de la empresa (régimen, ambiente SUNAT)
   const { data: configTributaria } = useQuery({
@@ -295,9 +291,10 @@ export default function CheckoutModal({
       // registrada: si SUNAT falla, el comprobante queda reintentable.
       if (tipoComprobante === "BOLETA" || tipoComprobante === "FACTURA") {
         try {
-          const series = await ventasService.getSeriesDocumentos();
+          const response = await ventasService.getSeriesDocumentos();
+          const seriesList = Array.isArray(response) ? response : (response?.data || []);
           const sucursalActual = localStorage.getItem("sucursalId");
-          const candidatas = (Array.isArray(series) ? series : []).filter(
+          const candidatas = seriesList.filter(
             (s: any) => s.activo && s.tipo_documento === tipoComprobante,
           );
           const serie =
@@ -345,6 +342,8 @@ export default function CheckoutModal({
         carrito,
         metodoPago,
         montoRecibido,
+        configTributaria: configTributaria ?? null,
+        sucursalActual: sucursalActual ?? null,
       });
       setComprobanteEmitidoSnapshot(snapshot);
       idempotencyKeyRef.current = null;
@@ -372,72 +371,7 @@ export default function CheckoutModal({
     }, 200);
   };
 
-  const handleImprimirDirecto = async () => {
-    if (!comprobanteEmitidoSnapshot) return;
 
-    const config = loadPrinterConfiguration();
-    const validation = validatePrinterConfiguration(config);
-    if (!validation.valid) {
-      setErrorImpresion(
-        "No hay impresora configurada. Ve a Admin > Impresión para configurar tu impresora térmica.",
-      );
-      return;
-    }
-
-    setImprimiendoDirecto(true);
-    setErrorImpresion(null);
-
-    try {
-      const receipt: ReceiptData = {
-        company: {
-          commercialName: "BOTICA MARIFARMA",
-          legalName: "BOTICA MARIFARMA SAC",
-          ruc: "20612345678",
-          address: "Av. Javier Prado 1234, San Isidro, Lima",
-          phone: "(01) 456-7890",
-        },
-        document: {
-          type: comprobanteEmitidoSnapshot.tipoComprobante,
-          series: comprobanteEmitidoSnapshot.serieNumero.split("-")[0] || "",
-          number: comprobanteEmitidoSnapshot.serieNumero.split("-")[1] || "",
-          issuedAt: comprobanteEmitidoSnapshot.fechaEmision,
-        },
-        branch: { name: "Sucursal Principal" },
-        customer: {
-          name: comprobanteEmitidoSnapshot.cliente.nombre,
-          documentType: comprobanteEmitidoSnapshot.cliente.tipoDocumento,
-          documentNumber: comprobanteEmitidoSnapshot.cliente.numeroDocumento,
-        },
-        items: comprobanteEmitidoSnapshot.items.map((item, idx) => ({
-          id: String(idx + 1),
-          name: item.descripcion,
-          quantity: item.cantidad,
-          unitPrice: item.precioUnitario,
-          subtotal: item.subtotal,
-        })),
-        totals: {
-          subtotal: comprobanteEmitidoSnapshot.subtotal,
-          igv: comprobanteEmitidoSnapshot.igv,
-          total: comprobanteEmitidoSnapshot.total,
-        },
-        payment: {
-          method: comprobanteEmitidoSnapshot.metodoPago || "EFECTIVO",
-          amountReceived: comprobanteEmitidoSnapshot.montoRecibido,
-          change: comprobanteEmitidoSnapshot.vuelto,
-        },
-      };
-
-      const result = await printerService.printReceipt(receipt);
-
-      if (!result.success) {
-        setErrorImpresion(result.message);
-      }
-    } catch (err) {
-      setErrorImpresion("Error al imprimir. Verifique que QZ Tray esté abierto y la impresora encendida.");
-    } finally {
-      setImprimiendoDirecto(false);
-    }
-  };
 
   const vuelto =
     metodoPago === "EFECTIVO" && montoRecibido
@@ -943,32 +877,6 @@ export default function CheckoutModal({
                       </div>
                     </button>
                   </div>
-
-                  <button
-                    onClick={() => void handleImprimirDirecto()}
-                    disabled={imprimiendoDirecto || !comprobanteEmitidoSnapshot}
-                    className="flex items-center justify-center gap-2 w-full max-w-xl mt-3 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-2xl font-bold text-sm transition-all cursor-pointer shadow-md shadow-emerald-500/20"
-                  >
-                    <Printer className="w-5 h-5" />
-                    {imprimiendoDirecto ? "Imprimiendo..." : "Imprimir Directo (QZ Tray)"}
-                  </button>
-
-                  {errorImpresion && (
-                    <div className="w-full max-w-xl mt-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium space-y-2">
-                      <p>{errorImpresion}</p>
-                      {errorImpresion.includes("No hay impresora configurada") && (
-                        <a
-                          href="/admin/impresion"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-bold hover:bg-teal-700 transition"
-                        >
-                          <Settings className="w-3 h-3" />
-                          Configurar Impresora
-                        </a>
-                      )}
-                    </div>
-                  )}
                   {comprobanteLink && (
                     <div className="flex w-full max-w-xl flex-col items-center gap-2">
                       <div className="flex flex-wrap justify-center gap-2">

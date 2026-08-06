@@ -73,14 +73,12 @@ export function usePerifericosStatus(): EstadoPeriferico {
             setScannerConectado(hasScannerLike || devices.length > 0);
         });
 
-        const onConnect = (e: any) => {
+        const onConnect = (_e: any) => {
             // Un nuevo HID conectado — asumimos que podría ser un escáner
-            console.info("[POS] Dispositivo HID conectado:", e.device?.productName);
             setScannerConectado(true);
         };
 
-        const onDisconnect = (e: any) => {
-            console.info("[POS] Dispositivo HID desconectado:", e.device?.productName);
+        const onDisconnect = (_e: any) => {
             // Re-verificar cuántos quedan
             hid.getDevices().then((devices: any[]) => {
                 setScannerConectado(devices.length > 0);

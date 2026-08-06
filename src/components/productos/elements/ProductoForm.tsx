@@ -61,6 +61,7 @@ const EMPTY_FORM: ProductoFormData = {
   precio_actual: "",
   codigo_barras: "",
   registro_sanitario: "",
+  es_generico: false,
 };
 
 export default function ProductoForm({
@@ -148,6 +149,7 @@ export default function ProductoForm({
         precio_actual: producto.precio_actual,
         codigo_barras: producto.codigo_barras || "",
         registro_sanitario: producto.registro_sanitario || "",
+        es_generico: producto.atributos ? (producto.atributos.es_generico === "true") : false,
       });
     } else {
       setForm(EMPTY_FORM);
@@ -315,6 +317,7 @@ export default function ProductoForm({
           requiere_receta: form.requiere_receta,
           afecto_igv: form.afecto_igv,
           registro_sanitario: form.registro_sanitario || undefined,
+          atributos: { es_generico: String(form.es_generico) },
         } as UpdateProductoDto)
         : ({
           ...form,
@@ -325,6 +328,7 @@ export default function ProductoForm({
           registro_sanitario: form.registro_sanitario.trim() || undefined,
           unidad_base_id: form.presentacion_id,
           cantidad_unidad_base: 1,
+          atributos: { es_generico: String(form.es_generico) },
           ...(form.tipo_producto !== "MEDICAMENTO" ? {
             principio_activo_id: undefined,
             forma_farmaceutica_id: undefined,
@@ -855,19 +859,46 @@ export default function ProductoForm({
               </legend>
 
               {form.tipo_producto === "MEDICAMENTO" && (
-                <button
-                  type="button"
-                  onClick={() => !foundProduct && set("requiere_receta", !form.requiere_receta)}
-                  disabled={foundProduct}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:bg-slate-50 disabled:cursor-not-allowed transition cursor-pointer"
-                >
-                  <span className="text-sm text-slate-700 font-medium">Requiere Receta Médica</span>
-                  {form.requiere_receta ? (
-                    <ToggleRight className={`w-6 h-6 ${foundProduct ? "text-teal-400" : "text-teal-600"}`} />
-                  ) : (
-                    <ToggleLeft className="w-6 h-6 text-slate-300" />
-                  )}
-                </button>
+                <>
+                  <div className="grid grid-cols-2 gap-3 mb-1">
+                    <button
+                      type="button"
+                      onClick={() => set("es_generico", false)}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                        !form.es_generico
+                          ? "border-teal-500 bg-teal-50 text-teal-800 shadow-sm font-black"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      🏷️ Marca / Comercial
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set("es_generico", true)}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                        form.es_generico
+                          ? "border-teal-500 bg-teal-50 text-teal-800 shadow-sm font-black"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      🧪 Genérico (DCI)
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => !foundProduct && set("requiere_receta", !form.requiere_receta)}
+                    disabled={foundProduct}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:bg-slate-50 disabled:cursor-not-allowed transition cursor-pointer"
+                  >
+                    <span className="text-sm text-slate-700 font-medium">Requiere Receta Médica</span>
+                    {form.requiere_receta ? (
+                      <ToggleRight className={`w-6 h-6 ${foundProduct ? "text-teal-400" : "text-teal-600"}`} />
+                    ) : (
+                      <ToggleLeft className="w-6 h-6 text-slate-300" />
+                    )}
+                  </button>
+                </>
               )}
 
               <button

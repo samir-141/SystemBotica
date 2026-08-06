@@ -1,5 +1,8 @@
 // src/components/venta/utils/calculosVenta.ts
 import type { ItemCarrito } from "../types";
+import { formatMoney } from "../../../utils/money";
+
+export { formatMoney };
 
 export interface ResumenTotalesVenta {
   subtotalBruto: number;
@@ -7,11 +10,6 @@ export interface ResumenTotalesVenta {
   montoNetoFinal: number;
   baseImponible: number;
   igvCalculado: number;
-}
-
-export function formatMoney(amount: number, simbolo = "S/"): string {
-  const safeAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
-  return `${simbolo} ${safeAmount.toFixed(2)}`;
 }
 
 export function calcularTotales(

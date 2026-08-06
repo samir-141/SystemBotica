@@ -1,6 +1,6 @@
 // src/App.tsx
 import React, { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { PrimeReactProvider } from "primereact/api";
 import { Toast } from "primereact/toast";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -30,7 +30,6 @@ const RemoteScannerPage = lazy(
   () => import("./pages/escanner/RemoteScannerPage"),
 );
 const GastosPage = lazy(() => import("./components/gastos/GastosPage"));
-const ComprasPage = lazy(() => import("./components/compras/ComprasPage"));
 const ComprobantePublicoPage = lazy(
   () => import("./pages/comprobantes/ComprobantePublicoPage"),
 );
@@ -113,7 +112,7 @@ const AppContent: React.FC = () => {
                 <Route path="/gastos" element={<GastosPage />} />
               </Route>
               <Route element={<RoleRoute roles={[...CAPACIDADES.COMPRAS]} />}>
-                <Route path="/compras" element={<ComprasPage />} />
+                <Route path="/compras" element={<Navigate to="/productos" replace />} />
               </Route>
               <Route
                 element={<RoleRoute roles={[...CAPACIDADES.ADMINISTRACION]} />}
@@ -126,10 +125,6 @@ const AppContent: React.FC = () => {
                 <Route path="/admin/diagnosticos" element={<AdminPage />} />
                 <Route
                   path="/admin/series-documentos"
-                  element={<AdminPage />}
-                />
-                <Route
-                  path="/admin/impresion"
                   element={<AdminPage />}
                 />
               </Route>

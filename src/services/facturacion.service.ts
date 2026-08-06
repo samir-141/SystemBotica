@@ -82,6 +82,13 @@ export const facturacionService = {
     return data;
   },
 
+  obtenerBoticaPerfil: async (): Promise<{ nombre: string; razon_social: string; ruc: string; direccion: string | null; telefono: string | null } | null> => {
+    const { data } = await api.get<{ nombre: string; razon_social: string; ruc: string; direccion: string | null; telefono: string | null } | null>(
+      "/facturacion/configuracion-tributaria/botica"
+    );
+    return data;
+  },
+
   guardarConfiguracion: async (
     payload: GuardarConfiguracionPayload,
   ): Promise<ConfiguracionTributaria> => {

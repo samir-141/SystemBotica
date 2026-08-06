@@ -116,6 +116,17 @@ export default function ProductoTable({
                               💊 Receta
                             </span>
                           )}
+                          {p.tipo_producto === "MEDICAMENTO" && (
+                            p.atributos?.es_generico === "true" ? (
+                              <span className="px-1.5 py-0.5 text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md shrink-0">
+                                🧪 Genérico
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 text-[9px] font-black bg-blue-50 text-blue-700 border border-blue-200 rounded-md shrink-0">
+                                🏷️ Marca
+                              </span>
+                            )
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono mt-0.5">
                           <span>SKU: {p.sku || "N/A"}</span>
@@ -264,7 +275,25 @@ export default function ProductoTable({
       <div className="md:hidden divide-y divide-slate-100">
         {productosAgrupados.map(({ principal: p, presentaciones }) => (
           <div key={p.producto_comercial_id} className="p-3 bg-white space-y-2">
-            <div className="text-xs font-bold text-slate-800">{p.nombre_comercial}</div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="text-xs font-bold text-slate-800">{p.nombre_comercial}</div>
+              {p.requiere_receta && (
+                <span className="px-1.5 py-0.5 text-[9px] font-black bg-rose-50 text-rose-700 border border-rose-200 rounded-md shrink-0">
+                  💊 Receta
+                </span>
+              )}
+              {p.tipo_producto === "MEDICAMENTO" && (
+                p.atributos?.es_generico === "true" ? (
+                  <span className="px-1.5 py-0.5 text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md shrink-0">
+                    🧪 Genérico
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 text-[9px] font-black bg-blue-50 text-blue-700 border border-blue-200 rounded-md shrink-0">
+                    🏷️ Marca
+                  </span>
+                )
+              )}
+            </div>
             <div className="text-[10px] text-slate-500">
               SKU: {p.sku || "N/A"}
             </div>

@@ -303,7 +303,6 @@ export default function ComprasPage() {
 
   const validate = () => {
     if (!sucursalActual?.id) return "Seleccione una sucursal activa.";
-    if (!proveedorId) return "Seleccione un proveedor.";
     if (!serie.trim() || !numero.trim())
       return "Ingrese serie y número del comprobante.";
     const keys = new Set<string>();
@@ -386,7 +385,7 @@ export default function ComprasPage() {
     setSaving(true);
     setNotice(null);
     const payload: CreateCompraDto = {
-      proveedor_id: proveedorId,
+      proveedor_id: proveedorId || undefined,
       sucursal_id: sucursalActual!.id,
       serie: serie.trim().toUpperCase(),
       numero: numero.trim().toUpperCase(),
@@ -482,7 +481,7 @@ export default function ComprasPage() {
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
             <label className="flex-1 text-xs font-bold text-slate-700">
-              Buscar proveedor
+              Buscar proveedor (Opcional)
               <div className="relative mt-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                 <input
@@ -497,7 +496,7 @@ export default function ComprasPage() {
                 onChange={(e) => setProveedorId(e.target.value)}
                 className={`${inputClass} mt-2`}
               >
-                <option value="">— Seleccionar proveedor —</option>
+                <option value="">— Seleccionar proveedor (Opcional) —</option>
                 {proveedores.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.ruc} · {item.razon_social}

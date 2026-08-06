@@ -36,6 +36,8 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
   const [mostrarProductos, setMostrarProductos] = useState(false);
   const [scannerAbierto, setScannerAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [presentacionesCargadas, setPresentacionesCargadas] = useState<Array<{ presentacion_id: string; presentacion_nombre: string; cantidad_unidad_base: number }>>([]);
+  const [productosFiltradosDb, setProductosFiltradosDb] = useState<any[]>([]);
 
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
@@ -58,25 +60,85 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
     if (!open) return;
     setSelectedProdId(producto?.id || ""); setPresentacionId(""); setBuscarProducto("");
     setCantidad(""); setNumeroLote(""); setFechaVencimiento(""); setPrecioCompraPresentacion(""); setLotesExistentes([]); setBuscarLote(""); setMostrarProductos(false); setScannerAbierto(false);
+    setPresentacionesCargadas([]);
+    setProductosFiltradosDb([]);
   }, [open, producto]);
 
+  // Efecto para buscar productos dinámicamente en el backend al escribir
+  useEffect(() => {
+    if (!buscarProducto.trim() || selectedProdId) {
+      setProductosFiltradosDb([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await productosService.getProductos({
+          page: 1,
+          limit: 100,
+          buscar: buscarProducto,
+          orden: "nombre_asc",
+        });
+        setProductosFiltradosDb(res.data || []);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [buscarProducto, selectedProdId]);
+
   const productosUnicos = useMemo(() => {
-    const vistos = new Set<string>(); const texto = buscarProducto.trim().toLowerCase();
-    return productosLista.filter((p) => !vistos.has(p.producto_comercial_id)
+    const vistos = new Set<string>();
+    const texto = buscarProducto.trim().toLowerCase();
+    const combined = [
+      ...productosLista,
+      ...productosFiltradosDb.map((p) => ({
+        producto_comercial_id: p.producto_comercial_id,
+        nombre_comercial: p.nombre_comercial,
+        sku: p.sku,
+        codigo_barras: p.codigo_barras,
+        presentacion_id: p.presentacion_id,
+        presentacion_nombre: p.presentacion_nombre,
+        cantidad_unidad_base: p.cantidad_unidad_base,
+        controla_lote: p.controla_lote,
+        requiere_vencimiento: p.requiere_vencimiento,
+      }))
+    ];
+    return combined.filter((p) => !vistos.has(p.producto_comercial_id)
       && (vistos.add(p.producto_comercial_id), !texto || p.nombre_comercial.toLowerCase().includes(texto)));
-  }, [productosLista, buscarProducto]);
+  }, [productosLista, productosFiltradosDb, buscarProducto]);
+
   const prodId = producto?.id || selectedProdId;
   const esReabastecimientoDeLote = Boolean(producto) && modo !== "nuevo-lote";
 
   const productoEncontrado = useMemo(() => {
     if (producto) return producto;
-    return productosLista.find(p => p.producto_comercial_id === selectedProdId);
-  }, [producto, productosLista, selectedProdId]);
+    const combined = [
+      ...productosLista,
+      ...productosFiltradosDb.map((p) => ({
+        producto_comercial_id: p.producto_comercial_id,
+        nombre_comercial: p.nombre_comercial,
+        sku: p.sku,
+        codigo_barras: p.codigo_barras,
+        presentacion_id: p.presentacion_id,
+        presentacion_nombre: p.presentacion_nombre,
+        cantidad_unidad_base: p.cantidad_unidad_base,
+        controla_lote: p.controla_lote,
+        requiere_vencimiento: p.requiere_vencimiento,
+      }))
+    ];
+    return combined.find(p => p.producto_comercial_id === selectedProdId);
+  }, [producto, productosLista, productosFiltradosDb, selectedProdId]);
 
   const controlaLote = productoEncontrado?.controla_lote ?? false;
   const requiereVencimiento = productoEncontrado?.requiere_vencimiento ?? false;
 
-  const presentaciones = useMemo(() => productosLista.filter(p => p.producto_comercial_id === prodId && p.presentacion_id), [productosLista, prodId]);
+  const presentaciones = useMemo(() => {
+    if (presentacionesCargadas.length > 0) {
+      return presentacionesCargadas;
+    }
+    return productosLista.filter(p => p.producto_comercial_id === prodId && p.presentacion_id);
+  }, [productosLista, prodId, presentacionesCargadas]);
+
   const presentacion = presentaciones.find(p => p.presentacion_id === presentacionId);
   const equivalencia = Number(presentacion?.cantidad_unidad_base || 1);
   const unidadesBase = (Number(cantidad) || 0) * equivalencia;
@@ -85,8 +147,21 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
     if (!open || !prodId) return;
     let activo = true;
     productosService.getProductoDetalle(prodId)
-      .then((detalle: any) => activo && setLotesExistentes(detalle.lotes || []))
-      .catch(() => activo && setLotesExistentes([]));
+      .then((detalle: any) => {
+        if (!activo) return;
+        setLotesExistentes(detalle.lotes || []);
+        const mappedPresentaciones = (detalle.presentaciones || []).map((pres: any) => ({
+          presentacion_id: pres.id,
+          presentacion_nombre: pres.unidad_presentacion?.nombre || "Presentación",
+          cantidad_unidad_base: pres.cantidad_unidad_base || 1,
+        }));
+        setPresentacionesCargadas(mappedPresentaciones);
+      })
+      .catch(() => {
+        if (!activo) return;
+        setLotesExistentes([]);
+        setPresentacionesCargadas([]);
+      });
     return () => { activo = false; };
   }, [open, prodId]);
 
@@ -106,8 +181,20 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
     if (encontrado) return seleccionarProducto(encontrado);
     try {
       const resultado = await productosService.buscarPorIdentificador(codigo);
-      const item = productosLista.find((p) => p.producto_comercial_id === resultado?.producto_comercial_id);
-      if (item) return seleccionarProducto(item);
+      if (resultado) {
+        const item = {
+          producto_comercial_id: resultado.producto_comercial_id,
+          nombre_comercial: resultado.nombre_comercial,
+          sku: resultado.sku,
+          codigo_barras: resultado.codigo_barras,
+          presentacion_id: resultado.presentacion_id,
+          presentacion_nombre: resultado.presentacion_nombre,
+          cantidad_unidad_base: resultado.cantidad_unidad_base,
+          controla_lote: resultado.controla_lote,
+          requiere_vencimiento: resultado.requiere_vencimiento,
+        };
+        return seleccionarProducto(item);
+      }
     } catch { /* el aviso se muestra abajo */ }
     toast.current?.show({ severity: "warn", summary: "Producto no encontrado", detail: "El código no corresponde a un producto disponible para reabastecer.", life: 3500 });
   }, [productosLista, seleccionarProducto]);

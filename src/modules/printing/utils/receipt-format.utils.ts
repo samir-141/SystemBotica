@@ -1,11 +1,10 @@
+import { formatMoneyPlain, formatMoneyWithSymbol } from "../../../utils/money";
+
 export function formatMoney(value: number): string {
-  if (Number.isNaN(value) || !Number.isFinite(value)) return "0.00";
-  return value.toFixed(2);
+  return formatMoneyPlain(value);
 }
 
-export function formatMoneyWithSymbol(value: number): string {
-  return `S/ ${formatMoney(value)}`;
-}
+export { formatMoneyWithSymbol };
 
 export function formatDate(dateString: string): string {
   try {
