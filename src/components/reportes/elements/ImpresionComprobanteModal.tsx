@@ -15,6 +15,7 @@ import {
 import { generarXmlUbl21, type ComprobanteData } from "./comprobanteDocument";
 import { comprobantesService } from "../../../services/comprobantes.service";
 import { apiBaseUrl } from "../../../utils/networkUrls";
+import { api } from "../../../services/api";
 
 interface Props {
   open?: boolean;
@@ -79,6 +80,13 @@ export default function ImpresionComprobanteModal({
         printUrl = printUrl.replace("/api", apiBaseUrl);
       }
 
+      // Fetch the PDF as a Blob using our authenticated client to bypass cross-origin restrictions
+      const response = await api.get(printUrl, {
+        responseType: "blob",
+      });
+      const blob = response.data;
+      const blobUrl = URL.createObjectURL(blob);
+
       // Eliminar iframe previo si existe
       const iframeId = "hidden-pdf-print-iframe";
       let iframe = document.getElementById(iframeId) as HTMLIFrameElement;
@@ -95,14 +103,22 @@ export default function ImpresionComprobanteModal({
       iframe.style.width = "0";
       iframe.style.height = "0";
       iframe.style.border = "none";
-      iframe.src = printUrl;
+      iframe.src = blobUrl;
 
       iframe.onload = () => {
         if (iframe.contentWindow) {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
+          try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          } catch (printErr) {
+            console.error("Error al disparar la impresión desde iframe:", printErr);
+          }
         }
         setImprimiendo(false);
+        // Revoke the object URL after 1 minute to free memory
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 60000);
       };
 
       document.body.appendChild(iframe);

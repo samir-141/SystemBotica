@@ -40,9 +40,9 @@
     "semantic_hash": "b1bcd1ccd2c91b6e9b1de82dcc8f8b43"
   },
   "src/components/admin/AdminPage.tsx": {
-    "mtime": 1785388621.8389125,
-    "ast_hash": "df5f94127e4a2124d0daefcdb1d116bb",
-    "semantic_hash": "df5f94127e4a2124d0daefcdb1d116bb"
+    "mtime": 1785942851.0597844,
+    "ast_hash": "296ce6637193e40995f03ff3f4267352",
+    "semantic_hash": ""
   },
   "src/components/admin/elements/CatalogosAdmin.tsx": {
     "mtime": 1785812566.050054,
@@ -60,9 +60,9 @@
     "semantic_hash": "9785fb140e1ba46607f38dc89b967700"
   },
   "src/components/admin/elements/RolesAdmin.tsx": {
-    "mtime": 1785387356.0636544,
-    "ast_hash": "0b9fc08eb34ddb6183ef2536e40c3cb1",
-    "semantic_hash": "0b9fc08eb34ddb6183ef2536e40c3cb1"
+    "mtime": 1785942797.1497576,
+    "ast_hash": "beb2e7b7d07532a64bc76198346e1e43",
+    "semantic_hash": ""
   },
   "src/components/admin/elements/SeriesDocumentosAdmin.tsx": {
     "mtime": 1785812566.0532448,
@@ -80,9 +80,9 @@
     "semantic_hash": "74343ca8e864576608aecb1523da4ee8"
   },
   "src/components/admin/hooks/useAdmin.ts": {
-    "mtime": 1785812566.0539317,
-    "ast_hash": "ca69c189ce0694c979fc48b956ab961a",
-    "semantic_hash": "ca69c189ce0694c979fc48b956ab961a"
+    "mtime": 1785942753.8788147,
+    "ast_hash": "cfa6e8c17d18d9fad19210270965bad9",
+    "semantic_hash": ""
   },
   "src/components/brand/MarifarmaBrand.tsx": {
     "mtime": 1785468897.4425411,
@@ -555,9 +555,9 @@
     "semantic_hash": "3d159b40569a5c07f3011aab96eb32f8"
   },
   "src/services/auth.service.ts": {
-    "mtime": 1785783860.701291,
-    "ast_hash": "cee0daed9e5c3d9abed9a3dbdfc412c0",
-    "semantic_hash": "cee0daed9e5c3d9abed9a3dbdfc412c0"
+    "mtime": 1785942743.5166788,
+    "ast_hash": "b9cc5243ebcce99875dfe7c8c5fb07dc",
+    "semantic_hash": ""
   },
   "src/services/cajas.service.ts": {
     "mtime": 1785783632.6575415,
