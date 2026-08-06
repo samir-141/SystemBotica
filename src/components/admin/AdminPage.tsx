@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, Users, Shield, Store, Sparkles, Package, FileText, Stethoscope, Hash } from "lucide-react";
+import { Settings, Users, Shield, Store, Sparkles, Package, FileText, Stethoscope, Hash, Printer } from "lucide-react";
 import { useAdmin } from "./hooks/useAdmin";
 import { useAuth } from "../../hooks/useAuth";
 import UsuariosAdmin from "./elements/UsuariosAdmin";
@@ -10,8 +10,9 @@ import CatalogosAdmin from "./elements/CatalogosAdmin";
 import FacturacionAdmin from "./elements/FacturacionAdmin";
 import DiagnosticosAdmin from "./elements/DiagnosticosAdmin";
 import SeriesDocumentosAdmin from "./elements/SeriesDocumentosAdmin";
+import { PrinterConfigurationPage } from "../../modules/printing";
 
-type AdminTab = "usuarios" | "roles" | "sucursales" | "catalogos" | "facturacion" | "diagnosticos" | "series-documentos";
+type AdminTab = "usuarios" | "roles" | "sucursales" | "catalogos" | "facturacion" | "diagnosticos" | "series-documentos" | "impresion";
 
 export default function AdminPage() {
   const location = useLocation();
@@ -25,6 +26,7 @@ export default function AdminPage() {
     if (location.pathname.includes("facturacion")) return "facturacion";
     if (location.pathname.includes("diagnosticos")) return "diagnosticos";
     if (location.pathname.includes("series-documentos")) return "series-documentos";
+    if (location.pathname.includes("impresion")) return "impresion";
     return "usuarios";
   };
 
@@ -57,6 +59,7 @@ export default function AdminPage() {
       facturacion: "/admin/facturacion",
       diagnosticos: "/admin/diagnosticos",
       "series-documentos": "/admin/series-documentos",
+      impresion: "/admin/impresion",
     };
     navigate(paths[tab]);
   };
@@ -163,6 +166,16 @@ export default function AdminPage() {
             <Hash className="w-4 h-4" />
             <span className="hidden sm:inline">Series</span>
           </button>
+          <button
+            onClick={() => handleTabChange("impresion")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "impresion"
+                ? "bg-white text-purple-700 shadow-sm font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+              }`}
+          >
+            <Printer className="w-4 h-4" />
+            <span className="hidden sm:inline">Impresión</span>
+          </button>
         </div>
       </div>
 
@@ -220,6 +233,10 @@ export default function AdminPage() {
 
       {activeTab === "series-documentos" && (
         <SeriesDocumentosAdmin sucursales={sucursales} />
+      )}
+
+      {activeTab === "impresion" && (
+        <PrinterConfigurationPage />
       )}
     </div>
   );
