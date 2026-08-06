@@ -41,6 +41,9 @@ export default function AdminPage() {
     eliminarUsuario,
     crearSucursal,
     actualizarRolPermisos,
+    crearRol,
+    actualizarRol,
+    eliminarRol,
     refetch,
   } = useAdmin();
 
@@ -188,6 +191,9 @@ export default function AdminPage() {
         <RolesAdmin
           roles={roles}
           onUpdatePermisos={actualizarRolPermisos}
+          onCrearRol={crearRol}
+          onActualizarRol={actualizarRol}
+          onEliminarRol={eliminarRol}
         />
       )}
 

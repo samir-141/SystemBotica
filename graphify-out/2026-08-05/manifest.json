@@ -250,9 +250,9 @@
     "semantic_hash": "89f1585ae9cf901007c73a22053c8d05"
   },
   "src/components/productos/ProductosPage.tsx": {
-    "mtime": 1785812566.0655131,
-    "ast_hash": "52541a96fa0f576dc4af70ec09c4ca2e",
-    "semantic_hash": "52541a96fa0f576dc4af70ec09c4ca2e"
+    "mtime": 1785905917.4402168,
+    "ast_hash": "a1796288eed74ae13f65751d9e2f04c5",
+    "semantic_hash": ""
   },
   "src/components/productos/elements/CatalogoModal.tsx": {
     "mtime": 1785812566.0680518,
@@ -270,9 +270,9 @@
     "semantic_hash": "f213252eafc292b77775823f2f15e721"
   },
   "src/components/productos/elements/ProductoForm.tsx": {
-    "mtime": 1785829658.136838,
-    "ast_hash": "664c390d48a7039ef7687da9dae6f403",
-    "semantic_hash": "664c390d48a7039ef7687da9dae6f403"
+    "mtime": 1785905954.658536,
+    "ast_hash": "85268ff4e16f7c0a35c022531fa23bd7",
+    "semantic_hash": ""
   },
   "src/components/productos/elements/ProductoTable.tsx": {
     "mtime": 1785812566.0733018,
@@ -280,9 +280,9 @@
     "semantic_hash": "309a875543d5fc15f961f73e485e196a"
   },
   "src/components/productos/elements/ReabastecerModal.tsx": {
-    "mtime": 1785812566.0742323,
-    "ast_hash": "9b7c4aecc1ab4737dd1a7590de287ecb",
-    "semantic_hash": "9b7c4aecc1ab4737dd1a7590de287ecb"
+    "mtime": 1785905968.9100308,
+    "ast_hash": "403a08066b00eeb9807d9888de9dc433",
+    "semantic_hash": ""
   },
   "src/components/productos/elements/__tests__/ReabastecerModal.test.tsx": {
     "mtime": 1785562087.2451499,
@@ -882,6 +882,41 @@
   "src/modules/printing/services/receipt-builder.service.ts": {
     "mtime": 1785905715.6802652,
     "ast_hash": "7457ba0209aefec7a7ca9210616a28ed",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/constants/escpos.constants.ts": {
+    "mtime": 1785905928.5488005,
+    "ast_hash": "1a1458ec49d69871bd41bc637077213c",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/constants/paper.constants.ts": {
+    "mtime": 1785905936.9799972,
+    "ast_hash": "32e76f8292b39f1242f68f96828744ab",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/types/printer.types.ts": {
+    "mtime": 1785905855.1390812,
+    "ast_hash": "ede6259001991225371f436b2889592b",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/types/qz.types.ts": {
+    "mtime": 1785905915.93512,
+    "ast_hash": "3788a095c7ef838208040025ffa55b34",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/types/receipt.types.ts": {
+    "mtime": 1785905897.9087417,
+    "ast_hash": "b94e6109830f4e94b6ccdfaaafb6f062",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/receipt-format.utils.ts": {
+    "mtime": 1785906037.3467295,
+    "ast_hash": "c5f7eb485eea9c9220b609ad9fcefd1b",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/text-align.utils.ts": {
+    "mtime": 1785905991.6173413,
+    "ast_hash": "0b8b7945eccfaa7cc2f17f72e4f29fe6",
     "semantic_hash": ""
   }
 }

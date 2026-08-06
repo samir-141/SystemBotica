@@ -90,6 +90,21 @@ export function useAdmin() {
     await fetchAll();
   };
 
+  const crearRol = async (nombre: string) => {
+    await authService.crearRol(nombre);
+    await fetchAll();
+  };
+
+  const actualizarRol = async (id: string, nombre: string) => {
+    await authService.actualizarRol(id, nombre);
+    await fetchAll();
+  };
+
+  const eliminarRol = async (id: string) => {
+    await authService.eliminarRol(id);
+    await fetchAll();
+  };
+
   return {
     usuarios,
     roles,
@@ -101,6 +116,9 @@ export function useAdmin() {
     eliminarUsuario,
     crearSucursal,
     actualizarRolPermisos,
+    crearRol,
+    actualizarRol,
+    eliminarRol,
     refetch: fetchAll,
   };
 }

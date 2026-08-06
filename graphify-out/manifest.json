@@ -30,9 +30,9 @@
     "semantic_hash": ""
   },
   "src/App.tsx": {
-    "mtime": 1785812566.048998,
-    "ast_hash": "5ec9bda5c9b8e9155b8981f86eae52f6",
-    "semantic_hash": "5ec9bda5c9b8e9155b8981f86eae52f6"
+    "mtime": 1785929538.0025444,
+    "ast_hash": "e6e708dc30c39719f5fa48f949075c92",
+    "semantic_hash": ""
   },
   "src/__tests__/App.lazy.test.tsx": {
     "mtime": 1785566612.5767107,
@@ -250,8 +250,8 @@
     "semantic_hash": "89f1585ae9cf901007c73a22053c8d05"
   },
   "src/components/productos/ProductosPage.tsx": {
-    "mtime": 1785905917.4402168,
-    "ast_hash": "a1796288eed74ae13f65751d9e2f04c5",
+    "mtime": 1785906582.4429812,
+    "ast_hash": "42661f2248b4c281d77609cc9d6a43f6",
     "semantic_hash": ""
   },
   "src/components/productos/elements/CatalogoModal.tsx": {
@@ -280,8 +280,8 @@
     "semantic_hash": "309a875543d5fc15f961f73e485e196a"
   },
   "src/components/productos/elements/ReabastecerModal.tsx": {
-    "mtime": 1785905968.9100308,
-    "ast_hash": "403a08066b00eeb9807d9888de9dc433",
+    "mtime": 1785906593.3421855,
+    "ast_hash": "8f236dc7d2fe060cae8c2587b7e653ae",
     "semantic_hash": ""
   },
   "src/components/productos/elements/__tests__/ReabastecerModal.test.tsx": {
@@ -365,9 +365,9 @@
     "semantic_hash": "05cc88665db43b6376b1e1a63100d915"
   },
   "src/components/venta/elements/CheckoutModal.tsx": {
-    "mtime": 1785823662.8313608,
-    "ast_hash": "7241157dc848e08af3b1292261673169",
-    "semantic_hash": "7241157dc848e08af3b1292261673169"
+    "mtime": 1785929590.4621098,
+    "ast_hash": "91670ef8ee70cdb116d6e4085c9706d5",
+    "semantic_hash": ""
   },
   "src/components/venta/elements/ClienteSelectorModal.tsx": {
     "mtime": 1785812566.0901384,
@@ -685,7 +685,7 @@
     "semantic_hash": "bc06f244b88f22b8f017a9285c6e74c5"
   },
   "src/vite-env.d.ts": {
-    "mtime": 1785386889.9791424,
+    "mtime": 1785932859.8791406,
     "ast_hash": "11ecfcbd6f7344db8ce9e9ae76e70a6c",
     "semantic_hash": "11ecfcbd6f7344db8ce9e9ae76e70a6c"
   },
@@ -865,18 +865,18 @@
     "semantic_hash": ""
   },
   "src/modules/printing/services/printer-config.service.ts": {
-    "mtime": 1785905700.2464113,
-    "ast_hash": "5a3dd78ff5fe4f89b97a450a91a3927d",
+    "mtime": 1785927620.8305607,
+    "ast_hash": "c79d82dfca80e36b243e185856c30df2",
     "semantic_hash": ""
   },
   "src/modules/printing/services/printer.service.ts": {
-    "mtime": 1785905743.1459801,
-    "ast_hash": "dbeef9d5ce7d86c3056eeb7bc7b650ed",
+    "mtime": 1785927644.4259276,
+    "ast_hash": "a924fba80d2f36b3bf42b301df86f81c",
     "semantic_hash": ""
   },
   "src/modules/printing/services/qz.service.ts": {
-    "mtime": 1785905696.235655,
-    "ast_hash": "800b170863d480fa20f09e47d59f25b3",
+    "mtime": 1785932869.6920695,
+    "ast_hash": "8cdf402a705a210db2496c8f23ec19ac",
     "semantic_hash": ""
   },
   "src/modules/printing/services/receipt-builder.service.ts": {
@@ -890,8 +890,8 @@
     "semantic_hash": ""
   },
   "src/modules/printing/constants/paper.constants.ts": {
-    "mtime": 1785905936.9799972,
-    "ast_hash": "32e76f8292b39f1242f68f96828744ab",
+    "mtime": 1785927612.461467,
+    "ast_hash": "e35019fea03f4c9a0ac95a9052c88637",
     "semantic_hash": ""
   },
   "src/modules/printing/types/printer.types.ts": {
@@ -917,6 +917,86 @@
   "src/modules/printing/utils/text-align.utils.ts": {
     "mtime": 1785905991.6173413,
     "ast_hash": "0b8b7945eccfaa7cc2f17f72e4f29fe6",
+    "semantic_hash": ""
+  },
+  "deployment/windows/qz-tray/install-qz-tray.ps1": {
+    "mtime": 1785906401.766672,
+    "ast_hash": "68738a95b7f6af3106c2d5c27214b9ef",
+    "semantic_hash": ""
+  },
+  "deployment/windows/qz-tray/uninstall-qz-tray.ps1": {
+    "mtime": 1785906409.2832687,
+    "ast_hash": "597ce0c6316ef4cfd6640f476800b5c0",
+    "semantic_hash": ""
+  },
+  "deployment/windows/qz-tray/verify-qz-tray.ps1": {
+    "mtime": 1785906404.9150496,
+    "ast_hash": "2971787a126aa39011b9eb06808d68f8",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/components/PrintErrorModal.tsx": {
+    "mtime": 1785906414.2623367,
+    "ast_hash": "34f486a5bec83e70ef63451d19581fc7",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/components/PrinterConfiguration.tsx": {
+    "mtime": 1785927628.985295,
+    "ast_hash": "9fade5c4165743cb603d7b504c311219",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/components/PrinterStatus.tsx": {
+    "mtime": 1785927881.9454727,
+    "ast_hash": "60d0d47a1645fa82de7f0e30ba2544c2",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/components/ReceiptPreview.tsx": {
+    "mtime": 1785927633.336462,
+    "ast_hash": "a7695a972bb526aa7b4a234634b72984",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/index.ts": {
+    "mtime": 1785906416.8907807,
+    "ast_hash": "d79027a01d30577e6c3b2722d8663e37",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/__tests__/printer-config.service.test.ts": {
+    "mtime": 1785927747.9546301,
+    "ast_hash": "7769535e39a4aa57eebb05904d8f3edb",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/__tests__/printer-errors.utils.test.ts": {
+    "mtime": 1785927834.741305,
+    "ast_hash": "4bcc003cf5d0b1d79d12e4f08c2cae87",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/__tests__/receipt-builder.service.test.ts": {
+    "mtime": 1785927823.710539,
+    "ast_hash": "0b42d367fb488b8ab3f7dfd1620bf304",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/__tests__/receipt-format.utils.test.ts": {
+    "mtime": 1785927672.8229105,
+    "ast_hash": "bbbb1e5e052b1ea82abaae5a1c8fb2ef",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/__tests__/text-align.utils.test.ts": {
+    "mtime": 1785927858.8609085,
+    "ast_hash": "849df703847b415d23617b767c73fa81",
+    "semantic_hash": ""
+  },
+  "src/modules/printing/utils/printer-errors.utils.ts": {
+    "mtime": 1785906102.2916753,
+    "ast_hash": "9232b4e60e50ff8b5c51f6526f5d7d5c",
+    "semantic_hash": ""
+  },
+  "src/types/qz-tray.d.ts": {
+    "mtime": 1785932891.2156231,
+    "ast_hash": "c15e1e1d2f77f427c9956ef5926540ef",
+    "semantic_hash": ""
+  },
+  "deployment/windows/qz-tray/README.md": {
+    "mtime": 1785906417.1135902,
+    "ast_hash": "4c328be40eb766d4fac52412cb00217d",
     "semantic_hash": ""
   }
 }

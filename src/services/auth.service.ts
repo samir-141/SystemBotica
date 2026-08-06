@@ -59,4 +59,19 @@ export const authService = {
     const { data } = await api.post("/usuarios/sucursales", payload);
     return data;
   },
+
+  crearRol: async (nombre: string): Promise<any> => {
+    const { data } = await api.post("/usuarios/roles", { nombre });
+    return data;
+  },
+
+  actualizarRol: async (id: string, nombre: string): Promise<any> => {
+    const { data } = await api.patch(`/usuarios/roles/${id}`, { nombre });
+    return data;
+  },
+
+  eliminarRol: async (id: string): Promise<any> => {
+    const { data } = await api.delete(`/usuarios/roles/${id}`);
+    return data;
+  },
 };
