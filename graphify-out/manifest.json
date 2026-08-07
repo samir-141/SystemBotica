@@ -465,8 +465,8 @@
     "semantic_hash": "db5bb7cba58d407fa6eab2d1ef633db8"
   },
   "src/contexts/AuthContext.tsx": {
-    "mtime": 1785997027.6948564,
-    "ast_hash": "ebe27feae551fee998ef88515eab3af6",
+    "mtime": 1786066387.2466104,
+    "ast_hash": "cef2938eed8a404eaa99612081b2e1f5",
     "semantic_hash": ""
   },
   "src/contexts/SocketContext.tsx": {
