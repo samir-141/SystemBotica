@@ -131,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Redirigir al dashboard
             window.location.href = '/';
         } catch (error: any) {
-            throw new Error(error.response?.data?.message || 'Error al iniciar sesión');
+            throw new Error(error.message || 'Error al iniciar sesión');
         }
     };
 
