@@ -45,7 +45,8 @@ import {
   estadoComprobanteDe,
   nuevaClaveIdempotencia,
 } from "./checkoutContract";
-import { useAuth } from "../../../hooks/useAuth";
+import { useContext } from "react";
+import { AuthContext } from "../../../contexts/auth-context";
 
 
 type Props = {
@@ -121,7 +122,8 @@ export default function CheckoutModal({
   clientePreseleccionado,
 }: Props) {
   const queryClient = useQueryClient();
-  const { sucursalActual } = useAuth();
+  const authContext = useContext(AuthContext);
+  const sucursalActual = authContext?.sucursalActual ?? null;
   const [paso, setPaso] = useState(0);
   const [tipoComprobante, setTipoComprobante] = useState<TipoComprobante | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
@@ -289,6 +291,7 @@ export default function CheckoutModal({
 
       // Emisión electrónica SUNAT (boleta/factura). La venta ya quedó
       // registrada: si SUNAT falla, el comprobante queda reintentable.
+      let ventaParaSnapshot = { ...ventaRegistrada };
       if (tipoComprobante === "BOLETA" || tipoComprobante === "FACTURA") {
         try {
           const response = await ventasService.getSeriesDocumentos();
@@ -311,6 +314,16 @@ export default function CheckoutModal({
               tipoComprobante: tipoComprobante === "FACTURA" ? "01" : "03",
               serieId: serie.id,
             });
+            if (emitido?.numero) {
+              ventaParaSnapshot = {
+                ...ventaParaSnapshot,
+                numero_comprobante: emitido.numero,
+                comprobante: {
+                  ...(ventaParaSnapshot.comprobante || {}),
+                  serie_numero: emitido.numero,
+                },
+              };
+            }
             estado = emitido.estado.startsWith("ACEPTADO") ? "GENERADO" : "ERROR";
             mensaje = emitido.mensaje_respuesta
               || (emitido.estado.startsWith("ACEPTADO")
@@ -336,7 +349,7 @@ export default function CheckoutModal({
       await queryClient.invalidateQueries({ queryKey: ["productos"] });
 
       const snapshot = buildComprobanteSnapshot({
-        venta: ventaRegistrada,
+        venta: ventaParaSnapshot,
         tipoComprobante,
         datosCliente,
         carrito,

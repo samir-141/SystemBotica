@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, Users, Shield, Store, Sparkles, Package, FileText, Stethoscope, Hash } from "lucide-react";
+import { Settings, Users, Shield, Store, Sparkles, Package, FileText, Stethoscope, Hash, Printer } from "lucide-react";
 import { useAdmin } from "./hooks/useAdmin";
 import { useAuth } from "../../hooks/useAuth";
 import UsuariosAdmin from "./elements/UsuariosAdmin";
@@ -10,8 +10,9 @@ import CatalogosAdmin from "./elements/CatalogosAdmin";
 import FacturacionAdmin from "./elements/FacturacionAdmin";
 import DiagnosticosAdmin from "./elements/DiagnosticosAdmin";
 import SeriesDocumentosAdmin from "./elements/SeriesDocumentosAdmin";
+import DisenadorTicketsAdmin from "./elements/DisenadorTicketsAdmin";
 
-type AdminTab = "usuarios" | "roles" | "sucursales" | "catalogos" | "facturacion" | "diagnosticos" | "series-documentos";
+type AdminTab = "usuarios" | "roles" | "sucursales" | "catalogos" | "facturacion" | "tickets" | "diagnosticos" | "series-documentos";
 
 export default function AdminPage() {
   const location = useLocation();
@@ -23,6 +24,7 @@ export default function AdminPage() {
     if (location.pathname.includes("sucursales")) return "sucursales";
     if (location.pathname.includes("catalogos")) return "catalogos";
     if (location.pathname.includes("facturacion")) return "facturacion";
+    if (location.pathname.includes("tickets")) return "tickets";
     if (location.pathname.includes("diagnosticos")) return "diagnosticos";
     if (location.pathname.includes("series-documentos")) return "series-documentos";
     return "usuarios";
@@ -55,6 +57,7 @@ export default function AdminPage() {
       sucursales: "/admin/sucursales",
       catalogos: "/admin/catalogos",
       facturacion: "/admin/facturacion",
+      tickets: "/admin/tickets",
       diagnosticos: "/admin/diagnosticos",
       "series-documentos": "/admin/series-documentos",
     };
@@ -144,6 +147,16 @@ export default function AdminPage() {
             <span className="hidden sm:inline">Facturación</span>
           </button>
           <button
+            onClick={() => handleTabChange("tickets")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "tickets"
+                ? "bg-white text-purple-700 shadow-sm font-extrabold"
+                : "text-slate-600 hover:text-slate-900"
+              }`}
+          >
+            <Printer className="w-4 h-4" />
+            <span className="hidden sm:inline">Diseño Tickets</span>
+          </button>
+          <button
             onClick={() => handleTabChange("diagnosticos")}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === "diagnosticos"
                 ? "bg-white text-purple-700 shadow-sm font-extrabold"
@@ -212,6 +225,10 @@ export default function AdminPage() {
 
       {activeTab === "facturacion" && (
         <FacturacionAdmin />
+      )}
+
+      {activeTab === "tickets" && (
+        <DisenadorTicketsAdmin />
       )}
 
       {activeTab === "diagnosticos" && (

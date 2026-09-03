@@ -107,6 +107,7 @@ export interface VentaRegistradaResponse {
   igv: number;
   total: number;
   tipo_comprobante: string;
+  numero_comprobante?: string | null;
   metodo_pago: string;
   comprobante_token?: string | null;
   comprobante_url?: string | null;

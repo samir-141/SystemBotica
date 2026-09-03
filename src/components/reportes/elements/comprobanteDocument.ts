@@ -26,6 +26,9 @@ export interface ComprobanteData {
   subtotal: number;
   igv: number;
   total: number;
+  descuento?: number;
+  cajero?: string;
+  qrCodeUrl?: string;
   metodoPago?: string;
   montoRecibido?: number;
   vuelto?: number;

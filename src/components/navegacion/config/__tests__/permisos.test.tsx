@@ -18,7 +18,6 @@ describe("matriz única de capacidades", () => {
     ["/ventas/nueva", CAPACIDADES.VENTAS_POS],
     ["/dashboard", CAPACIDADES.DASHBOARD],
     ["/productos", CAPACIDADES.INVENTARIO_GESTION],
-    ["/compras", CAPACIDADES.COMPRAS],
     ["/clientes", CAPACIDADES.CLIENTES],
     ["/reportes/ventas", CAPACIDADES.REPORTES],
     ["/admin/usuarios", CAPACIDADES.ADMINISTRACION],

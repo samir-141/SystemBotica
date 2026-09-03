@@ -1,4 +1,3 @@
-// src/components/venta/elements/CartSummary.tsx
 import {
   ShoppingCart,
   X,
@@ -12,6 +11,7 @@ import {
   UserCheck,
   Zap,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import type { ItemCarrito } from "../types";
 import { useState, type Dispatch, type SetStateAction } from "react";
@@ -38,6 +38,9 @@ type Props = {
   setIncluyeIGV: (v: boolean) => void;
   clienteSeleccionado?: { nombre: string; tipo_documento: string; numero_documento: string } | null;
   onAbrirClienteModal?: () => void;
+  recetaActual?: string | null;
+  onAbrirRecetaModal?: () => void;
+  onQuitarReceta?: () => void;
 };
 
 export default function CartSummary({
@@ -57,6 +60,9 @@ export default function CartSummary({
   setIncluyeIGV,
   clienteSeleccionado,
   onAbrirClienteModal,
+  recetaActual,
+  onAbrirRecetaModal,
+  onQuitarReceta,
 }: Props) {
   const [showCheckout, setShowCheckout] = useState(false);
 
@@ -109,6 +115,52 @@ export default function CartSummary({
           >
             Cambiar
           </button>
+        </div>
+
+        {/* Receta Médica de la Venta */}
+        <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 shrink-0 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <FileText className={`w-3.5 h-3.5 shrink-0 ${recetaActual ? "text-red-600" : "text-slate-400"}`} />
+            <div className="truncate text-xs">
+              {recetaActual ? (
+                <span className="font-bold text-red-950 truncate block text-[11px]">
+                  Receta: <span className="font-mono text-red-700 font-black">{recetaActual}</span>
+                </span>
+              ) : (
+                <span className="text-slate-500 text-[11px] block">
+                  Sin receta asignada
+                </span>
+              )}
+            </div>
+          </div>
+          {recetaActual ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={onAbrirRecetaModal}
+                className="px-2 py-0.5 text-[10px] font-bold bg-white text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-md shadow-2xs transition cursor-pointer"
+                title="Editar número de receta"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={onQuitarReceta}
+                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition cursor-pointer"
+                title="Quitar receta activa de esta venta"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onAbrirRecetaModal}
+              className="px-2 py-0.5 text-[10px] font-bold text-red-700 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition cursor-pointer flex items-center gap-1"
+            >
+              + Asignar Receta
+            </button>
+          )}
         </div>
 
         <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 shrink-0">
@@ -262,6 +314,7 @@ export default function CartSummary({
         clientePreseleccionado={clienteSeleccionado}
         onVentaExitosa={async () => {
           setCarrito([]);
+          onQuitarReceta?.();
           setShowCartMobile(false);
           await limpiarCarritoStorage();
         }}

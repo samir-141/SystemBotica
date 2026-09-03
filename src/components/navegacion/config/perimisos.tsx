@@ -178,7 +178,7 @@ export const MENU_ITEMS: MenuItem[] = [
     labelCorto: "Productos",
     icon: Package,
     path: "/productos",
-    rolesPermitidos: [...new Set([...CAPACIDADES.INVENTARIO_GESTION, ...CAPACIDADES.COMPRAS])],
+    rolesPermitidos: [...CAPACIDADES.INVENTARIO_GESTION],
   },
   {
     label: "Clientes",

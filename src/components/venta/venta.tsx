@@ -21,7 +21,7 @@ import { useCaja } from "../caja/hooks/useCaja";
 import AperturaCajaModal from "../caja/elements/AperturaCajaModal";
 import CierreCajaModal from "../caja/elements/CierreCajaModal";
 import { Lock, Camera, Trash2, Plus, Minus, CreditCard, ArrowLeft, ShoppingBag } from "lucide-react";
-import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
+import { useCameraBarcodeScanner } from "../../hooks/useCameraBarcodeScanner";
 
 
 export default function VentaPos() {
@@ -57,8 +57,6 @@ export default function VentaPos() {
     const [showClienteModal, setShowClienteModal] = useState(false);
     const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
     const [localCameraOpen, setLocalCameraOpen] = useState(false);
-    const videoLocalRef = useRef<HTMLVideoElement | null>(null);
-    const cooldownRef = useRef(false);
 
     // Módulo de Cajas
     const { estadoCaja, aperturarCaja, cerrarCaja } = useCaja();
@@ -66,6 +64,7 @@ export default function VentaPos() {
     const [showCierreModal, setShowCierreModal] = useState(false);
 
     const [recetaModalOpen, setRecetaModalOpen] = useState(false);
+    const [recetaVentaActual, setRecetaVentaActual] = useState<string | null>(null);
     const [productoParaReceta, setProductoParaReceta] = useState<{ producto: any; presentacionSel: any } | null>(null);
     const [ultimoCodigoRemoto, setUltimoCodigoRemoto] = useState<string | null>(null);
 
@@ -78,12 +77,19 @@ export default function VentaPos() {
 
     useSocketInvalidation();
 
-    const handleSolicitarReceta = useCallback((producto: any, presentacionSel: any) => {
-        setProductoParaReceta({ producto, presentacionSel });
+    const handleSolicitarReceta = useCallback((producto?: any, presentacionSel?: any) => {
+        if (producto && presentacionSel) {
+            setProductoParaReceta({ producto, presentacionSel });
+        } else {
+            setProductoParaReceta(null);
+        }
         setRecetaModalOpen(true);
     }, []);
 
-    const handleConfirmarReceta = (numeroReceta: string) => {
+    const handleConfirmarReceta = (numeroReceta: string, recordarParaVenta: boolean) => {
+        if (recordarParaVenta) {
+            setRecetaVentaActual(numeroReceta);
+        }
         if (productoParaReceta) {
             const { producto, presentacionSel } = productoParaReceta;
             triggerFeedback(producto.producto_comercial_id);
@@ -95,6 +101,14 @@ export default function VentaPos() {
                 presentacionSel.id,
                 numeroReceta
             );
+        } else if (recordarParaVenta) {
+            setCarrito(prev => prev.map(item => item.requiere_receta ? { ...item, numero_receta: numeroReceta } : item));
+            toast.current?.show({
+                severity: "success",
+                summary: "Receta Asignada",
+                detail: `Receta ${numeroReceta} asignada a los medicamentos de esta venta.`,
+                life: 2500,
+            });
         }
         setRecetaModalOpen(false);
         setProductoParaReceta(null);
@@ -109,15 +123,24 @@ export default function VentaPos() {
             productoPresentacionId = producto.presentacion_id,
             numeroReceta?: string
         ) => {
-            if (producto.requiere_receta && !numeroReceta) {
+            const recetaAsignar = numeroReceta || recetaVentaActual;
+            if (producto.requiere_receta && !recetaAsignar) {
                 handleSolicitarReceta(producto, { id: productoPresentacionId, nombre: presentacionNombre, cantidad_unidad_base: equivBase, precio });
                 return;
             }
             const prodId = producto.producto_comercial_id;
             triggerFeedback(prodId);
-            agregarAlCarritoHook(producto, equivBase, presentacionNombre, precio, productoPresentacionId, numeroReceta);
+            agregarAlCarritoHook(producto, equivBase, presentacionNombre, precio, productoPresentacionId, recetaAsignar || undefined);
+            if (producto.requiere_receta && recetaAsignar && !numeroReceta) {
+                toast.current?.show({
+                    severity: "info",
+                    summary: "Receta Aplicada",
+                    detail: `${producto.nombre_comercial} vinculado a Receta ${recetaAsignar}`,
+                    life: 1800,
+                });
+            }
         },
-        [agregarAlCarritoHook, triggerFeedback, handleSolicitarReceta]
+        [agregarAlCarritoHook, triggerFeedback, handleSolicitarReceta, recetaVentaActual]
     );
 
     const agregarPorCodigo = useCallback((codigo: string) => {
@@ -151,6 +174,21 @@ export default function VentaPos() {
         }
     }, [productosRaw, productosAgrupados, agregarAlCarrito, setBusqueda, handleSolicitarReceta]);
 
+    const { videoRef: videoLocalRef } = useCameraBarcodeScanner({
+        enabled: localCameraOpen,
+        continuous: true,
+        cooldownMs: 1500,
+        onScan: (codigo) => {
+            agregarPorCodigo(codigo);
+            toast.current?.show({
+                severity: "success",
+                summary: "Escaneado",
+                detail: `Código ${codigo} agregado al carrito`,
+                life: 1500,
+            });
+        },
+    });
+
     const handleBarcodeFromSocket = useCallback((codigo: string) => {
         if (!codigo) return;
         setUltimoCodigoRemoto(codigo);
@@ -163,63 +201,6 @@ export default function VentaPos() {
         "pc",
         true
     );
-
-    // Efecto para controlar el escáner de la cámara local (celular)
-    useEffect(() => {
-        if (!localCameraOpen || !videoLocalRef.current) return;
-        const reader = new BrowserMultiFormatReader();
-
-        const constraints = {
-            video: {
-                facingMode: { ideal: "environment" },
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-            },
-        };
-
-        reader.decodeFromConstraints(constraints, videoLocalRef.current, (result, error) => {
-            if (result && !cooldownRef.current) {
-                cooldownRef.current = true;
-                const codigo = result.getText();
-                
-                // Vibración táctil si el navegador lo soporta
-                if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-                    navigator.vibrate(100);
-                }
-
-                agregarPorCodigo(codigo);
-
-                toast.current?.show({
-                    severity: "success",
-                    summary: "Escaneado",
-                    detail: `Código ${codigo} agregado al carrito`,
-                    life: 1500,
-                });
-
-                // Cooldown para evitar escaneos duplicados en ráfaga
-                setTimeout(() => {
-                    cooldownRef.current = false;
-                }, 1500);
-            }
-            if (error && !(error instanceof NotFoundException)) {
-                console.warn("[LocalScanner]", error);
-            }
-        }).catch((err) => {
-            console.error("[LocalScanner] Error al abrir cámara:", err);
-            toast.current?.show({
-                severity: "error",
-                summary: "Error de Cámara",
-                detail: "No se pudo acceder a la cámara. Asegúrate de otorgar los permisos necesarios.",
-                life: 3500,
-            });
-            setLocalCameraOpen(false);
-        });
-
-        return () => {
-            reader.reset();
-        };
-    }, [localCameraOpen, agregarPorCodigo]);
-
 
     useEffect(() => {
         const handleStorage = (e: StorageEvent) => {
@@ -512,6 +493,17 @@ export default function VentaPos() {
                 setIncluyeIGV={setIncluyeIGV}
                 clienteSeleccionado={clienteSeleccionado}
                 onAbrirClienteModal={() => setShowClienteModal(true)}
+                recetaActual={recetaVentaActual}
+                onAbrirRecetaModal={() => handleSolicitarReceta()}
+                onQuitarReceta={() => {
+                    setRecetaVentaActual(null);
+                    toast.current?.show({
+                        severity: "info",
+                        summary: "Receta Desvinculada",
+                        detail: "Se retiró la receta activa de la venta actual",
+                        life: 2000,
+                    });
+                }}
             />
 
             </div>
@@ -546,7 +538,8 @@ export default function VentaPos() {
 
             <RecetaModal
                 open={recetaModalOpen}
-                nombreProducto={productoParaReceta?.producto?.nombre_comercial || "Medicamento Regulado"}
+                nombreProducto={productoParaReceta?.producto?.nombre_comercial || null}
+                initialValue={recetaVentaActual}
                 onClose={() => {
                     setRecetaModalOpen(false);
                     setProductoParaReceta(null);

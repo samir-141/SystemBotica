@@ -85,7 +85,12 @@ export function buildComprobanteSnapshot(opts: {
   return {
     id: opts.venta.venta_id,
     tipoComprobante: opts.tipoComprobante,
-    serieNumero: opts.venta.comprobante?.serie_numero || opts.venta.venta_id,
+    serieNumero:
+      opts.venta.comprobante?.serie_numero ||
+      opts.venta.numero_comprobante ||
+      (opts.tipoComprobante === "NOTA_VENTA"
+        ? `NV01-${(opts.venta.venta_id || "").replace(/[^0-9]/g, "").padStart(8, "0").slice(-8) || "00000001"}`
+        : opts.venta.venta_id),
     fechaEmision: new Date().toISOString(),
     botica: boticaData,
     cliente: {

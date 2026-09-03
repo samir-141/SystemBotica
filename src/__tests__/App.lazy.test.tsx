@@ -33,8 +33,8 @@ vi.mock("../pages/escanner/RemoteScannerPage", () => ({
 vi.mock("../components/dashboard/DashboardPage", () => ({
   default: () => <div>DASHBOARD_LAZY_OK</div>,
 }));
-vi.mock("../components/compras/ComprasPage", () => ({
-  default: () => <div>COMPRAS_LAZY_OK</div>,
+vi.mock("../components/productos/ProductosPage", () => ({
+  default: () => <div>PRODUCTOS_LAZY_OK</div>,
 }));
 
 afterEach(() => {
@@ -47,7 +47,7 @@ describe("rutas cargadas bajo demanda", () => {
     ["/login", "LOGIN_LAZY_OK"],
     ["/escanner-remoto?session=SERVER-CODE", "SCANNER_LAZY_OK"],
     ["/dashboard", "DASHBOARD_LAZY_OK"],
-    ["/compras", "COMPRAS_LAZY_OK"],
+    ["/productos", "PRODUCTOS_LAZY_OK"],
   ])("resuelve %s mediante su módulo lazy", async (path, expected) => {
     window.history.replaceState({}, "", path);
     render(<App />);

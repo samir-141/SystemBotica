@@ -1,22 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { Camera, CheckCircle2, Wifi, ArrowLeft, RefreshCw, Activity, Smartphone } from "lucide-react";
 import { useRemoteScannerSocket } from "../../hooks/useRemoteScannerSocket";
+import { useCameraBarcodeScanner } from "../../hooks/useCameraBarcodeScanner";
 
 export default function RemoteScannerPage() {
   const [searchParams] = useSearchParams();
   const sessionParam = searchParams.get("session");
 
-  const [escaneando, setEscaneando] = useState(true);
+  const [escaneando] = useState(true);
   const [ultimoEscaneo, setUltimoEscaneo] = useState<string | null>(null);
   const [historial, setHistorial] = useState<Array<{ codigo: string; hora: string }>>([]);
-  const [errorCamara, setErrorCamara] = useState<string | null>(null);
   const [contadorTotal, setContadorTotal] = useState(0);
-
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const cooldownRef = useRef(false);
 
   // Hook de comunicación WebSocket en tiempo real con la PC
   const { connected, paired, pingMs, sendBarcode, sessionCode, expired, error: connectionError } = useRemoteScannerSocket(
@@ -30,68 +25,22 @@ export default function RemoteScannerPage() {
     const sent = await sendBarcode(codigo);
     if (!sent) return;
 
-    // Vibración hápida del celular
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      navigator.vibrate(150);
-    }
-
     const hora = new Date().toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setUltimoEscaneo(codigo);
     setContadorTotal((prev) => prev + 1);
     setHistorial((prev) => [{ codigo, hora }, ...prev.slice(0, 15)]);
   }, [sendBarcode]);
 
-  // Inicializar lector ZXing en bucle continuo
-  useEffect(() => {
-    if (!escaneando || !connected || !paired || expired || !videoRef.current) return;
-
-    if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setErrorCamara(
-        "Acceso a cámara restringido por el celular debido a conexión HTTP no segura. Habilita la IP en 'chrome://flags' -> 'Insecure origins treated as secure' o usa HTTPS."
-      );
-      return;
-    }
-
-    const reader = new BrowserMultiFormatReader();
-    readerRef.current = reader;
-
-    const constraints = {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-    };
-
-    reader
-      .decodeFromConstraints(constraints, videoRef.current, (result, err) => {
-        if (result && !cooldownRef.current) {
-          cooldownRef.current = true;
-          const codigo = result.getText();
-          transmitirAlPOS(codigo);
-
-          // Cooldown ultracorto de 500ms entre escaneos continuos
-          setTimeout(() => {
-            cooldownRef.current = false;
-          }, 500);
-        }
-        if (err && !(err instanceof NotFoundException)) {
-          console.warn("[RemoteScanner]", err);
-        }
-      })
-      .catch((e: Error) => {
-        setErrorCamara(
-          e.name === "NotAllowedError"
-            ? "Permiso de cámara denegado. Permite el acceso a la cámara en tu celular."
-            : `Error de cámara: ${e.message}`
-        );
-        readerRef.current = null;
-      });
-
-    return () => {
-      reader.reset();
-    };
-  }, [connected, escaneando, expired, paired, transmitirAlPOS]);
+  // Hook madre de escáner de cámara
+  const { videoRef, error: errorCamara, startScanning } = useCameraBarcodeScanner({
+    enabled: escaneando && connected && paired && !expired && !connectionError,
+    continuous: true,
+    cooldownMs: 500,
+    vibrate: true,
+    onScan: (codigo) => {
+      void transmitirAlPOS(codigo);
+    },
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans flex flex-col justify-between select-none">
@@ -150,12 +99,8 @@ export default function RemoteScannerPage() {
           <div className="p-6 bg-rose-950/80 border border-rose-800 text-rose-200 rounded-2xl text-center space-y-3 max-w-xs">
             <p className="font-bold text-xs">{errorCamara}</p>
             <button
-              onClick={() => {
-                setErrorCamara(null);
-                setEscaneando(false);
-                setTimeout(() => setEscaneando(true), 200);
-              }}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 justify-center w-full"
+              onClick={() => startScanning()}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 justify-center w-full cursor-pointer"
             >
               <RefreshCw size={14} /> Reintentar Cámara
             </button>
@@ -167,6 +112,7 @@ export default function RemoteScannerPage() {
               className="w-full h-full object-cover"
               playsInline
               muted
+              autoPlay
             />
 
             {/* Target Reticle overlay */}

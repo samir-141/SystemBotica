@@ -1,6 +1,6 @@
 // src/components/productos/elements/ProductoForm.tsx
-import { useState, useEffect, useMemo, useRef } from "react";
-import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
+import { useState, useEffect, useMemo } from "react";
+import CameraScannerModal from "../../common/CameraScannerModal";
 import {
   X,
   Save,
@@ -90,7 +90,6 @@ export default function ProductoForm({
     codigo_barras: string;
   }>>([]);
   const [scannerAbierto, setScannerAbierto] = useState(false);
-  const videoScannerRef = useRef<HTMLVideoElement>(null);
 
   const isEdit = mode === "editar";
   const set = (key: keyof ProductoFormData, val: any) =>
@@ -155,24 +154,6 @@ export default function ProductoForm({
       setForm(EMPTY_FORM);
     }
   }, [open, mode, producto, isEdit]);
-
-  useEffect(() => {
-    if (!scannerAbierto || !videoScannerRef.current) return;
-    const reader = new BrowserMultiFormatReader();
-    reader.decodeFromConstraints(
-      { video: { facingMode: { ideal: "environment" } } },
-      videoScannerRef.current,
-      (result, error) => {
-        if (result) {
-          set("codigo_barras", result.getText());
-          setScannerAbierto(false);
-        } else if (error && !(error instanceof NotFoundException)) {
-          console.warn("[ProductoBarcodeScanner]", error);
-        }
-      },
-    ).catch(() => setError("No se pudo abrir la cámara. Puedes escribir o usar un lector USB en el campo de código."));
-    return () => reader.reset();
-  }, [scannerAbierto]);
 
   /* Generación automática de SKU sugerido */
   const suggestedSku = useMemo(() => {
@@ -800,11 +781,14 @@ export default function ProductoForm({
                   )}
                 </div>
                 <p className="mt-1 text-[10px] text-slate-400">Opcional: también puedes enfocar este campo y usar un lector USB.</p>
-                {!isEdit && scannerAbierto && (
-                  <div className="mt-2 overflow-hidden rounded-xl border border-indigo-200 bg-black">
-                    <video ref={videoScannerRef} className="max-h-56 w-full object-cover" playsInline muted />
-                    <button type="button" onClick={() => setScannerAbierto(false)} className="w-full bg-slate-900 px-3 py-2 text-xs font-bold text-white">Cerrar cámara</button>
-                  </div>
+                {!isEdit && (
+                  <CameraScannerModal
+                    isOpen={scannerAbierto}
+                    onClose={() => setScannerAbierto(false)}
+                    onScan={(codigo) => set("codigo_barras", codigo)}
+                    title="Escanear Código de Barras"
+                    subtitle="Enfoca el código de barras del producto"
+                  />
                 )}
               </div>
 
