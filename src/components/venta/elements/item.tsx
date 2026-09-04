@@ -107,11 +107,6 @@ export default function Item({
     const handleAgregarClick = () => {
         if (!presentacionSel || disabledAction) return;
 
-        if (requiereReceta && onSolicitarReceta) {
-            onSolicitarReceta(targetItem, presentacionSel);
-            return;
-        }
-
         if (agregarAlCarrito) {
             agregarAlCarrito(
                 targetItem,
@@ -120,6 +115,8 @@ export default function Item({
                 presentacionSel.precio,
                 presentacionSel.id
             );
+        } else if (requiereReceta && onSolicitarReceta) {
+            onSolicitarReceta(targetItem, presentacionSel);
         }
     };
 

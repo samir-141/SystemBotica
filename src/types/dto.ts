@@ -68,6 +68,7 @@ export interface UpdateProductoDto extends Partial<CreateProductoDto> {
 
 export interface CreateVentaDto {
   idempotency_key: string;
+  perfil_tributario_id?: string;
   tipo_comprobante: string;
   tipo_pago: string;
   metodo_pago: string;

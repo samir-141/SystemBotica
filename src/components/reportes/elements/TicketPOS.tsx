@@ -3,6 +3,7 @@ import { Store, QrCode } from "lucide-react";
 import type { ComprobanteData } from "./comprobanteDocument";
 import type { TicketConfig } from "../../../types/ticketConfig";
 import { TICKET_CONFIG_DEFAULT } from "../../../types/ticketConfig";
+import { numeroALetras } from "../../../utils/numeroALetras";
 
 export interface TicketPOSProps {
   comprobante: ComprobanteData;
@@ -119,25 +120,32 @@ export const TicketPOS = React.forwardRef<HTMLDivElement, TicketPOSProps>(
           </div>
 
           {/* Items */}
-          <div className="border-b border-dashed border-gray-400 pb-1 text-[8px] space-y-1">
-            <div className="flex justify-between font-bold border-b border-gray-300 pb-0.5">
-              <span>Cant/Desc</span>
-              <span className="text-right">Total</span>
+          <div className="border-b border-dashed border-gray-400 pb-1.5 text-[8px] space-y-1">
+            <div className="flex justify-between font-bold border-b border-gray-300 pb-0.5 uppercase tracking-wider text-gray-700">
+              <span>Descripción</span>
+              <span className="text-right">Importe</span>
             </div>
-            {comprobante.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-start">
-                <span className="truncate pr-1 flex-1">
-                  {item.cantidad}x {item.descripcion}
-                </span>
-                <span className="font-bold whitespace-nowrap">S/ {item.subtotal.toFixed(2)}</span>
-              </div>
-            ))}
+            {comprobante.items.map((item, idx) => {
+              const valorUnitario = (item.precioUnitario / 1.18).toFixed(2);
+              return (
+                <div key={idx} className="space-y-0.5 pt-0.5">
+                  <div className="flex justify-between items-start font-bold">
+                    <span className="truncate pr-1 flex-1">{item.descripcion}</span>
+                    <span className="whitespace-nowrap">S/ {item.subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-[7px] text-gray-600">
+                    <span>{item.cantidad} NIU x {item.precioUnitario.toFixed(2)}</span>
+                    <span>V. Unit: {valorUnitario}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Totales */}
-          <div className="border-b border-dashed border-gray-400 pb-1 text-[8px] space-y-0.5">
+          <div className="border-b border-dashed border-gray-400 pb-1.5 text-[8px] space-y-0.5">
             <div className="flex justify-between">
-              <span>Op. Gravada:</span>
+              <span>Op. Gravadas:</span>
               <span>S/ {comprobante.subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
@@ -150,14 +158,17 @@ export const TicketPOS = React.forwardRef<HTMLDivElement, TicketPOSProps>(
                 <span>- S/ {comprobante.descuento.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold text-[10px] pt-0.5 border-t border-gray-300">
+            <div className="flex justify-between font-extrabold text-[10.5px] pt-1 border-t border-gray-300 mt-1">
               <span>TOTAL:</span>
               <span>S/ {comprobante.total.toFixed(2)}</span>
             </div>
-            <div className="pt-0.5 text-[7.5px]">
+            <div className="pt-1 text-[7px] text-gray-700 uppercase font-semibold">
+              <p>SON: {numeroALetras(comprobante.total)}</p>
+            </div>
+            <div className="pt-1 text-[7.5px] border-t border-dashed border-gray-200 mt-1">
               <div className="flex justify-between">
-                <span>Pago:</span>
-                <span>{comprobante.metodoPago || "EFECTIVO"}</span>
+                <span>Forma de Pago:</span>
+                <span className="font-bold">{comprobante.metodoPago || "Contado"}</span>
               </div>
               {comprobante.montoRecibido !== undefined && (
                 <div className="flex justify-between">
@@ -413,27 +424,32 @@ export const TicketPOS = React.forwardRef<HTMLDivElement, TicketPOSProps>(
 
         {/* Detalle de Productos */}
         <div className="border-b border-dashed border-gray-400 py-1.5 space-y-1">
-          <div className="flex justify-between font-bold text-[9px] border-b border-gray-300 pb-0.5">
-            <span className="w-8">Cant.</span>
-            <span className="flex-1 px-1">Descripción</span>
-            <span className="text-right w-12">P.U.</span>
-            <span className="text-right w-14">Total</span>
+          <div className="flex justify-between font-bold text-[9.5px] border-b border-gray-300 pb-0.5 uppercase tracking-wider text-gray-700">
+            <span>Descripción</span>
+            <span className="text-right">Importe</span>
           </div>
 
-          {comprobante.items.map((item, idx) => (
-            <div key={idx} className="flex justify-between items-start text-[9px] leading-tight">
-              <span className="w-8 font-bold">{item.cantidad}</span>
-              <span className="flex-1 px-1 line-clamp-2">{item.descripcion}</span>
-              <span className="text-right w-12">{item.precioUnitario.toFixed(2)}</span>
-              <span className="text-right w-14 font-bold">S/ {item.subtotal.toFixed(2)}</span>
-            </div>
-          ))}
+          {comprobante.items.map((item, idx) => {
+            const valorUnitario = (item.precioUnitario / 1.18).toFixed(2);
+            return (
+              <div key={idx} className="space-y-0.5 pt-0.5">
+                <div className="flex justify-between items-start font-bold text-[9.5px]">
+                  <span className="truncate pr-1 flex-1">{item.descripcion}</span>
+                  <span className="whitespace-nowrap">S/ {item.subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-[8px] text-gray-600">
+                  <span>{item.cantidad} NIU x {item.precioUnitario.toFixed(2)}</span>
+                  <span>V. Unit: {valorUnitario}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Liquidación y Totales */}
         <div className="border-b border-dashed border-gray-400 py-1.5 text-[9.5px] space-y-0.5">
           <div className="flex justify-between">
-            <span>Op. Gravada:</span>
+            <span>Op. Gravadas:</span>
             <span>S/ {comprobante.subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
@@ -446,15 +462,18 @@ export const TicketPOS = React.forwardRef<HTMLDivElement, TicketPOSProps>(
               <span>- S/ {comprobante.descuento.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between font-black text-sm pt-1 border-t border-gray-300 mt-1">
+          <div className="flex justify-between font-extrabold text-sm pt-1 border-t border-gray-300 mt-1">
             <span>TOTAL:</span>
             <span>S/ {comprobante.total.toFixed(2)}</span>
+          </div>
+          <div className="pt-1 text-[8px] text-gray-700 uppercase font-semibold">
+            <p>SON: {numeroALetras(comprobante.total)}</p>
           </div>
 
           <div className="pt-1 text-[8.5px] border-t border-dashed border-gray-200 mt-1">
             <div className="flex justify-between">
-              <span>Método de Pago:</span>
-              <span className="font-bold">{comprobante.metodoPago || "EFECTIVO"}</span>
+              <span>Forma de Pago:</span>
+              <span className="font-bold">{comprobante.metodoPago || "Contado"}</span>
             </div>
             {comprobante.montoRecibido !== undefined && (
               <div className="flex justify-between">

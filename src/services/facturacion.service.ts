@@ -136,6 +136,7 @@ export const facturacionService = {
     ventaId: string;
     tipoComprobante: TipoComprobanteSunat;
     serieId: string;
+    perfilTributarioId?: string;
   }): Promise<ComprobanteEmitido> => {
     const { data } = await api.post<ComprobanteEmitido>(
       "/facturacion/emitir",

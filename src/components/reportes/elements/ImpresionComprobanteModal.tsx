@@ -11,6 +11,9 @@ import {
   Download,
   Copy,
   Check,
+  MessageCircle,
+  PlusCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { generarXmlUbl21, type ComprobanteData } from "./comprobanteDocument";
 import { TicketPOS } from "./TicketPOS";
@@ -22,6 +25,7 @@ interface Props {
   onClose: () => void;
   comprobante: ComprobanteData | null;
   formatoInicial?: "80mm" | "58mm" | "A4" | "xml";
+  onNuevaVenta?: () => void;
 }
 
 export default function ImpresionComprobanteModal({
@@ -29,11 +33,16 @@ export default function ImpresionComprobanteModal({
   onClose,
   comprobante,
   formatoInicial = "80mm",
+  onNuevaVenta,
 }: Props) {
-  const [tabFormato, setTabFormato] = useState<"80mm" | "58mm" | "A4" | "xml">(formatoInicial);
+  const [tabFormato, setTabFormato] = useState<"80mm" | "58mm" | "A4" | "xml">(
+    formatoInicial
+  );
   const [copiado, setCopiado] = useState(false);
   const [imprimiendo, setImprimiendo] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
+  const [telefonoWs, setTelefonoWs] = useState("");
 
   const ticketRef = useRef<HTMLDivElement>(null);
 
@@ -44,33 +53,45 @@ export default function ImpresionComprobanteModal({
   const authContext = useContext(AuthContext);
   const sucursalActual = authContext?.sucursalActual ?? null;
 
-  // Cargar datos reales de la botica (empresa) desde la base de datos
-  // cuando el comprobante no los trae o vienen incompletos (ej. RUC o dirección vacíos)
   const { data: boticaFallback } = useQuery({
     queryKey: ["botica-perfil"],
-    queryFn: () => import("../../../services/facturacion.service").then(m => m.facturacionService.obtenerBoticaPerfil()),
+    queryFn: () =>
+      import("../../../services/facturacion.service").then((m) =>
+        m.facturacionService.obtenerBoticaPerfil()
+      ),
     staleTime: 60_000,
-    enabled: !comprobante?.botica || !comprobante.botica.ruc || !comprobante.botica.direccion,
+    enabled:
+      !comprobante?.botica ||
+      !comprobante.botica.ruc ||
+      !comprobante.botica.direccion,
   });
 
-  const botica = (comprobante?.botica && comprobante.botica.ruc && comprobante.botica.direccion)
-    ? comprobante.botica
-    : (boticaFallback ? {
-        nombre: boticaFallback.nombre || boticaFallback.razon_social,
-        ruc: boticaFallback.ruc,
-        direccion: boticaFallback.direccion || "",
-        telefono: boticaFallback.telefono || "",
-      } : (comprobante?.botica ?? (sucursalActual ? {
-        nombre: sucursalActual.empresa || sucursalActual.nombre,
-        ruc: sucursalActual.botica_ruc || "",
-        direccion: sucursalActual.botica_direccion || "",
-        telefono: sucursalActual.botica_telefono || "",
-      } : {
-        nombre: "Empresa sin configurar",
-        ruc: "",
-        direccion: "",
-        telefono: "",
-      })));
+  const botica =
+    comprobante?.botica &&
+    comprobante.botica.ruc &&
+    comprobante.botica.direccion
+      ? comprobante.botica
+      : boticaFallback
+      ? {
+          nombre: boticaFallback.nombre || boticaFallback.razon_social,
+          ruc: boticaFallback.ruc,
+          direccion: boticaFallback.direccion || "",
+          telefono: boticaFallback.telefono || "",
+        }
+      : comprobante?.botica ??
+        (sucursalActual
+          ? {
+              nombre: sucursalActual.empresa || sucursalActual.nombre,
+              ruc: sucursalActual.botica_ruc || "",
+              direccion: sucursalActual.botica_direccion || "",
+              telefono: sucursalActual.botica_telefono || "",
+            }
+          : {
+              nombre: "Empresa sin configurar",
+              ruc: "",
+              direccion: "",
+              telefono: "",
+            });
 
   const displaySerieNumero = comprobante
     ? comprobante.serieNumero &&
@@ -78,7 +99,12 @@ export default function ImpresionComprobanteModal({
       !comprobante.serieNumero.startsWith("NV") &&
       !comprobante.serieNumero.startsWith("B") &&
       !comprobante.serieNumero.startsWith("F")
-      ? `NV01-${comprobante.serieNumero.replace(/[^0-9]/g, "").padStart(8, "0").slice(-8) || "00000001"}`
+      ? `NV01-${
+          comprobante.serieNumero
+            .replace(/[^0-9]/g, "")
+            .padStart(8, "0")
+            .slice(-8) || "00000001"
+        }`
       : comprobante.serieNumero
     : "";
 
@@ -86,13 +112,19 @@ export default function ImpresionComprobanteModal({
     if (comprobante) {
       const numCompFinal = displaySerieNumero || comprobante.serieNumero;
       const rucEmisor = botica.ruc;
-      const tipoComp = comprobante.tipoComprobante === "FACTURA" ? "01" : comprobante.tipoComprobante === "BOLETA" ? "03" : "07";
+      const tipoComp =
+        comprobante.tipoComprobante === "FACTURA"
+          ? "01"
+          : comprobante.tipoComprobante === "BOLETA"
+          ? "03"
+          : "07";
       const serie = numCompFinal.split("-")[0] || "";
       const numero = numCompFinal.split("-")[1] || "";
       const igv = comprobante.igv.toFixed(2);
       const total = comprobante.total.toFixed(2);
       const fecha = comprobante.fechaEmision.split("T")[0] || "";
-      const docCliTipo = comprobante.cliente.tipoDocumento === "RUC" ? "6" : "1";
+      const docCliTipo =
+        comprobante.cliente.tipoDocumento === "RUC" ? "6" : "1";
       const docCliNum = comprobante.cliente.numeroDocumento || "00000000";
 
       const qrText = `${rucEmisor}|${tipoComp}|${serie}|${numero}|${igv}|${total}|${fecha}|${docCliTipo}|${docCliNum}|`;
@@ -104,6 +136,10 @@ export default function ImpresionComprobanteModal({
         .catch((err) => {
           console.error("Error al generar QR:", err);
         });
+
+      if (comprobante.cliente?.telefono) {
+        setTelefonoWs(comprobante.cliente.telefono);
+      }
     }
   }, [comprobante, botica.ruc, displaySerieNumero]);
 
@@ -127,6 +163,62 @@ export default function ImpresionComprobanteModal({
     },
   });
 
+  const handlePrintTicketDirect = (formatoTicket: "80mm" | "58mm" = "80mm") => {
+    setTabFormato(formatoTicket);
+    setTimeout(() => {
+      handlePrint();
+    }, 150);
+  };
+
+  const handlePrintA4Direct = () => {
+    setTabFormato("A4");
+    setTimeout(() => {
+      handlePrint();
+    }, 150);
+  };
+
+  const handleEnviarWhatsAppDirecto = (telefonoDestino?: string) => {
+    if (!comprobante) return;
+    const tel = (telefonoDestino || telefonoWs || "").replace(/[^0-9]/g, "");
+    if (!tel) {
+      setShowWhatsappModal(true);
+      return;
+    }
+
+    const finalPhone = tel.startsWith("51") ? tel : `51${tel}`;
+    const boticaNombre = botica.nombre || "Nuestra Botica";
+    const tipo =
+      comprobante.tipoComprobante === "FACTURA"
+        ? "Factura Electrónica"
+        : comprobante.tipoComprobante === "BOLETA"
+        ? "Boleta de Venta Electrónica"
+        : "Nota de Venta";
+
+    const itemsResumen = comprobante.items
+      .map(
+        (it) =>
+          `• ${it.cantidad}x ${it.descripcion} (S/ ${it.subtotal.toFixed(2)})`
+      )
+      .join("\n");
+
+    const mensaje = encodeURIComponent(
+      `¡Hola ${comprobante.cliente.nombre || "Estimado(a) Cliente"}! 👋\n\n` +
+        `Adjuntamos el resumen de tu compra en *${boticaNombre}*:\n\n` +
+        `📄 *${tipo}*: ${displaySerieNumero}\n` +
+        `📅 Fecha: ${comprobante.fechaEmision}\n\n` +
+        `🛍️ *Detalle de productos:*\n${itemsResumen}\n\n` +
+        `💰 *TOTAL: S/ ${comprobante.total.toFixed(2)}*\n` +
+        `💳 Método de Pago: ${comprobante.metodoPago || "Contado"}\n\n` +
+        `¡Muchas gracias por su preferencia! 💊✨`
+    );
+
+    window.open(
+      `https://api.whatsapp.com/send?phone=${finalPhone}&text=${mensaje}`,
+      "_blank"
+    );
+    setShowWhatsappModal(false);
+  };
+
   if (open === false || !comprobante) return null;
 
   const xmlContent = generarXmlUbl21(comprobante);
@@ -148,37 +240,46 @@ export default function ImpresionComprobanteModal({
     document.body.removeChild(link);
   };
 
+  const handleNuevaVenta = () => {
+    if (onNuevaVenta) {
+      onNuevaVenta();
+    } else {
+      onClose();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
-        {/* Topbar Header */}
-        <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
-              <Printer size={20} />
-            </div>
-            <div>
-              <h2 className="font-bold text-sm">Visor e Impresión de Comprobante</h2>
-              <p className="text-[11px] text-slate-400 font-mono">
-                {displaySerieNumero} — {comprobante.tipoComprobante}
-              </p>
-            </div>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[94vh] flex flex-col overflow-hidden border border-slate-700">
+        {/* Topbar Header con estilo exacto de pantalla POS */}
+        <div className="px-5 py-3.5 bg-slate-950 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={20} className="text-emerald-400 shrink-0" />
+            <h2 className="font-bold text-sm tracking-wide uppercase">
+              Resultados del Comprobante
+            </h2>
+            <span className="text-xs bg-slate-800 text-slate-300 font-mono px-2.5 py-0.5 rounded-full border border-slate-700">
+              {displaySerieNumero}
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
           >
-            <X size={20} />
+            <X size={14} />
+            <span>Cerrar</span>
           </button>
         </div>
 
-        {/* Selector de Formatos (Tabs) */}
-        <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 shrink-0">
-          <div className="flex bg-slate-200/80 p-1 rounded-xl text-xs font-bold gap-1">
+        {/* Toolbar de Formatos */}
+        <div className="px-4 py-2 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2 shrink-0">
+          <div className="flex bg-slate-800/90 p-1 rounded-xl text-xs font-bold gap-1 border border-slate-700">
             <button
               onClick={() => setTabFormato("80mm")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                tabFormato === "80mm" ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                tabFormato === "80mm"
+                  ? "bg-teal-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
               }`}
             >
               <Receipt size={14} />
@@ -187,7 +288,9 @@ export default function ImpresionComprobanteModal({
             <button
               onClick={() => setTabFormato("58mm")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                tabFormato === "58mm" ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                tabFormato === "58mm"
+                  ? "bg-teal-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
               }`}
             >
               <Receipt size={14} />
@@ -196,7 +299,9 @@ export default function ImpresionComprobanteModal({
             <button
               onClick={() => setTabFormato("A4")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                tabFormato === "A4" ? "bg-white text-teal-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                tabFormato === "A4"
+                  ? "bg-teal-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
               }`}
             >
               <FileText size={14} />
@@ -205,76 +310,174 @@ export default function ImpresionComprobanteModal({
             <button
               onClick={() => setTabFormato("xml")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                tabFormato === "xml" ? "bg-white text-indigo-700 shadow-sm font-black" : "text-slate-600 hover:text-slate-900"
+                tabFormato === "xml"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white"
               }`}
             >
               <FileCode size={14} />
-              <span>Modelo XML (UBL 2.1)</span>
+              <span>XML UBL 2.1</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            {tabFormato === "xml" ? (
-              <>
-                <button
-                  onClick={handleCopiarXml}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  {copiado ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                  <span>{copiado ? "Copiado!" : "Copiar XML"}</span>
-                </button>
-                <button
-                  onClick={handleDescargarXml}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-sm"
-                >
-                  <Download size={14} />
-                  <span>Descargar XML</span>
-                </button>
-              </>
-            ) : (
+          {tabFormato === "xml" && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => handlePrint()}
-                disabled={imprimiendo}
-                className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:shadow-none text-white rounded-xl text-xs font-extrabold transition cursor-pointer shadow-md shadow-teal-500/20"
+                onClick={handleCopiarXml}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition cursor-pointer border border-slate-700"
               >
-                <Printer size={15} />
-                <span>{imprimiendo ? "Preparando impresión..." : `Imprimir (${tabFormato.toUpperCase()})`}</span>
+                {copiado ? (
+                  <Check size={14} className="text-emerald-400" />
+                ) : (
+                  <Copy size={14} />
+                )}
+                <span>{copiado ? "Copiado" : "Copiar XML"}</span>
               </button>
-            )}
-          </div>
+              <button
+                onClick={handleDescargarXml}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
+              >
+                <Download size={14} />
+                <span>Descargar</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Contenido Previsualización */}
-        <div className="flex-1 overflow-y-auto p-4 bg-slate-200/60 flex justify-center items-start">
+        {/* Visor Central del Comprobante */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950/80 flex justify-center items-start">
           {tabFormato === "xml" ? (
-            <div className="w-full max-w-2xl bg-white p-6 rounded-2xl border border-slate-300 shadow-xl space-y-4">
+            <div className="w-full max-w-2xl bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-sm text-slate-800">UBL 2.1 XML Generado</h3>
-                <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-mono">
-                  sunat-xml-draft.xml
+                <h3 className="font-bold text-sm text-slate-200">
+                  UBL 2.1 XML Generado
+                </h3>
+                <span className="text-[10px] bg-slate-800 text-slate-400 px-2.5 py-0.5 rounded-full font-mono">
+                  {displaySerieNumero}.xml
                 </span>
               </div>
               <textarea
                 readOnly
                 value={xmlContent}
-                className="w-full h-80 bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-[10px] leading-relaxed border border-slate-900 focus:outline-none resize-none"
+                className="w-full h-80 bg-slate-950 text-emerald-400 p-4 rounded-xl font-mono text-[10px] leading-relaxed border border-slate-800 focus:outline-none resize-none"
               />
             </div>
           ) : (
             <div className="p-2 flex justify-center w-full">
-              <TicketPOS
-                ref={ticketRef}
-                comprobante={comprobante}
-                formato={tabFormato}
-                botica={botica}
-                qrCodeUrl={qrCodeUrl}
-                displaySerieNumero={displaySerieNumero}
-                config={ticketConfigService.obtenerConfiguracion(sucursalActual?.botica_id)}
-              />
+              <div className="bg-white rounded-xl shadow-2xl border border-slate-300 overflow-hidden">
+                <TicketPOS
+                  ref={ticketRef}
+                  comprobante={comprobante}
+                  formato={tabFormato}
+                  botica={botica}
+                  qrCodeUrl={qrCodeUrl}
+                  displaySerieNumero={displaySerieNumero}
+                  config={ticketConfigService.obtenerConfiguracion(
+                    sucursalActual?.botica_id
+                  )}
+                />
+              </div>
             </div>
           )}
         </div>
+
+        {/* Barra de Acciones Rápidas Inferiores (Diseño exacto de la foto) */}
+        <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-center sm:justify-between flex-wrap gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 flex-wrap justify-center sm:justify-start">
+            {/* 1. Enviar a WhatsApp */}
+            <button
+              onClick={() => handleEnviarWhatsAppDirecto()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black transition-all transform active:scale-95 shadow-md shadow-emerald-900/30 cursor-pointer"
+            >
+              <MessageCircle size={16} className="fill-white/20" />
+              <span>Enviar a WhatsApp</span>
+            </button>
+
+            {/* 2. Imprimir Ticket */}
+            <button
+              onClick={() => handlePrintTicketDirect("80mm")}
+              disabled={imprimiendo}
+              className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-700 text-white rounded-xl text-xs font-black transition-all transform active:scale-95 shadow-md shadow-sky-900/30 cursor-pointer"
+            >
+              <Printer size={16} />
+              <span>
+                {imprimiendo ? "Imprimiendo..." : "Imprimir Ticket"}
+              </span>
+            </button>
+
+            {/* 3. Imprimir A4 */}
+            <button
+              onClick={() => handlePrintA4Direct()}
+              disabled={imprimiendo}
+              className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-700 text-white rounded-xl text-xs font-black transition-all transform active:scale-95 shadow-md shadow-rose-900/30 cursor-pointer"
+            >
+              <FileText size={16} />
+              <span>Imprimir A4</span>
+            </button>
+          </div>
+
+          {/* 4. + Nueva Venta */}
+          <button
+            onClick={handleNuevaVenta}
+            className="flex items-center gap-2 px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black transition-all transform active:scale-95 shadow-md shadow-amber-900/30 cursor-pointer"
+          >
+            <PlusCircle size={16} className="text-slate-950" />
+            <span>+ Nueva Venta</span>
+          </button>
+        </div>
       </div>
+
+      {/* Modal / Diálogo rápido para ingresar teléfono de WhatsApp si no está registrado */}
+      {showWhatsappModal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 rounded-2xl p-5 w-full max-w-sm border border-slate-700 shadow-2xl text-white space-y-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <MessageCircle size={18} className="text-emerald-400" />
+                <h3 className="font-bold text-sm">Enviar por WhatsApp</h3>
+              </div>
+              <button
+                onClick={() => setShowWhatsappModal(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs text-slate-300">
+              Ingrese el número de WhatsApp del cliente para enviar el comprobante:
+            </p>
+            <div className="flex gap-2">
+              <span className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-400 font-bold flex items-center">
+                +51
+              </span>
+              <input
+                type="tel"
+                value={telefonoWs}
+                onChange={(e) => setTelefonoWs(e.target.value)}
+                placeholder="987654321"
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-emerald-500"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowWhatsappModal(false)}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleEnviarWhatsAppDirecto(telefonoWs)}
+                disabled={!telefonoWs.trim()}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-black transition flex items-center gap-1.5"
+              >
+                <MessageCircle size={14} />
+                <span>Enviar Comprobante</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

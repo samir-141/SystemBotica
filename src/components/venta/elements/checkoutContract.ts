@@ -5,6 +5,7 @@ import { resolveReceiptLink, type ReceiptLink } from "../../../utils/networkUrls
 
 export function buildVentaPayload(opts: {
   idempotencyKey: string;
+  perfilTributarioId?: string;
   tipoComprobante: TipoComprobante | null;
   tipoPago: "CONTADO" | "ABONO" | "ANTICIPO";
   metodoPago: MetodoPago;
@@ -23,6 +24,7 @@ export function buildVentaPayload(opts: {
   }
   return {
     idempotency_key: opts.idempotencyKey,
+    perfil_tributario_id: opts.perfilTributarioId,
     tipo_comprobante: opts.tipoComprobante,
     tipo_pago: opts.tipoPago,
     metodo_pago: opts.metodoPago,
@@ -47,6 +49,13 @@ export function buildComprobanteSnapshot(opts: {
   carrito: ItemCarrito[];
   metodoPago: MetodoPago;
   montoRecibido: string;
+  emisorActivo?: {
+    ruc: string;
+    razon_social: string;
+    nombre_comercial: string | null;
+    direccion_fiscal: string;
+    telefono?: string | null;
+  } | null;
   configTributaria?: {
     ruc: string;
     razon_social: string;
@@ -67,8 +76,15 @@ export function buildComprobanteSnapshot(opts: {
     0,
   );
 
-  // Datos de la empresa desde la configuración tributaria (base de datos) o sesión local
-  const boticaData = opts.configTributaria
+  // Datos de la empresa desde el emisor activo, configuración tributaria o sesión local
+  const boticaData = opts.emisorActivo
+    ? {
+        nombre: opts.emisorActivo.nombre_comercial || opts.emisorActivo.razon_social,
+        ruc: opts.emisorActivo.ruc,
+        direccion: opts.emisorActivo.direccion_fiscal,
+        telefono: opts.emisorActivo.telefono || "",
+      }
+    : opts.configTributaria
     ? {
         nombre: opts.configTributaria.nombre_comercial || opts.configTributaria.razon_social,
         ruc: opts.configTributaria.ruc,

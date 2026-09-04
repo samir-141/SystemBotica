@@ -77,6 +77,12 @@ export default function VentaPos() {
 
     useSocketInvalidation();
 
+    useEffect(() => {
+        if (carrito.length === 0) {
+            setRecetaVentaActual(null);
+        }
+    }, [carrito.length]);
+
     const handleSolicitarReceta = useCallback((producto?: any, presentacionSel?: any) => {
         if (producto && presentacionSel) {
             setProductoParaReceta({ producto, presentacionSel });
@@ -87,7 +93,7 @@ export default function VentaPos() {
     }, []);
 
     const handleConfirmarReceta = (numeroReceta: string, recordarParaVenta: boolean) => {
-        if (recordarParaVenta) {
+        if (recordarParaVenta || !recetaVentaActual) {
             setRecetaVentaActual(numeroReceta);
         }
         if (productoParaReceta) {
@@ -155,15 +161,6 @@ export default function VentaPos() {
             (g) => g.producto_comercial_id === encontrado.producto_comercial_id
         );
         if (agrupado) {
-            if (agrupado.requiere_receta) {
-                handleSolicitarReceta(agrupado, {
-                    id: encontrado.presentacion_id,
-                    nombre: encontrado.presentacion_nombre || "Unidad",
-                    cantidad_unidad_base: encontrado.cantidad_unidad_base || 1,
-                    precio: encontrado.precio_actual
-                });
-                return;
-            }
             agregarAlCarrito(
                 agrupado,
                 encontrado.cantidad_unidad_base || 1,
@@ -172,7 +169,7 @@ export default function VentaPos() {
                 encontrado.presentacion_id
             );
         }
-    }, [productosRaw, productosAgrupados, agregarAlCarrito, setBusqueda, handleSolicitarReceta]);
+    }, [productosRaw, productosAgrupados, agregarAlCarrito, setBusqueda]);
 
     const { videoRef: videoLocalRef } = useCameraBarcodeScanner({
         enabled: localCameraOpen,

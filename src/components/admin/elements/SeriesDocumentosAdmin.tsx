@@ -1,7 +1,8 @@
 // src/components/admin/elements/SeriesDocumentosAdmin.tsx
 import { useState, useEffect, useCallback } from "react";
-import { Hash, Plus, RefreshCw, X, Save, Loader2 } from "lucide-react";
+import { Hash, Plus, RefreshCw, X, Save, Loader2, Building2 } from "lucide-react";
 import { ventasService } from "../../../services/ventas.service";
+import { perfilesTributariosService, type PerfilTributario } from "../../../services/perfiles-tributarios.service";
 import { useAuth } from "../../../hooks/useAuth";
 
 type Props = {
@@ -16,6 +17,14 @@ type SerieDocumento = {
   correlativo_actual: number;
   longitud_correlativo: number;
   sucursal_id?: string;
+  perfil_tributario_id?: string;
+  perfiles_tributarios?: {
+    id: string;
+    ruc: string;
+    razon_social: string;
+    regimen_tributario: string;
+    es_principal: boolean;
+  };
   activo: boolean;
 };
 
@@ -24,6 +33,7 @@ const TIPOS_DOCUMENTO = ["BOLETA", "FACTURA", "NOTA_VENTA", "NOTA_CREDITO", "NOT
 export default function SeriesDocumentosAdmin({ sucursales }: Props) {
   const { sucursalActual } = useAuth();
   const [series, setSeries] = useState<SerieDocumento[]>([]);
+  const [perfiles, setPerfiles] = useState<PerfilTributario[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<SerieDocumento | null>(null);
@@ -34,6 +44,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
     correlativo_actual: 1,
     longitud_correlativo: 8,
     sucursal_id: "",
+    perfil_tributario_id: "",
     activo: true,
   });
   const [saving, setSaving] = useState(false);
@@ -42,8 +53,12 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await ventasService.getSeriesDocumentos();
+      const [{ data }, perfilesData] = await Promise.all([
+        ventasService.getSeriesDocumentos(),
+        perfilesTributariosService.listar(),
+      ]);
       setSeries(data || []);
+      setPerfiles(perfilesData || []);
     } catch (err: any) {
       setError(err.message || "Error al cargar series");
     } finally {
@@ -55,6 +70,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
 
   const handleOpenCreate = () => {
     setEditItem(null);
+    const principal = perfiles.find(p => p.es_principal) || perfiles[0];
     setForm({
       tipo_documento: "BOLETA",
       serie: "B001",
@@ -62,7 +78,8 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
       correlativo_actual: 1,
       longitud_correlativo: 8,
       sucursal_id: sucursalActual?.id || "",
-      activo: true
+      perfil_tributario_id: principal ? principal.id : "",
+      activo: true,
     });
     setError(null);
     setModalOpen(true);
@@ -77,6 +94,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
       correlativo_actual: item.correlativo_actual,
       longitud_correlativo: item.longitud_correlativo,
       sucursal_id: item.sucursal_id || "",
+      perfil_tributario_id: item.perfil_tributario_id || "",
       activo: item.activo,
     });
     setError(null);
@@ -92,10 +110,10 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
     }
     setSaving(true);
     try {
-      // Map empty string to undefined to avoid UUID validation error on the backend
       const payload = {
         ...form,
         sucursal_id: form.sucursal_id === "" ? undefined : form.sucursal_id,
+        perfil_tributario_id: form.perfil_tributario_id === "" ? undefined : form.perfil_tributario_id,
       };
 
       if (editItem) {
@@ -131,7 +149,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
           </div>
           <div>
             <h2 className="text-sm font-black text-slate-900">Series de Documentos</h2>
-            <p className="text-[10px] text-slate-400 font-medium">Configura series y correlativos por tipo de comprobante</p>
+            <p className="text-[10px] text-slate-400 font-medium">Configura series y correlativos por emisor y tipo de comprobante</p>
           </div>
         </div>
         <button
@@ -161,6 +179,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
                 <tr>
+                  <th className="py-3 px-4">Emisor (RUC)</th>
                   <th className="py-3 px-4">Tipo</th>
                   <th className="py-3 px-4">Sucursal / Sede</th>
                   <th className="py-3 px-4">Serie</th>
@@ -174,6 +193,17 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
               <tbody className="divide-y divide-slate-100">
                 {series.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 font-semibold text-slate-800">
+                      {s.perfiles_tributarios ? (
+                        <div className="flex items-center gap-1.5">
+                          <Building2 size={13} className="text-indigo-600 shrink-0" />
+                          <span className="truncate max-w-[140px] font-bold">{s.perfiles_tributarios.razon_social}</span>
+                          <span className="text-[10px] font-mono text-slate-400">({s.perfiles_tributarios.ruc})</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">Emisor Principal</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 font-bold text-slate-800">{s.tipo_documento}</td>
                     <td className="py-3 px-4 font-medium text-slate-600">
                       {s.sucursal_id
@@ -216,6 +246,23 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-3">
               {error && <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">{error}</div>}
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">Emisor Tributario (RUC)</label>
+                <select
+                  value={form.perfil_tributario_id}
+                  onChange={(e) => setForm({ ...form, perfil_tributario_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:border-purple-400 cursor-pointer font-semibold"
+                >
+                  <option value="">Emisor Principal / Global</option>
+                  {perfiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.razon_social} (RUC: {p.ruc} - {p.regimen_tributario})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-600 block mb-1">Tipo Documento</label>
@@ -225,7 +272,7 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-600 block mb-1">Serie *</label>
-                  <input type="text" value={form.serie} onChange={(e) => setForm({ ...form, serie: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-purple-400" required />
+                  <input type="text" value={form.serie} onChange={(e) => setForm({ ...form, serie: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-purple-400 font-bold" required />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -270,3 +317,4 @@ export default function SeriesDocumentosAdmin({ sucursales }: Props) {
     </div>
   );
 }
+

@@ -15,6 +15,7 @@ export interface ComprobanteData {
     tipoDocumento: string;
     numeroDocumento: string;
     direccion?: string;
+    telefono?: string;
   };
   items: Array<{
     descripcion: string;

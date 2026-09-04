@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Share2,
   Copy,
+  Building2,
 } from "lucide-react";
 import ImpresionComprobanteModal from "../../reportes/elements/ImpresionComprobanteModal";
 import type { ComprobanteData } from "../../reportes/elements/comprobanteDocument";
@@ -47,6 +48,7 @@ import {
 } from "./checkoutContract";
 import { useContext } from "react";
 import { AuthContext } from "../../../contexts/auth-context";
+import { useEmisorActivo } from "../../../hooks/useEmisorActivo";
 
 
 type Props = {
@@ -147,6 +149,9 @@ export default function CheckoutModal({
   const [estadoComprobante, setEstadoComprobante] = useState<EstadoComprobanteVenta | null>(null);
   const [mensajeComprobante, setMensajeComprobante] = useState<string | null>(null);
 
+  // Emisor Activo Multi-RUC
+  const { emisorActivo, esNuevoRus } = useEmisorActivo();
+
   // Configuración tributaria de la empresa (régimen, ambiente SUNAT)
   const { data: configTributaria } = useQuery({
     queryKey: ["config-tributaria"],
@@ -155,18 +160,38 @@ export default function CheckoutModal({
     retry: false,
   });
   // Matriz de emisión: qué puede emitir la empresa según su RUC/régimen.
-  // Sin configuración tributaria no se ofrecen comprobantes electrónicos.
   const comprobantesPermitidos = configTributaria?.comprobantes_permitidos ?? [];
   const motivoBloqueoComprobante = (key: TipoComprobante): string | null => {
     if (key === "NOTA_VENTA") return null; // documento interno, no SUNAT
+
+    // Validación según Emisor Activo (Multi-RUC)
+    if (emisorActivo) {
+      if (key === "FACTURA" && esNuevoRus) {
+        return `Este RUC (${emisorActivo.ruc}) está acogido al Nuevo RUS. El Nuevo RUS no permite emitir facturas con este RUC. Seleccione otro emisor habilitado o emita Boleta de Venta.`;
+      }
+      if (
+        emisorActivo.comprobantes_permitidos &&
+        !emisorActivo.comprobantes_permitidos.includes(key === "FACTURA" ? "01" : "03")
+      ) {
+        return `El régimen ${emisorActivo.regimen_tributario} no permite emitir ${
+          key === "FACTURA" ? "facturas" : "boletas"
+        }`;
+      }
+      return null;
+    }
+
     if (!configTributaria) {
       return "Configura primero la facturación electrónica (Administración → Facturación)";
     }
     const tipo = key === "FACTURA" ? "01" : "03";
     if (!comprobantesPermitidos.includes(tipo)) {
-      return configTributaria.regimen_tributario === "NUEVO_RUS" && tipo === "01"
+      return (configTributaria.regimen_tributario === "NUEVO_RUS" ||
+        configTributaria.regimen_tributario === "NRUS") &&
+        tipo === "01"
         ? "Una empresa en Nuevo RUS no puede emitir facturas"
-        : `El régimen ${configTributaria.regimen_tributario} no permite emitir ${key === "FACTURA" ? "facturas" : "boletas"}`;
+        : `El régimen ${configTributaria.regimen_tributario} no permite emitir ${
+            key === "FACTURA" ? "facturas" : "boletas"
+          }`;
     }
     return null;
   };
@@ -275,6 +300,7 @@ export default function CheckoutModal({
       idempotencyKeyRef.current ??= nuevaClaveIdempotencia();
       const payload = buildVentaPayload({
         idempotencyKey: idempotencyKeyRef.current,
+        perfilTributarioId: emisorActivo?.id,
         tipoComprobante,
         tipoPago,
         metodoPago,
@@ -297,11 +323,15 @@ export default function CheckoutModal({
           const response = await ventasService.getSeriesDocumentos();
           const seriesList = Array.isArray(response) ? response : (response?.data || []);
           const sucursalActual = localStorage.getItem("sucursalId");
-          const candidatas = seriesList.filter(
-            (s: any) => s.activo && s.tipo_documento === tipoComprobante,
-          );
+          const candidatas = seriesList.filter((s: any) => {
+            const matchTipo = s.activo && s.tipo_documento === tipoComprobante;
+            const matchPerfil = emisorActivo ? (!s.perfil_tributario_id || s.perfil_tributario_id === emisorActivo.id) : true;
+            return matchTipo && matchPerfil;
+          });
           const serie =
-            candidatas.find((s: any) => s.sucursal_id && s.sucursal_id === sucursalActual)
+            candidatas.find((s: any) => emisorActivo && s.perfil_tributario_id === emisorActivo.id && s.sucursal_id === sucursalActual)
+            || candidatas.find((s: any) => emisorActivo && s.perfil_tributario_id === emisorActivo.id)
+            || candidatas.find((s: any) => s.sucursal_id && s.sucursal_id === sucursalActual)
             || candidatas.find((s: any) => !s.sucursal_id)
             || candidatas[0];
 
@@ -313,6 +343,7 @@ export default function CheckoutModal({
               ventaId: ventaRegistrada.venta_id,
               tipoComprobante: tipoComprobante === "FACTURA" ? "01" : "03",
               serieId: serie.id,
+              perfilTributarioId: emisorActivo?.id,
             });
             if (emitido?.numero) {
               ventaParaSnapshot = {
@@ -355,6 +386,7 @@ export default function CheckoutModal({
         carrito,
         metodoPago,
         montoRecibido,
+        emisorActivo: emisorActivo ?? null,
         configTributaria: configTributaria ?? null,
         sucursalActual: sucursalActual ?? null,
       });
@@ -529,6 +561,41 @@ export default function CheckoutModal({
           >
                 {paso === 0 && (
               <div className="space-y-4">
+                {emisorActivo && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          esNuevoRus ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        <Building2 size={16} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <span>{emisorActivo.razon_social}</span>
+                          <span className="text-[10px] font-mono text-slate-500 font-normal">
+                            (RUC: {emisorActivo.ruc})
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Régimen: <span className="font-semibold text-slate-700">{emisorActivo.regimen_tributario}</span>
+                          {esNuevoRus && (
+                            <span className="ml-1.5 text-amber-700 font-medium">(Solo Boletas/Tickets)</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                        esNuevoRus ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
+                      {emisorActivo.regimen_tributario}
+                    </span>
+                  </div>
+                )}
+
                 <div>
                   <h3 className="text-sm font-bold text-slate-800 mb-1">
                     Selecciona el Comprobante
@@ -1012,6 +1079,10 @@ export default function CheckoutModal({
     <ImpresionComprobanteModal
       open={showImpresionModal}
       onClose={() => setShowImpresionModal(false)}
+      onNuevaVenta={() => {
+        setShowImpresionModal(false);
+        onClose();
+      }}
       formatoInicial={formatoSeleccionado}
       comprobante={comprobanteEmitidoSnapshot}
     />
