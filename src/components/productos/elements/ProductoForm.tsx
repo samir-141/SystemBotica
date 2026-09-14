@@ -26,6 +26,8 @@ import type { CatalogosMap } from "../hooks/useCatalogos";
 import type { CreateProductoDto, UpdateProductoDto } from "../../../types/dto";
 import CatalogoSelect from "./CatalogoSelect";
 import { generateSkuSuggestion } from "../../../utils/productCodes";
+import { bibliotecaService, type ProductoBibliotecaMaestro } from "../../../services/biblioteca.service";
+import { BibliotecaBanner } from "./BibliotecaBanner";
 
 type Props = {
   open: boolean;
@@ -91,6 +93,12 @@ export default function ProductoForm({
   }>>([]);
   const [scannerAbierto, setScannerAbierto] = useState(false);
 
+  // Estados para la Biblioteca Maestra de Productos
+  const [buscandoBiblioteca, setBuscandoBiblioteca] = useState(false);
+  const [aplicandoBiblioteca, setAplicandoBiblioteca] = useState(false);
+  const [productoBiblioteca, setProductoBiblioteca] = useState<ProductoBibliotecaMaestro | null>(null);
+  const [bibliotecaAplicada, setBibliotecaAplicada] = useState(false);
+
   const isEdit = mode === "editar";
   const set = (key: keyof ProductoFormData, val: any) =>
     setForm((prev) => ({ ...prev, [key]: val }));
@@ -117,12 +125,90 @@ export default function ProductoForm({
     }));
   };
 
+  /* Búsqueda reactiva en la Biblioteca Maestra por código de barras */
+  useEffect(() => {
+    if (isEdit || !open) return;
+    const codigo = form.codigo_barras?.trim();
+    if (!codigo || codigo.length < 5) {
+      setProductoBiblioteca(null);
+      setBibliotecaAplicada(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setBuscandoBiblioteca(true);
+        const resultado = await bibliotecaService.buscarPorCodigoBarras(codigo);
+        setProductoBiblioteca(resultado);
+        setBibliotecaAplicada(false);
+      } catch {
+        setProductoBiblioteca(null);
+      } finally {
+        setBuscandoBiblioteca(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [form.codigo_barras, isEdit, open]);
+
+  /* Aplicar datos de la biblioteca resolviendo catálogos locales */
+  const handleAplicarBiblioteca = async () => {
+    if (!productoBiblioteca || aplicandoBiblioteca) return;
+    try {
+      setAplicandoBiblioteca(true);
+      setError(null);
+      const { maestro, dependencias_locales } = await bibliotecaService.resolverDependencias(
+        productoBiblioteca.codigo_barras,
+      );
+
+      // Refrescar catálogos locales para asegurar que las opciones aparezcan en los selects
+      onCatalogoRefresh("laboratorios");
+      onCatalogoRefresh("categorias");
+      onCatalogoRefresh("principios-activos");
+      onCatalogoRefresh("formas-farmaceuticas");
+      onCatalogoRefresh("unidades-presentacion");
+
+      setForm((prev) => ({
+        ...prev,
+        nombre_comercial: maestro.nombre_comercial || prev.nombre_comercial,
+        sku: maestro.sku || prev.sku,
+        tipo_producto: (maestro.tipo_producto as ProductoFormData["tipo_producto"]) || prev.tipo_producto,
+        laboratorio_id: dependencias_locales.laboratorio_id || prev.laboratorio_id,
+        categoria_id: dependencias_locales.categoria_id || prev.categoria_id,
+        principio_activo_id: dependencias_locales.principio_activo_id || prev.principio_activo_id,
+        forma_farmaceutica_id: dependencias_locales.forma_farmaceutica_id || prev.forma_farmaceutica_id,
+        concentracion: maestro.concentracion
+          ? Number(maestro.concentracion) || ""
+          : prev.concentracion,
+        unidad_concentracion: maestro.unidad_concentracion || prev.unidad_concentracion,
+        via_administracion: maestro.via_administracion || prev.via_administracion,
+        registro_sanitario: maestro.registro_sanitario || prev.registro_sanitario,
+        requiere_receta: maestro.requiere_receta ?? prev.requiere_receta,
+        afecto_igv: maestro.afecto_igv ?? prev.afecto_igv,
+        controla_lote: maestro.controla_lote ?? prev.controla_lote,
+        requiere_vencimiento: maestro.requiere_vencimiento ?? prev.requiere_vencimiento,
+        presentacion_id: dependencias_locales.presentacion_id || prev.presentacion_id,
+        cantidad_unidad_base: dependencias_locales.cantidad_unidad_base
+          ? Number(dependencias_locales.cantidad_unidad_base)
+          : prev.cantidad_unidad_base,
+      }));
+
+      setBibliotecaAplicada(true);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Error al autocompletar desde la biblioteca.");
+    } finally {
+      setAplicandoBiblioteca(false);
+    }
+  };
+
   /* Pre-fill form on open */
   useEffect(() => {
     if (!open) return;
     setError(null);
     setPresentacionesExtra([]);
     setSkuManual(false);
+    setProductoBiblioteca(null);
+    setBibliotecaAplicada(false);
 
     if (isEdit && producto) {
       setForm({
@@ -386,6 +472,16 @@ export default function ProductoForm({
               </div>
             )}
 
+            {/* Biblioteca Maestra Match Banner */}
+            {!isEdit && productoBiblioteca && (
+              <BibliotecaBanner
+                producto={productoBiblioteca}
+                cargando={aplicandoBiblioteca}
+                aplicado={bibliotecaAplicada}
+                onAplicar={handleAplicarBiblioteca}
+              />
+            )}
+
             {/* ─── Sección: Datos Comerciales ───────────── */}
             {!isEdit && (
               <fieldset className="space-y-3">
@@ -434,10 +530,10 @@ export default function ProductoForm({
                   <input
                     type="text"
                     value={form.nombre_comercial}
-                    onChange={(e) => set("nombre_comercial", e.target.value)}
+                    onChange={(e) => set("nombre_comercial", e.target.value.toUpperCase())}
                     disabled={foundProduct}
-                    placeholder="ej. Paracetamol 500mg, Panadol Forte, Apronax"
-                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
+                    placeholder="ej. PARACETAMOL 500MG, PANADOL FORTE, APRONAX"
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white font-medium uppercase focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
                     required
                   />
                 </div>
@@ -452,13 +548,13 @@ export default function ProductoForm({
                         type="text"
                         value={form.sku}
                         onChange={(e) => {
-                          const value = e.target.value;
+                          const value = e.target.value.toUpperCase();
                           set("sku", value);
                           setSkuManual(value.trim() !== "");
                         }}
                         disabled={foundProduct}
                         placeholder="Se genera automáticamente"
-                        className="min-w-0 flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
+                        className="min-w-0 flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono uppercase focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
                       />
                       {!isEdit && (
                         <button
@@ -484,10 +580,10 @@ export default function ProductoForm({
                     <input
                       type="text"
                       value={form.codigo_interno}
-                      onChange={(e) => set("codigo_interno", e.target.value)}
+                      onChange={(e) => set("codigo_interno", e.target.value.toUpperCase())}
                       disabled={foundProduct}
                       placeholder="Automático: PRD-XXXXXX"
-                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
+                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono uppercase focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
                     />
                     <p className="mt-1 text-[10px] text-slate-400">
                       Si lo dejas vacío, el sistema generará un código interno seguro.
@@ -500,10 +596,10 @@ export default function ProductoForm({
                     <input
                       type="text"
                       value={form.registro_sanitario}
-                      onChange={(e) => set("registro_sanitario", e.target.value)}
+                      onChange={(e) => set("registro_sanitario", e.target.value.toUpperCase())}
                       disabled={foundProduct}
-                      placeholder="ej. N-29381"
-                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
+                      placeholder="ej. EN-01234"
+                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white font-mono uppercase focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 focus:outline-none transition disabled:bg-slate-50"
                     />
                   </div>
                 </div>
@@ -781,6 +877,11 @@ export default function ProductoForm({
                   )}
                 </div>
                 <p className="mt-1 text-[10px] text-slate-400">Opcional: también puedes enfocar este campo y usar un lector USB.</p>
+                {buscandoBiblioteca && (
+                  <p className="mt-1 flex items-center gap-1.5 text-[10px] text-teal-600 font-semibold animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Buscando ficha técnica en la Biblioteca Maestra...
+                  </p>
+                )}
                 {!isEdit && (
                   <CameraScannerModal
                     isOpen={scannerAbierto}

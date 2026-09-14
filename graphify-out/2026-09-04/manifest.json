@@ -55,9 +55,9 @@
     "semantic_hash": "7a8137c86a257012ea2106cd38fff7bc"
   },
   "src/components/admin/elements/FacturacionAdmin.tsx": {
-    "mtime": 1788555054.0758924,
-    "ast_hash": "f3dd1f7d1715503bece7e88b0d371594",
-    "semantic_hash": ""
+    "mtime": 1785823686.1797543,
+    "ast_hash": "9785fb140e1ba46607f38dc89b967700",
+    "semantic_hash": "9785fb140e1ba46607f38dc89b967700"
   },
   "src/components/admin/elements/RolesAdmin.tsx": {
     "mtime": 1786055368.46433,
@@ -65,9 +65,9 @@
     "semantic_hash": ""
   },
   "src/components/admin/elements/SeriesDocumentosAdmin.tsx": {
-    "mtime": 1788543144.298536,
-    "ast_hash": "69c4e6a09f8dbcaf19be377b2bba620a",
-    "semantic_hash": ""
+    "mtime": 1785812566.0532448,
+    "ast_hash": "de6c175fc59d481e19b95b0f6e493423",
+    "semantic_hash": "de6c175fc59d481e19b95b0f6e493423"
   },
   "src/components/admin/elements/SucursalesAdmin.tsx": {
     "mtime": 1784853099.391049,
@@ -315,8 +315,8 @@
     "semantic_hash": "368278e5bfa7b268528724919b00c00a"
   },
   "src/components/reportes/elements/ImpresionComprobanteModal.tsx": {
-    "mtime": 1788520969.709158,
-    "ast_hash": "eeb8ea7407f48243a5f633fcdf336cc1",
+    "mtime": 1787284233.9929924,
+    "ast_hash": "8579f284e400615dba9fccafaf1e08ba",
     "semantic_hash": ""
   },
   "src/components/reportes/elements/ReporteComprobantes.tsx": {
@@ -345,8 +345,8 @@
     "semantic_hash": "f5209fc1994f5a06cc965f64a9781917"
   },
   "src/components/reportes/elements/comprobanteDocument.ts": {
-    "mtime": 1788521109.4319885,
-    "ast_hash": "7a72d206333ff35e12b81bb8072dd18d",
+    "mtime": 1787277196.0313938,
+    "ast_hash": "8bf381333ee20910cf300e3671adadd8",
     "semantic_hash": ""
   },
   "src/components/reportes/hooks/useReportes.ts": {
@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "src/components/venta/elements/CheckoutModal.tsx": {
-    "mtime": 1788543151.2115285,
-    "ast_hash": "aaf7b8dc0bd58684642ede2ec0d9d419",
+    "mtime": 1787284034.532052,
+    "ast_hash": "c5ddae08aa58c5403f3cd9f10dc0c077",
     "semantic_hash": ""
   },
   "src/components/venta/elements/ClienteSelectorModal.tsx": {
@@ -395,19 +395,19 @@
     "semantic_hash": "f77e37b0e95d963386659db529ff9873"
   },
   "src/components/venta/elements/checkoutContract.ts": {
-    "mtime": 1788542892.2694802,
-    "ast_hash": "2c4bce2ba5ddbacdf571b4a957583516",
+    "mtime": 1787284021.1958423,
+    "ast_hash": "a4b945f17e8f48d58a943b347dc3ffaa",
     "semantic_hash": ""
   },
   "src/components/venta/elements/item.tsx": {
-    "mtime": 1788521380.6290717,
-    "ast_hash": "71582366371da0fa0fa4878fa3551a04",
+    "mtime": 1786056675.841321,
+    "ast_hash": "bcb0c1d36f19e7526813225dbfc5441e",
     "semantic_hash": ""
   },
   "src/components/venta/elements/productos.muestra.tsx": {
-    "mtime": 1788542821.6453338,
-    "ast_hash": "a5db0c7af1b42d9d45027f8476001832",
-    "semantic_hash": ""
+    "mtime": 1785822559.7994907,
+    "ast_hash": "edaa7c46ebd46e9184a4585a9e9ddcc1",
+    "semantic_hash": "edaa7c46ebd46e9184a4585a9e9ddcc1"
   },
   "src/components/venta/hooks/__tests__/useCart.test.ts": {
     "mtime": 1785812566.0941668,
@@ -460,8 +460,8 @@
     "semantic_hash": "fdab1ba71186e5fcf952de961623d3ce"
   },
   "src/components/venta/venta.tsx": {
-    "mtime": 1788521491.718757,
-    "ast_hash": "cdc0ce2e085464681d784881803c130f",
+    "mtime": 1787276568.8262591,
+    "ast_hash": "150b850f42d57b0fd954f8561e4ed24e",
     "semantic_hash": ""
   },
   "src/contexts/AuthContext.tsx": {
@@ -590,8 +590,8 @@
     "semantic_hash": "94a99e61385746b682a91841ee132614"
   },
   "src/services/facturacion.service.ts": {
-    "mtime": 1788542927.086786,
-    "ast_hash": "8349550f798366517521483590f3dd2b",
+    "mtime": 1786030638.648824,
+    "ast_hash": "b3c19c39d1b7b297fd6e17273b3bba4e",
     "semantic_hash": ""
   },
   "src/services/gastos.service.ts": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "src/types/dto.ts": {
-    "mtime": 1788542876.1653066,
-    "ast_hash": "9d3ef521b471a11bfcaeeae4877f837b",
+    "mtime": 1787284190.3392682,
+    "ast_hash": "80ab4f3db9b73b490c9c48ec61754f6b",
     "semantic_hash": ""
   },
   "src/utils/__tests__/localDate.test.ts": {
@@ -1025,8 +1025,8 @@
     "semantic_hash": ""
   },
   "src/components/reportes/elements/TicketPOS.tsx": {
-    "mtime": 1788520926.7158382,
-    "ast_hash": "f82985dfc6f7b71c454b3cba03e08f6f",
+    "mtime": 1787284057.271061,
+    "ast_hash": "597ac6e0c996ad20b4d5ddc420fe8bab",
     "semantic_hash": ""
   },
   "src/components/venta/elements/__tests__/RecetaModal.test.tsx": {
@@ -1057,31 +1057,6 @@
   "src/types/ticketConfig.ts": {
     "mtime": 1787276956.7764761,
     "ast_hash": "8ff2c01a1755b81aea0369e81150c3c5",
-    "semantic_hash": ""
-  },
-  "src/components/venta/elements/EmisorSelectorBadge.tsx": {
-    "mtime": 1788543158.3136914,
-    "ast_hash": "1ea432509b13ee4f2778fb479980caf0",
-    "semantic_hash": ""
-  },
-  "src/hooks/useEmisorActivo.ts": {
-    "mtime": 1788543279.7415774,
-    "ast_hash": "0a78f0e1b252844c5a3831695b4d6897",
-    "semantic_hash": ""
-  },
-  "src/services/perfiles-tributarios.service.ts": {
-    "mtime": 1788554861.2511728,
-    "ast_hash": "9a161dca28537146d199c13cae7c37f4",
-    "semantic_hash": ""
-  },
-  "src/store/emisorStore.ts": {
-    "mtime": 1788543164.7889018,
-    "ast_hash": "49e8e481621167d15ab10359e46d993a",
-    "semantic_hash": ""
-  },
-  "src/utils/numeroALetras.ts": {
-    "mtime": 1788520818.8567376,
-    "ast_hash": "3c02f987425e8e257954102e6d43f599",
     "semantic_hash": ""
   }
 }

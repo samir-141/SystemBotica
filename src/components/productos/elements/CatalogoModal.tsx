@@ -39,15 +39,15 @@ export default function CatalogoModal({ open, tipo, onClose, onCreated }: Props)
     setError(null);
 
     try {
-      const payload: Record<string, string> = { nombre: nombre.trim() };
+      const payload: Record<string, string> = { nombre: nombre.trim().toUpperCase() };
       if (descripcion.trim()) payload.descripcion = descripcion.trim();
       if (isLaboratorio) {
-        if (pais.trim()) payload.pais = pais.trim();
+        if (pais.trim()) payload.pais = pais.trim().toUpperCase();
         if (telefono.trim()) payload.telefono = telefono.trim();
-        if (email.trim()) payload.email = email.trim();
+        if (email.trim()) payload.email = email.trim().toLowerCase();
       }
       if (isPresentacion && abreviatura.trim()) {
-        payload.abreviatura = abreviatura.trim();
+        payload.abreviatura = abreviatura.trim().toUpperCase();
       }
 
       const created = await inventarioService.crearItemCatalogo(tipo, payload);
@@ -117,9 +117,9 @@ export default function CatalogoModal({ open, tipo, onClose, onCreated }: Props)
               autoFocus
               type="text"
               value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder={`Ej: ${tipo === "laboratorios" ? "Pfizer" : tipo === "categorias" ? "Analgésicos" : "Nombre"}`}
-              className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white
+              onChange={(e) => setNombre(e.target.value.toUpperCase())}
+              placeholder={`EJ: ${tipo === "laboratorios" ? "PFIZER" : tipo === "categorias" ? "ANALGÉSICOS" : "NOMBRE"}`}
+              className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white uppercase font-semibold
                 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400
                 placeholder:text-slate-300 transition"
             />
@@ -151,9 +151,9 @@ export default function CatalogoModal({ open, tipo, onClose, onCreated }: Props)
                 <input
                   type="text"
                   value={pais}
-                  onChange={(e) => setPais(e.target.value)}
-                  placeholder="Ej: Perú"
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white
+                  onChange={(e) => setPais(e.target.value.toUpperCase())}
+                  placeholder="EJ: PERÚ"
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 bg-white uppercase font-semibold
                     focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400
                     placeholder:text-slate-300 transition"
                 />

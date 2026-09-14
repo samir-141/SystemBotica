@@ -59,22 +59,22 @@ export default function CatalogoSelect({
             value={value}
             onChange={handleChange}
             disabled={disabled}
-            className={`w-full px-3 py-2.5 text-sm rounded-xl border bg-white appearance-none
+            className={`w-full px-3 py-2.5 text-sm rounded-xl border bg-white appearance-none uppercase font-semibold
               pr-9 transition cursor-pointer
               ${disabled
                 ? "border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed"
                 : "border-slate-200 text-slate-800 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400"
               }`}
           >
-            <option value="">— Seleccionar {label.toLowerCase()} —</option>
+            <option value="">— SELECCIONAR {label.toUpperCase()} —</option>
             {items.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.nombre}
-                {item.abreviatura ? ` (${item.abreviatura})` : ""}
+              <option key={item.id} value={item.id} className="uppercase font-medium">
+                {item.nombre.toUpperCase()}
+                {item.abreviatura ? ` (${item.abreviatura.toUpperCase()})` : ""}
               </option>
             ))}
             {!disabled && (
-              <option value="__CREAR_NUEVO__" className="font-bold text-teal-700">
+              <option value="__CREAR_NUEVO__" className="font-bold text-teal-700 normal-case">
                 ＋ Crear nuevo {label.toLowerCase()}...
               </option>
             )}
