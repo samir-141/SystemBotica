@@ -18,6 +18,7 @@ import {
   Trash2,
   ScanLine,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import type { ProductoPOS } from "../../../types/api.types";
 import type { ProductoFormData, FormMode, TipoCatalogo } from "../types";
@@ -26,7 +27,11 @@ import type { CatalogosMap } from "../hooks/useCatalogos";
 import type { CreateProductoDto, UpdateProductoDto } from "../../../types/dto";
 import CatalogoSelect from "./CatalogoSelect";
 import { generateSkuSuggestion } from "../../../utils/productCodes";
-import { bibliotecaService, type ProductoBibliotecaMaestro } from "../../../services/biblioteca.service";
+import {
+  bibliotecaService,
+  type ProductoBibliotecaMaestro,
+  type ProductoLocalExistenteResponse,
+} from "../../../services/biblioteca.service";
 import { BibliotecaBanner } from "./BibliotecaBanner";
 
 type Props = {
@@ -93,9 +98,10 @@ export default function ProductoForm({
   }>>([]);
   const [scannerAbierto, setScannerAbierto] = useState(false);
 
-  // Estados para la Biblioteca Maestra de Productos
+  // Estados para la detección de producto existente y biblioteca
   const [buscandoBiblioteca, setBuscandoBiblioteca] = useState(false);
   const [aplicandoBiblioteca, setAplicandoBiblioteca] = useState(false);
+  const [productoLocalExistente, setProductoLocalExistente] = useState<ProductoLocalExistenteResponse | null>(null);
   const [productoBiblioteca, setProductoBiblioteca] = useState<ProductoBibliotecaMaestro | null>(null);
   const [bibliotecaAplicada, setBibliotecaAplicada] = useState(false);
 
@@ -125,11 +131,12 @@ export default function ProductoForm({
     }));
   };
 
-  /* Búsqueda reactiva en la Biblioteca Maestra por código de barras */
+  /* Búsqueda reactiva secuencial: 1. POS Local -> 2. Biblioteca Global & API Externa */
   useEffect(() => {
     if (isEdit || !open) return;
     const codigo = form.codigo_barras?.trim();
     if (!codigo || codigo.length < 5) {
+      setProductoLocalExistente(null);
       setProductoBiblioteca(null);
       setBibliotecaAplicada(false);
       return;
@@ -138,10 +145,24 @@ export default function ProductoForm({
     const timer = setTimeout(async () => {
       try {
         setBuscandoBiblioteca(true);
+
+        // 1. Verificar primero si ya existe en el POS local
+        const local = await bibliotecaService.buscarLocalPorIdentificador(codigo);
+        if (local) {
+          setProductoLocalExistente(local);
+          setProductoBiblioteca(null);
+          setBibliotecaAplicada(false);
+          return;
+        }
+
+        setProductoLocalExistente(null);
+
+        // 2. Si no existe en el POS local, consultar Biblioteca Global / API Externa
         const resultado = await bibliotecaService.buscarPorCodigoBarras(codigo);
         setProductoBiblioteca(resultado);
         setBibliotecaAplicada(false);
       } catch {
+        setProductoLocalExistente(null);
         setProductoBiblioteca(null);
       } finally {
         setBuscandoBiblioteca(false);
@@ -162,11 +183,18 @@ export default function ProductoForm({
       );
 
       // Refrescar catálogos locales para asegurar que las opciones aparezcan en los selects
-      onCatalogoRefresh("laboratorios");
-      onCatalogoRefresh("categorias");
-      onCatalogoRefresh("principios-activos");
-      onCatalogoRefresh("formas-farmaceuticas");
-      onCatalogoRefresh("unidades-presentacion");
+      await Promise.all([
+        onCatalogoRefresh("laboratorios"),
+        onCatalogoRefresh("categorias"),
+        onCatalogoRefresh("principios-activos"),
+        onCatalogoRefresh("formas-farmaceuticas"),
+        onCatalogoRefresh("unidades-presentacion"),
+      ]);
+
+      const unidadBaseElegida =
+        dependencias_locales.unidad_base_id ||
+        dependencias_locales.presentacion_id ||
+        form.presentacion_id;
 
       setForm((prev) => ({
         ...prev,
@@ -187,11 +215,27 @@ export default function ProductoForm({
         afecto_igv: maestro.afecto_igv ?? prev.afecto_igv,
         controla_lote: maestro.controla_lote ?? prev.controla_lote,
         requiere_vencimiento: maestro.requiere_vencimiento ?? prev.requiere_vencimiento,
-        presentacion_id: dependencias_locales.presentacion_id || prev.presentacion_id,
-        cantidad_unidad_base: dependencias_locales.cantidad_unidad_base
-          ? Number(dependencias_locales.cantidad_unidad_base)
-          : prev.cantidad_unidad_base,
+        presentacion_id: unidadBaseElegida,
+        cantidad_unidad_base: 1,
       }));
+
+      // Si el producto viene en presentación con empaque múltiple (ej. Caja x 10 Tabletas),
+      // configurar automáticamente la presentación de empaque
+      if (
+        dependencias_locales.presentacion_id &&
+        dependencias_locales.unidad_base_id &&
+        dependencias_locales.presentacion_id !== dependencias_locales.unidad_base_id &&
+        dependencias_locales.cantidad_unidad_base > 1
+      ) {
+        setPresentacionesExtra([
+          {
+            unidad_presentacion_id: dependencias_locales.presentacion_id,
+            cantidad_unidad_base: dependencias_locales.cantidad_unidad_base,
+            precio_actual: "",
+            codigo_barras: maestro.codigo_barras,
+          },
+        ]);
+      }
 
       setBibliotecaAplicada(true);
     } catch (err: any) {
@@ -207,6 +251,7 @@ export default function ProductoForm({
     setError(null);
     setPresentacionesExtra([]);
     setSkuManual(false);
+    setProductoLocalExistente(null);
     setProductoBiblioteca(null);
     setBibliotecaAplicada(false);
 
@@ -283,6 +328,7 @@ export default function ProductoForm({
 
   const unidadesSugeridas = useMemo(() => {
     const todas = catalogos["unidades-presentacion"];
+    if (form.tipo_producto !== "MEDICAMENTO") return todas;
     const forma = catalogos["formas-farmaceuticas"].find((item) => item.id === form.forma_farmaceutica_id)?.nombre.toLowerCase() || "";
     let patron: RegExp | null = null;
     if (/(tableta|cápsula|comprimido|gragea|pastilla)/.test(forma)) patron = /(tableta|cápsula|comprimido|blíster|caja|sobre)/i;
@@ -291,7 +337,7 @@ export default function ProductoForm({
     else if (/(crema|gel|pomada|ungüento)/.test(forma)) patron = /(tubo|tarro|sobre|caja)/i;
     const filtradas = patron ? todas.filter((unidad) => patron!.test(unidad.nombre)) : todas;
     return filtradas.length > 0 ? filtradas : todas;
-  }, [catalogos, form.forma_farmaceutica_id]);
+  }, [catalogos, form.forma_farmaceutica_id, form.tipo_producto]);
 
   // Caja, blíster y sobre son empaques comerciales; no pueden ser la unidad base.
   // La unidad base representa el tipo físico que se consume: tableta, frasco, ampolla, tubo, etc.
@@ -319,14 +365,23 @@ export default function ProductoForm({
     setError(null);
 
     if (!isEdit) {
-      if (!form.principio_activo_id) {
-        setError("Selecciona un principio activo.");
-        return;
+      const esMedicamento = form.tipo_producto === "MEDICAMENTO";
+
+      if (esMedicamento) {
+        if (!form.principio_activo_id) {
+          setError("Selecciona un principio activo.");
+          return;
+        }
+        if (!form.forma_farmaceutica_id) {
+          setError("Selecciona una forma farmacéutica.");
+          return;
+        }
+        if (form.concentracion === "" || !Number.isFinite(Number(form.concentracion)) || Number(form.concentracion) < 0) {
+          setError("Ingresa una concentración numérica válida (0 o mayor).");
+          return;
+        }
       }
-      if (!form.forma_farmaceutica_id) {
-        setError("Selecciona una forma farmacéutica.");
-        return;
-      }
+
       if (!form.laboratorio_id) {
         setError("Selecciona un laboratorio.");
         return;
@@ -337,10 +392,6 @@ export default function ProductoForm({
       }
       if (!form.presentacion_id) {
         setError("Selecciona la unidad base del producto.");
-        return;
-      }
-      if (form.concentracion === "" || !Number.isFinite(Number(form.concentracion)) || Number(form.concentracion) < 0) {
-        setError("Ingresa una concentración numérica válida (0 o mayor). ");
         return;
       }
       const unidadesSeleccionadas = [form.presentacion_id, ...presentacionesExtra.map((p) => p.unidad_presentacion_id)];
@@ -469,6 +520,93 @@ export default function ProductoForm({
             {error && (
               <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700">
                 {error}
+              </div>
+            )}
+
+            {/* ─── Sección 1: Escáner / Código de Barras o QR (Primera Opción) ─── */}
+            <div className="rounded-2xl border-2 border-teal-500/30 bg-gradient-to-br from-teal-50/80 via-emerald-50/40 to-slate-50 p-4 shadow-sm space-y-2.5 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-black uppercase text-teal-900 tracking-wider flex items-center gap-1.5">
+                  <Barcode className="w-4 h-4 text-teal-600" />
+                  <span>1. Escanear Código de Barras o QR</span>
+                </label>
+                <span className="text-[10px] font-bold text-teal-800 bg-teal-100/90 border border-teal-200/80 px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-teal-600" />
+                  Autocompletado
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={form.codigo_barras}
+                    onChange={(e) => set("codigo_barras", e.target.value)}
+                    placeholder="Escanear con lector USB o escribir código..."
+                    autoFocus={!isEdit}
+                    className="w-full pl-3.5 pr-8 py-2.5 text-sm rounded-xl border border-teal-200 bg-white font-mono tracking-wider text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 focus:outline-none transition shadow-xs"
+                  />
+                  {buscandoBiblioteca && (
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
+                    </div>
+                  )}
+                  {!buscandoBiblioteca && form.codigo_barras && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        set("codigo_barras", "");
+                        setProductoLocalExistente(null);
+                        setProductoBiblioteca(null);
+                        setBibliotecaAplicada(false);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setScannerAbierto(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-black rounded-xl shadow-sm transition shrink-0 cursor-pointer"
+                  title="Abrir cámara para escanear código de barras o QR"
+                >
+                  <ScanLine className="w-4 h-4" />
+                  <span className="hidden sm:inline">Cámara QR/Barras</span>
+                </button>
+              </div>
+
+              <p className="text-[10px] text-slate-500 leading-tight">
+                ⚡ Consulta en secuencia: <strong>1° POS Local</strong>, <strong>2° Catálogo Maestro Global</strong> y <strong>3° Búsqueda Web Inteligente</strong>.
+              </p>
+            </div>
+
+            {/* Banner de Producto Existente en POS Local */}
+            {!isEdit && productoLocalExistente && (
+              <div className="relative overflow-hidden rounded-2xl border-2 border-amber-500/40 bg-gradient-to-r from-amber-50 via-orange-50/50 to-amber-50/30 p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white shadow-md shadow-amber-600/20">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-md bg-amber-100 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber-900 border border-amber-200">
+                        ⚠ Ya Registrado en tu Botica
+                      </span>
+                      <span className="text-xs text-amber-700 font-mono font-medium">
+                        SKU: {productoLocalExistente.sku}
+                      </span>
+                    </div>
+                    <h4 className="mt-1 text-sm font-black text-slate-900">
+                      {productoLocalExistente.nombre_comercial}
+                    </h4>
+                    <p className="mt-0.5 text-xs text-amber-800">
+                      Este código de barras ya pertenece a un producto en tu inventario local. Puedes buscarlo en la lista de productos para editarlo, ajustar precios o registrar más stock.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1052,6 +1190,18 @@ export default function ProductoForm({
           </div>
         </div>
       </div>
+
+      {/* Modal de Cámara para Escaneo de Barras / QR */}
+      <CameraScannerModal
+        isOpen={scannerAbierto}
+        onClose={() => setScannerAbierto(false)}
+        onScan={(code) => {
+          set("codigo_barras", code);
+          setScannerAbierto(false);
+        }}
+        title="Escanear Código de Barras o QR"
+        subtitle="Apunta la cámara al código de barras o QR del medicamento o producto"
+      />
     </div>
   );
 }

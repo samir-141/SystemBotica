@@ -184,4 +184,40 @@ export const facturacionService = {
     enlace.click();
     URL.revokeObjectURL(url);
   },
+
+  /** Prueba de login y conexión a SUNAT SEE-SOL con Playwright */
+  testConexionSol: async (opciones?: {
+    headless?: boolean;
+    credenciales?: {
+      ruc?: string;
+      dni?: string;
+      usuario?: string;
+      clave?: string;
+      modoAcceso?: "DNI" | "RUC";
+    };
+  }): Promise<{
+    exito: boolean;
+    ruc: string;
+    usuario: string;
+    razonSocialDetectada?: string;
+    mensaje: string;
+    capturaBase64?: string;
+  }> => {
+    const { data } = await api.post("/facturacion/sol-bot/test-conexion", {
+      headless: opciones?.headless !== undefined ? opciones.headless : true,
+      credenciales: opciones?.credenciales,
+    });
+    return data;
+  },
+
+  /** Emisión de boleta directa con bot Playwright en SUNAT SEE-SOL */
+  emitirBoletaSol: async (payload: {
+    receptor: { tipoDoc: string; numeroDoc?: string; razonSocialODatos?: string };
+    items: Array<{ tipo: "BIEN" | "SERVICIO"; descripcion: string; cantidad: number; precioUnitario: number }>;
+    observaciones?: string;
+    headless?: boolean;
+  }): Promise<any> => {
+    const { data } = await api.post("/facturacion/sol-bot/emitir-boleta", payload);
+    return data;
+  },
 };

@@ -255,14 +255,14 @@
     "semantic_hash": ""
   },
   "src/components/productos/elements/CatalogoModal.tsx": {
-    "mtime": 1789174253.0165584,
-    "ast_hash": "e07abf59828684d438613c6558d1f54c",
-    "semantic_hash": ""
+    "mtime": 1785812566.0680518,
+    "ast_hash": "5e102d48fb0ff2ff11d3ae66ce1dfa49",
+    "semantic_hash": "5e102d48fb0ff2ff11d3ae66ce1dfa49"
   },
   "src/components/productos/elements/CatalogoSelect.tsx": {
-    "mtime": 1789174214.952002,
-    "ast_hash": "75af98e3e199b7b0ac82e281a5d5a299",
-    "semantic_hash": ""
+    "mtime": 1785302216.8318715,
+    "ast_hash": "c6dadb5198e67bc61134b751473b44c3",
+    "semantic_hash": "c6dadb5198e67bc61134b751473b44c3"
   },
   "src/components/productos/elements/MovimientosModal.tsx": {
     "mtime": 1785812566.0680518,
@@ -270,13 +270,13 @@
     "semantic_hash": "f213252eafc292b77775823f2f15e721"
   },
   "src/components/productos/elements/ProductoForm.tsx": {
-    "mtime": 1789143961.8212173,
-    "ast_hash": "4f130087a75f5a558ea7fa95e90f0df1",
+    "mtime": 1787274063.9203806,
+    "ast_hash": "dfbab30c8cedb012fb64986530e0e883",
     "semantic_hash": ""
   },
   "src/components/productos/elements/ProductoTable.tsx": {
-    "mtime": 1789174190.6866643,
-    "ast_hash": "7d3e284a1d432a9bae8deefcfec9b5c8",
+    "mtime": 1786056713.9714105,
+    "ast_hash": "2ffea512912a093be9d037dd9d27a1eb",
     "semantic_hash": ""
   },
   "src/components/productos/elements/ReabastecerModal.tsx": {
@@ -1082,16 +1082,6 @@
   "src/utils/numeroALetras.ts": {
     "mtime": 1788520818.8567376,
     "ast_hash": "3c02f987425e8e257954102e6d43f599",
-    "semantic_hash": ""
-  },
-  "src/components/productos/elements/BibliotecaBanner.tsx": {
-    "mtime": 1789143476.7534323,
-    "ast_hash": "31947f1a6645ec0fb9c6e4d605354fc0",
-    "semantic_hash": ""
-  },
-  "src/services/biblioteca.service.ts": {
-    "mtime": 1789143469.0808342,
-    "ast_hash": "92c10371db9fbd2beca4b76170d0e3d9",
     "semantic_hash": ""
   }
 }

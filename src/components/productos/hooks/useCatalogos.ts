@@ -35,7 +35,7 @@ export function useCatalogos() {
       const results = await Promise.all(
         CATALOGO_TIPOS.map((tipo) =>
           inventarioService
-            .getCatalogo(tipo, { limit: 20, orden: "asc" })
+            .getCatalogo(tipo, { limit: 500, orden: "asc" })
             .then((res) => ({ tipo, items: res.data }))
             .catch(() => ({ tipo, items: [] as ItemCatalogo[] }))
         )
@@ -57,10 +57,10 @@ export function useCatalogos() {
     fetchAll();
   }, [fetchAll]);
 
-  /* refrescar un catálogo específico (ej: tras crear nuevo laboratorio) */
+  /* refrescar un catálogo específico (ej: tras crear nuevo laboratorio o categoría) */
   const refreshCatalogo = useCallback(async (tipo: TipoCatalogo) => {
     try {
-      const res = await inventarioService.getCatalogo(tipo, { limit: 20, orden: "asc" });
+      const res = await inventarioService.getCatalogo(tipo, { limit: 500, orden: "asc" });
       setCatalogos((prev) => ({ ...prev, [tipo]: res.data }));
     } catch {
       /* silencioso — el select sigue mostrando los datos previos */

@@ -16,6 +16,8 @@ import {
   Info,
   Server,
   Lock,
+  Bot,
+  Sparkles,
 } from "lucide-react";
 import { Toast } from "primereact/toast";
 import {
@@ -23,6 +25,7 @@ import {
   type PerfilTributario,
   type CreatePerfilTributarioPayload,
 } from "../../../services/perfiles-tributarios.service";
+import { facturacionService } from "../../../services/facturacion.service";
 import { useEmisorStore } from "../../../store/emisorStore";
 
 const REGIMENES = [
@@ -112,6 +115,59 @@ export default function FacturacionAdmin() {
   const [certClave, setCertClave] = useState("");
   const [subiendoCert, setSubiendoCert] = useState(false);
   const [verificandoId, setVerificandoId] = useState<string | null>(null);
+  const [probandoBot, setProbandoBot] = useState(false);
+
+  const handleTestConexionBot = async () => {
+    setProbandoBot(true);
+    try {
+      const solClave = form.configuracion_emision?.sol_clave?.trim();
+      const solUsuario = form.configuracion_emision?.sol_usuario?.trim();
+      const rucLimpio = form.ruc?.trim();
+      const dniCalculado = solUsuario && /^\d{8}$/.test(solUsuario)
+        ? solUsuario
+        : (rucLimpio.startsWith("10") ? rucLimpio.slice(2, 10) : undefined);
+
+      const credencialesForm = solClave
+        ? {
+            ruc: rucLimpio,
+            dni: dniCalculado,
+            usuario: solUsuario || undefined,
+            clave: solClave,
+            modoAcceso: (!solUsuario || /^\d{8}$/.test(solUsuario)) ? ("DNI" as const) : ("RUC" as const),
+          }
+        : undefined;
+
+      const res = await facturacionService.testConexionSol({
+        headless: true,
+        credenciales: credencialesForm,
+      });
+
+      if (res.exito) {
+        toast.current?.show({
+          severity: "success",
+          summary: "Conexión SOL Exitosa (Playwright)",
+          detail: `${res.mensaje}${res.razonSocialDetectada ? ` — Contribuyente: ${res.razonSocialDetectada}` : ""}`,
+          life: 5000,
+        });
+      } else {
+        toast.current?.show({
+          severity: "warn",
+          summary: "Fallo de Inicio de Sesión SOL",
+          detail: res.mensaje || "No se pudo acceder al portal SUNAT SOL con las credenciales",
+          life: 5000,
+        });
+      }
+    } catch (err: any) {
+      toast.current?.show({
+        severity: "error",
+        summary: "Error al ejecutar Bot SOL",
+        detail: err?.response?.data?.message || err?.message || "Error al conectar con SUNAT SOL",
+        life: 5000,
+      });
+    } finally {
+      setProbandoBot(false);
+    }
+  };
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -255,23 +311,32 @@ export default function FacturacionAdmin() {
 
     setGuardando(true);
     try {
+      let targetId = editId;
       if (editId) {
         await perfilesTributariosService.actualizar(editId, payload);
-        toast.current?.show({
-          severity: "success",
-          summary: "Actualizado",
-          detail: "Perfil tributario actualizado correctamente.",
-          life: 3000,
-        });
       } else {
-        await perfilesTributariosService.crear(payload as any);
-        toast.current?.show({
-          severity: "success",
-          summary: "Creado",
-          detail: "Perfil tributario registrado con éxito.",
-          life: 3000,
+        const creado = await perfilesTributariosService.crear(payload as any);
+        targetId = creado.id;
+      }
+
+      // Guardar también la configuración de emisión (credenciales SOL, ambiente, sistema de emisión)
+      if (targetId && form.configuracion_emision) {
+        await perfilesTributariosService.guardarConfigEmision(targetId, {
+          sistema_emision: form.configuracion_emision.sistema_emision,
+          proveedor_tipo: form.configuracion_emision.proveedor_tipo,
+          ambiente: form.configuracion_emision.ambiente,
+          sol_usuario: form.configuracion_emision.sol_usuario || undefined,
+          sol_clave: form.configuracion_emision.sol_clave || undefined,
         });
       }
+
+      toast.current?.show({
+        severity: "success",
+        summary: editId ? "Actualizado" : "Registrado",
+        detail: "Perfil tributario y credenciales guardados correctamente.",
+        life: 3000,
+      });
+
       setModalOpen(false);
       await cargar();
     } catch (err: any) {
@@ -887,7 +952,10 @@ export default function FacturacionAdmin() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Usuario Secundario SOL</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Usuario SOL o DNI
+                      <span className="text-[10px] font-normal text-slate-500 ml-1">(DNI o Usuario Secundario)</span>
+                    </label>
                     <input
                       type="text"
                       value={form.configuracion_emision?.sol_usuario || ""}
@@ -900,12 +968,12 @@ export default function FacturacionAdmin() {
                           },
                         })
                       }
-                      placeholder={editId ? "(Sin cambios)" : "Ej: MODDATOS"}
+                      placeholder={editId ? "(Sin cambios)" : "Ej: 75582820 o MODDATOS"}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Clave SOL</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Clave SOL / Contraseña</label>
                     <input
                       type="password"
                       value={form.configuracion_emision?.sol_clave || ""}
@@ -918,10 +986,30 @@ export default function FacturacionAdmin() {
                           },
                         })
                       }
-                      placeholder={editId ? "•••••••• (Sin cambios)" : "Clave SOL"}
+                      placeholder={editId ? "•••••••• (Sin cambios)" : "Contraseña Clave SOL"}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                     />
                   </div>
+                </div>
+
+                {/* Bloque de prueba con Bot Playwright para SUNAT SEE-SOL */}
+                <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs gap-2">
+                  <div className="flex items-center gap-2 text-emerald-950 min-w-0">
+                    <Bot size={18} className="text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold">Automatización Playwright SUNAT SEE-SOL (Nuevo RUS)</p>
+                      <p className="text-[11px] text-emerald-700">Valida la conexión y emisión automática con tus credenciales SOL en el portal SUNAT.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTestConexionBot}
+                    disabled={probandoBot}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer shrink-0 shadow-xs"
+                  >
+                    {probandoBot ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    <span>{probandoBot ? "Verificando..." : "Probar Conexión SOL"}</span>
+                  </button>
                 </div>
 
                 {/* Mensaje condicional de Certificado */}

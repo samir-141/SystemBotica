@@ -65,11 +65,17 @@ export default function Item({
         }
 
         // Muestra presentaciones con paquetes disponibles según el stock real restante
-        return targetItem.presentaciones.filter((pres: PresentacionOption) => {
-            const equiv = pres.cantidad_unidad_base || 1;
-            const paquetesDisponibles = Math.floor(stockDisponibleReal / equiv);
-            return paquetesDisponibles >= 1;
-        });
+        // Ordenadas ascendentemente para que la unidad base siempre sea la primera opción
+        return [...targetItem.presentaciones]
+            .filter((pres: PresentacionOption) => {
+                const equiv = pres.cantidad_unidad_base || 1;
+                const paquetesDisponibles = Math.floor(stockDisponibleReal / equiv);
+                return paquetesDisponibles >= 1;
+            })
+            .sort(
+                (a: PresentacionOption, b: PresentacionOption) =>
+                    (a.cantidad_unidad_base || 1) - (b.cantidad_unidad_base || 1)
+            );
     }, [targetItem, stockDisponibleReal]);
 
     const [presentacionSel, setPresentacionSel] = useState<PresentacionOption | null>(

@@ -86,6 +86,9 @@ export const useProductos = () => {
         });
       }
       const itemAgrupado = mapa.get(key);
+      if (prod.cantidad_unidad_base === 1) {
+        itemAgrupado.unidad_base_nombre = prod.unidad_abreviatura || prod.presentacion_nombre || itemAgrupado.unidad_base_nombre;
+      }
       if (!prod.presentacion_id) return;
       const presExistente = itemAgrupado.presentaciones.some(
         (p: PresentacionOption) =>
@@ -100,6 +103,19 @@ export const useProductos = () => {
         });
       }
     });
+
+    // Asegurar que la unidad base (cantidad_unidad_base = 1) siempre sea la primera opción
+    mapa.forEach((item) => {
+      item.presentaciones.sort(
+        (a: PresentacionOption, b: PresentacionOption) =>
+          (a.cantidad_unidad_base || 1) - (b.cantidad_unidad_base || 1)
+      );
+      const presBase = item.presentaciones.find((p: PresentacionOption) => p.cantidad_unidad_base === 1);
+      if (presBase && (!item.unidad_base_nombre || item.unidad_base_nombre === "unid")) {
+        item.unidad_base_nombre = presBase.nombre;
+      }
+    });
+
     return Array.from(mapa.values());
   }, [productosRaw]);
 
