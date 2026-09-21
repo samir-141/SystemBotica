@@ -189,4 +189,57 @@ describe("CheckoutModal - contrato canónico de venta", () => {
     expect(screen.queryByRole("button", { name: /Compartir WhatsApp/i })).not.toBeInTheDocument();
     expect(screen.getByText(/solo es accesible en la red local/i)).toBeInTheDocument();
   });
+
+  it("permite alternar entre DNI y RUC al emitir Boleta de Venta", async () => {
+    vi.mocked(facturacionService.obtenerConfiguracion).mockResolvedValue({
+      ruc: "20123456789",
+      razon_social: "FARMACIA PRUEBA",
+      nombre_comercial: "FARMACIA PRUEBA",
+      direccion_fiscal: "Av. Principal 123",
+      regimen_tributario: "RMT",
+      comprobantes_permitidos: ["01", "03"],
+    } as any);
+    vi.mocked(ventasService.registrarVenta).mockResolvedValue({
+      ...respuestaCanonica,
+      tipo_comprobante: "BOLETA",
+    });
+    renderCheckout();
+
+    // Esperar a que cargue la configuración tributaria y habilite el botón
+    const btnBoleta = await screen.findByRole("button", { name: /Boleta de Venta/i });
+    await waitFor(() => expect(btnBoleta).not.toBeDisabled());
+    fireEvent.click(btnBoleta);
+    fireEvent.click(screen.getByRole("button", { name: /Siguiente/i }));
+
+    // Paso 1: Por defecto está seleccionado DNI
+    expect(await screen.findByText(/Número de DNI \(8 dígitos\)/i)).toBeInTheDocument();
+
+    // Alternar a RUC
+    const btnRuc = screen.getByRole("button", { name: /RUC/i });
+    fireEvent.click(btnRuc);
+
+    expect(screen.getByText(/Número de RUC \(11 dígitos\)/i)).toBeInTheDocument();
+
+    // Llenar datos de cliente con RUC
+    const rucInput = screen.getByPlaceholderText(/Ej: 20123456789/i);
+    fireEvent.change(rucInput, { target: { value: "20123456789" } });
+
+    const razonSocialInput = screen.getByPlaceholderText(/FARMACIA SAM S.A.C./i);
+    fireEvent.change(razonSocialInput, { target: { value: "BOTICA DEMO S.A.C." } });
+
+    // Paso 1: Seleccionar método de pago y emitir
+    fireEvent.click(screen.getByRole("button", { name: /Yape \/ Plin/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar y emitir/i }));
+
+    await screen.findByText(/Venta Registrada/i);
+
+    const payload = vi.mocked(ventasService.registrarVenta).mock.calls[0][0];
+    expect(payload.tipo_comprobante).toBe("BOLETA");
+    expect(payload.datos_cliente).toMatchObject({
+      tipo_documento: "RUC",
+      numero_documento: "20123456789",
+      nombre_razon_social: "BOTICA DEMO S.A.C.",
+    });
+  });
 });
+

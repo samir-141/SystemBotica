@@ -115,9 +115,15 @@ export default function ReporteComprobantes({
       const tipoRaw = String(v.tipo_comprobante || "").toUpperCase();
       let tipoComp: "BOLETA" | "FACTURA" | "NOTA_VENTA" = "BOLETA";
 
-      if (tipoRaw.includes("FACTURA") || v.cliente_documento?.includes("RUC")) {
+      if (tipoRaw.includes("FACTURA")) {
         tipoComp = "FACTURA";
-      } else if (tipoRaw.includes("NOTA") || v.cliente_documento === "S/D" || !v.cliente_documento) {
+      } else if (tipoRaw.includes("BOLETA")) {
+        tipoComp = "BOLETA";
+      } else if (tipoRaw.includes("NOTA")) {
+        tipoComp = "NOTA_VENTA";
+      } else if (v.cliente_documento?.includes("RUC")) {
+        tipoComp = "FACTURA";
+      } else if (v.cliente_documento === "S/D" || !v.cliente_documento) {
         tipoComp = "NOTA_VENTA";
       } else {
         tipoComp = "BOLETA";
@@ -169,7 +175,7 @@ export default function ReporteComprobantes({
         boticaId: v.botica_id,
         cliente: {
           nombre: v.cliente_nombre || (tipoComp === "NOTA_VENTA" ? "VENTA GENERAL" : "CLIENTE VARIOS"),
-          tipoDocumento: tipoComp === "FACTURA" ? "RUC" : tipoComp === "BOLETA" ? "DNI" : "NINGUNO",
+          tipoDocumento: docParts[0]?.trim() || (tipoComp === "FACTURA" ? "RUC" : tipoComp === "BOLETA" ? "DNI" : "NINGUNO"),
           numeroDocumento: numDoc || (tipoComp === "NOTA_VENTA" ? "00000000" : "S/D"),
         },
         clienteId: v.cliente_id || undefined,

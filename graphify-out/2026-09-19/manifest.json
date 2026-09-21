@@ -55,8 +55,8 @@
     "semantic_hash": "7a8137c86a257012ea2106cd38fff7bc"
   },
   "src/components/admin/elements/FacturacionAdmin.tsx": {
-    "mtime": 1789575463.8288336,
-    "ast_hash": "5155c0eeeeb817f9486e8f0920ea19c2",
+    "mtime": 1788555054.0758924,
+    "ast_hash": "f3dd1f7d1715503bece7e88b0d371594",
     "semantic_hash": ""
   },
   "src/components/admin/elements/RolesAdmin.tsx": {
@@ -270,8 +270,8 @@
     "semantic_hash": "f213252eafc292b77775823f2f15e721"
   },
   "src/components/productos/elements/ProductoForm.tsx": {
-    "mtime": 1789836729.7071173,
-    "ast_hash": "75a53a1936865c66e262cbb62599d2ee",
+    "mtime": 1789143961.8212173,
+    "ast_hash": "4f130087a75f5a558ea7fa95e90f0df1",
     "semantic_hash": ""
   },
   "src/components/productos/elements/ProductoTable.tsx": {
@@ -290,9 +290,9 @@
     "semantic_hash": "c9c5c1fe86f4e5174df35daeca66bbd4"
   },
   "src/components/productos/hooks/useCatalogos.ts": {
-    "mtime": 1789836692.1310513,
-    "ast_hash": "aefe0ae300786518e7514f3ff666fbcd",
-    "semantic_hash": ""
+    "mtime": 1785812566.0756638,
+    "ast_hash": "98a68523523295b6f75a0e429ff75f1a",
+    "semantic_hash": "98a68523523295b6f75a0e429ff75f1a"
   },
   "src/components/productos/hooks/useProductos.ts": {
     "mtime": 1785812566.0771575,
@@ -400,8 +400,8 @@
     "semantic_hash": ""
   },
   "src/components/venta/elements/item.tsx": {
-    "mtime": 1789403393.2837813,
-    "ast_hash": "19f8249b306a8fff8adae92431b4a819",
+    "mtime": 1788521380.6290717,
+    "ast_hash": "71582366371da0fa0fa4878fa3551a04",
     "semantic_hash": ""
   },
   "src/components/venta/elements/productos.muestra.tsx": {
@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   "src/components/venta/hooks/useProductos.ts": {
-    "mtime": 1789403376.1091738,
-    "ast_hash": "665b33d47f39715a72a1e7c9814909ee",
+    "mtime": 1786056291.666731,
+    "ast_hash": "517ea5b88ade4b2de242459014d081a1",
     "semantic_hash": ""
   },
   "src/components/venta/types.ts": {
@@ -590,8 +590,8 @@
     "semantic_hash": "94a99e61385746b682a91841ee132614"
   },
   "src/services/facturacion.service.ts": {
-    "mtime": 1789575412.361871,
-    "ast_hash": "c1e352c58d4a6d106d6d55d248392047",
+    "mtime": 1788542927.086786,
+    "ast_hash": "8349550f798366517521483590f3dd2b",
     "semantic_hash": ""
   },
   "src/services/gastos.service.ts": {
@@ -1085,13 +1085,13 @@
     "semantic_hash": ""
   },
   "src/components/productos/elements/BibliotecaBanner.tsx": {
-    "mtime": 1789836220.9141397,
-    "ast_hash": "bdf67f8e7921eea27030478022fff93c",
+    "mtime": 1789143476.7534323,
+    "ast_hash": "31947f1a6645ec0fb9c6e4d605354fc0",
     "semantic_hash": ""
   },
   "src/services/biblioteca.service.ts": {
-    "mtime": 1789836210.513365,
-    "ast_hash": "0daab274512660092c5a604d997364d2",
+    "mtime": 1789143469.0808342,
+    "ast_hash": "92c10371db9fbd2beca4b76170d0e3d9",
     "semantic_hash": ""
   }
 }
