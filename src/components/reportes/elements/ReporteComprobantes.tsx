@@ -116,69 +116,76 @@ export default function ReporteComprobantes({
     if (!ventasLista) return [];
 
     return ventasLista.map((v: any, idx: number) => {
-      const tipoRaw = String(v.tipo_comprobante || "").toUpperCase();
-      let tipoComp: "BOLETA" | "FACTURA" | "NOTA_VENTA" = "BOLETA";
+      // 1. Obtener datos del comprobante electrónico vinculado a la venta
+      const electronico = v.id ? comprobantesPorVenta.get(v.id) : undefined;
+      const compId = v.comprobante_electronico_id || electronico?.id;
+      const compEstado = v.estado_sunat || electronico?.estado || (v.estado === "ANULADO" ? "ANULADO" : "PENDIENTE");
 
-      if (tipoRaw.includes("FACTURA")) {
-        tipoComp = "FACTURA";
-      } else if (tipoRaw.includes("BOLETA")) {
+      // 2. Determinar tipo de comprobante real: primero por serie y datos oficiales, jamás por si el cliente tiene DNI o no
+      const serieRaw = String(v.serie || v.serie_numero || electronico?.serie || electronico?.numero || "").toUpperCase();
+      const tipoRaw = String(v.tipo_comprobante || electronico?.tipo_comprobante || "").toUpperCase();
+
+      let tipoComp: "BOLETA" | "FACTURA" | "NOTA_VENTA" = "BOLETA";
+      if (serieRaw.startsWith("B") || serieRaw.startsWith("EB") || tipoRaw === "03" || tipoRaw.includes("BOLETA")) {
         tipoComp = "BOLETA";
-      } else if (tipoRaw.includes("NOTA")) {
+      } else if (serieRaw.startsWith("F") || serieRaw.startsWith("EF") || tipoRaw === "01" || tipoRaw.includes("FACTURA")) {
+        tipoComp = "FACTURA";
+      } else if (serieRaw.startsWith("NV") || tipoRaw.includes("NOTA")) {
         tipoComp = "NOTA_VENTA";
       } else if (v.cliente_documento?.includes("RUC")) {
         tipoComp = "FACTURA";
-      } else if (v.cliente_documento === "S/D" || !v.cliente_documento) {
-        tipoComp = "NOTA_VENTA";
       } else {
         tipoComp = "BOLETA";
       }
 
-      const serie = tipoComp === "FACTURA" ? "F001" : tipoComp === "NOTA_VENTA" ? "NV01" : "B001";
+      const serieDefault = tipoComp === "FACTURA" ? "F001" : tipoComp === "NOTA_VENTA" ? "NV01" : "B001";
       const numStr = String(ventasLista.length - idx).padStart(8, "0");
-
-      // Si la venta ya tiene comprobante electrónico emitido, usar datos reales
-      const electronico = v.id ? comprobantesPorVenta.get(v.id) : undefined;
+      const serieNumeroFinal =
+        v.serie_numero ||
+        electronico?.numero ||
+        (v.serie && v.correlativo ? `${v.serie}-${String(v.correlativo).padStart(8, "0")}` : `${serieDefault}-${numStr}`);
 
       const docParts = v.cliente_documento?.split(":") || [];
       const numDoc = docParts[1]?.trim() || (v.cliente_documento !== "S/D" ? v.cliente_documento : "");
 
-      const estadoReal = v.estado === "ANULADO" ? "ANULADO" : (tipoComp === "NOTA_VENTA" ? "ACEPTADO" : idx % 4 === 0 ? "PENDIENTE" : "ACEPTADO");
-      const metodoPagoReal = v.metodo_pago || v.pagos?.[0]?.metodos_pago?.nombre || v.pagos?.[0]?.referencia || "EFECTIVO";
+      const metodoPagoReal =
+        v.metodo_pago || v.pagos?.[0]?.metodos_pago?.nombre || v.pagos?.[0]?.referencia || "EFECTIVO";
 
       // Procesar detalle de productos comprados de forma segura
-      const itemsProcesados = Array.isArray(v.items) && v.items.length > 0
-        ? v.items.map((i: any) => ({
-            descripcion: i.descripcion || i.nombre_comercial || "Producto Farmacéutico",
-            presentacion: i.presentacion || i.presentacion_nombre || "Unidad",
-            cantidad: Number(i.cantidad || 1),
-            precioUnitario: Number(i.precioUnitario || i.precio_unitario || 0),
-            subtotal: Number(i.subtotal || (i.cantidad * (i.precioUnitario || i.precio_unitario || 0)) || 0),
-          }))
-        : Array.isArray(v.detalles_ventas) && v.detalles_ventas.length > 0
-        ? v.detalles_ventas.map((d: any) => ({
-            descripcion: d.productos_presentaciones?.productos_comerciales?.nombre_comercial || "Producto Farmacéutico",
-            presentacion: d.productos_presentaciones?.presentacion_nombre || "Unidad",
-            cantidad: Number(d.cantidad || 1),
-            precioUnitario: Number(d.precio_unitario_presentacion || 0),
-            subtotal: Number(d.subtotal || 0),
-          }))
-        : [
-            {
-              descripcion: "MEDICAMENTO Y PRODUCTOS VARIOS",
-              cantidad: v.items_count || 1,
-              precioUnitario: Number(v.total || 0),
-              subtotal: Number(v.total || 0),
-            },
-          ];
+      const itemsProcesados =
+        Array.isArray(v.items) && v.items.length > 0
+          ? v.items.map((i: any) => ({
+              descripcion: i.descripcion || i.nombre_comercial || "Producto Farmacéutico",
+              presentacion: i.presentacion || i.presentacion_nombre || "Unidad",
+              cantidad: Number(i.cantidad || 1),
+              precioUnitario: Number(i.precioUnitario || i.precio_unitario || 0),
+              subtotal: Number(i.subtotal || i.cantidad * (i.precioUnitario || i.precio_unitario || 0) || 0),
+            }))
+          : Array.isArray(v.detalles_ventas) && v.detalles_ventas.length > 0
+          ? v.detalles_ventas.map((d: any) => ({
+              descripcion: d.productos_presentaciones?.productos_comerciales?.nombre_comercial || "Producto Farmacéutico",
+              presentacion: d.productos_presentaciones?.presentacion_nombre || "Unidad",
+              cantidad: Number(d.cantidad || 1),
+              precioUnitario: Number(d.precio_unitario_presentacion || 0),
+              subtotal: Number(d.subtotal || 0),
+            }))
+          : [
+              {
+                descripcion: "MEDICAMENTO Y PRODUCTOS VARIOS",
+                cantidad: v.items_count || 1,
+                precioUnitario: Number(v.total || 0),
+                subtotal: Number(v.total || 0),
+              },
+            ];
 
       return {
         id: v.id || `v-${idx}`,
         tipoComprobante: tipoComp,
-        serieNumero: electronico?.numero ?? `${serie}-${numStr}`,
-        fechaEmision: electronico?.fecha_emision ?? v.fecha ?? new Date().toISOString(),
+        serieNumero: serieNumeroFinal,
+        fechaEmision: v.fecha || electronico?.fecha_emision || new Date().toISOString(),
         boticaId: v.botica_id,
         cliente: {
-          nombre: v.cliente_nombre || (tipoComp === "NOTA_VENTA" ? "VENTA GENERAL" : "CLIENTE VARIOS"),
+          nombre: v.cliente_nombre || (tipoComp === "NOTA_VENTA" ? "VENTA GENERAL" : "CLIENTE GENERAL"),
           tipoDocumento: docParts[0]?.trim() || (tipoComp === "FACTURA" ? "RUC" : tipoComp === "BOLETA" ? "DNI" : "NINGUNO"),
           numeroDocumento: numDoc || (tipoComp === "NOTA_VENTA" ? "00000000" : "S/D"),
         },
@@ -189,13 +196,13 @@ export default function ReporteComprobantes({
         igv: v.igv || (v.total ? v.total - v.total / 1.18 : 0),
         total: v.total || 0,
         metodoPago: metodoPagoReal,
-        estadoSunat: (electronico?.estado ?? estadoReal) as any,
-        comprobanteElectronicoId: electronico?.id,
-        comprobanteElectronicoEstado: electronico?.estado,
-        comprobanteElectronicoMensaje: electronico?.mensaje_respuesta,
-        tieneXml: electronico?.tiene_xml,
-        tieneCdr: electronico?.tiene_cdr,
-        tienePdf: electronico?.tiene_pdf,
+        estadoSunat: compEstado as any,
+        comprobanteElectronicoId: compId,
+        comprobanteElectronicoEstado: compEstado,
+        comprobanteElectronicoMensaje: v.mensaje_sunat || electronico?.mensaje_respuesta,
+        tieneXml: v.tiene_xml ?? electronico?.tiene_xml,
+        tieneCdr: v.tiene_cdr ?? electronico?.tiene_cdr,
+        tienePdf: v.tiene_pdf ?? electronico?.tiene_pdf,
       };
     });
   }, [ventasLista, comprobantesPorVenta]);
@@ -302,21 +309,36 @@ export default function ReporteComprobantes({
     }
   };
 
-  // Reintentar envío a SUNAT (mismo correlativo, sin duplicar comprobante)
+  // Reintentar envío a SUNAT (mismo correlativo si ya existe, o emitir si quedó pendiente)
   const reintentarComprobante = async (c: ComprobanteConCliente) => {
-    if (!c.comprobanteElectronicoId || reintentandoId) return;
-    setReintentandoId(c.comprobanteElectronicoId);
+    const targetId = c.comprobanteElectronicoId || c.id;
+    if (!targetId || reintentandoId) return;
+    setReintentandoId(targetId);
     useEmisionProgresoStore.getState().iniciar({
       modo: "REINTENTO",
-      tipoComprobante: (c.tipoComprobante === "FACTURA" ? "FACTURA" : "BOLETA"),
+      tipoComprobante: c.tipoComprobante === "FACTURA" ? "FACTURA" : "BOLETA",
       detalles: {
-        cliente: c.cliente?.nombre || "CLIENTES VARIOS",
+        cliente: c.cliente?.nombre || "CLIENTE GENERAL",
         total: Number(c.total || 0),
       },
     });
 
     try {
-      const resultado = await facturacionService.reintentar(c.comprobanteElectronicoId);
+      let resultado: ComprobanteEmitido;
+      if (c.comprobanteElectronicoId) {
+        resultado = await facturacionService.reintentar(c.comprobanteElectronicoId);
+      } else if (c.id) {
+        // Si no tiene comprobante_electronico previo, emitirlo a SUNAT usando la venta
+        resultado = await facturacionService.emitir({
+          ventaId: c.id,
+          tipoComprobante: c.tipoComprobante === "FACTURA" ? "01" : "03",
+          serieId: "",
+        });
+      } else {
+        toast.error("Error", "No se encontró el ID de la venta ni del comprobante");
+        return;
+      }
+
       if (resultado.estado.startsWith("ACEPTADO")) {
         useEmisionProgresoStore.getState().finalizarExito(resultado.numero);
         toast.success(
@@ -873,7 +895,7 @@ export default function ReporteComprobantes({
                             title="Enviar enlace del comprobante por WhatsApp"
                           >
                             <Share2 size={12} />
-                            <span>Enviar</span>
+                            <span>WhatsApp</span>
                           </button>
 
                           {/* Artefactos SUNAT reales (cuando existe comprobante electrónico) */}
@@ -910,18 +932,27 @@ export default function ReporteComprobantes({
                               <span>PDF</span>
                             </button>
                           )}
-                          {c.comprobanteElectronicoId &&
-                            ["ERROR_ENVIO", "ERROR_RESPUESTA", "ERROR_LOCAL", "PENDIENTE"].includes(
-                              c.comprobanteElectronicoEstado ?? "",
-                            ) && (
+
+                          {/* Botón Reintentar / Rehacer para comprobantes pendientes o con error ante SUNAT */}
+                          {c.tipoComprobante !== "NOTA_VENTA" &&
+                            c.estadoSunat !== "ACEPTADO" &&
+                            c.estadoSunat !== "ANULADO" && (
                               <button
                                 onClick={() => reintentarComprobante(c)}
-                                disabled={reintentandoId === c.comprobanteElectronicoId}
+                                disabled={reintentandoId === (c.comprobanteElectronicoId || c.id)}
                                 className="px-2 py-1 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 text-amber-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-amber-200"
                                 title={`Reintentar envío a SUNAT (${c.comprobanteElectronicoMensaje ?? "pendiente"})`}
                               >
-                                {reintentandoId === c.comprobanteElectronicoId ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                                <span>{reintentandoId === c.comprobanteElectronicoId ? "Enviando..." : "Reintentar"}</span>
+                                {reintentandoId === (c.comprobanteElectronicoId || c.id) ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <RefreshCw size={12} />
+                                )}
+                                <span>
+                                  {reintentandoId === (c.comprobanteElectronicoId || c.id)
+                                    ? "Enviando..."
+                                    : "Reintentar"}
+                                </span>
                               </button>
                             )}
 
