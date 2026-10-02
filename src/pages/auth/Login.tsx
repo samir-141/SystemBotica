@@ -5,6 +5,7 @@ import { useAuth } from "../../hooks/useAuth";
 import LoginForm from "../../components/login/auth/LoginForm";
 import { Activity, ShieldCheck } from "lucide-react";
 import MarifarmaBrand from "../../components/brand/MarifarmaBrand";
+import { toast } from "../../utils/toast";
 
 const Login = () => {
     const navigate = useNavigate();
@@ -50,11 +51,16 @@ const Login = () => {
                 localStorage.removeItem("remembered_email");
             }
 
+            toast.success("Bienvenido", "Inicio de sesión correcto.");
             navigate("/ventas/nueva");
         } catch (error: any) {
             console.error(error);
             setErrorMessage(
-                error.message || "Credenciales inválidas. Verifica tu correo y contraseña."
+                (() => {
+                    const msg = error.message || "Credenciales inválidas. Verifica tu correo y contraseña.";
+                    toast.error("Error de acceso", msg);
+                    return msg;
+                })()
             );
         } finally {
             setLoading(false);

@@ -1,6 +1,6 @@
 // src/components/venta/venta.tsx
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Toast } from "primereact/toast";
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "../../utils/toast";
 import Item from "./elements/item";
 import { useAuth } from "../../hooks/useAuth";
 import MosProducto from "./elements/productos.muestra";
@@ -25,7 +25,6 @@ import { useCameraBarcodeScanner } from "../../hooks/useCameraBarcodeScanner";
 
 
 export default function VentaPos() {
-    const toast = useRef<Toast>(null);
     const { sucursalActual } = useAuth();
     const {
         productosRaw,
@@ -46,7 +45,7 @@ export default function VentaPos() {
         igvCalculado: igvCalcHook,
         formatMoney,
     } = useCart((msg: string) => {
-        toast.current?.show({ severity: "warn", summary: "Stock", detail: msg, life: 3000 });
+        toast.warn("Stock", msg);
     });
 
     const [tipoPago, setTipoPago] = useState<TipoPago>("CONTADO");
@@ -109,12 +108,10 @@ export default function VentaPos() {
             );
         } else if (recordarParaVenta) {
             setCarrito(prev => prev.map(item => item.requiere_receta ? { ...item, numero_receta: numeroReceta } : item));
-            toast.current?.show({
-                severity: "success",
-                summary: "Receta Asignada",
-                detail: `Receta ${numeroReceta} asignada a los medicamentos de esta venta.`,
-                life: 2500,
-            });
+            toast.success(
+                "Receta Asignada",
+                `Receta ${numeroReceta} asignada a los medicamentos de esta venta.`
+            );
         }
         setRecetaModalOpen(false);
         setProductoParaReceta(null);
@@ -138,12 +135,10 @@ export default function VentaPos() {
             triggerFeedback(prodId);
             agregarAlCarritoHook(producto, equivBase, presentacionNombre, precio, productoPresentacionId, recetaAsignar || undefined);
             if (producto.requiere_receta && recetaAsignar && !numeroReceta) {
-                toast.current?.show({
-                    severity: "info",
-                    summary: "Receta Aplicada",
-                    detail: `${producto.nombre_comercial} vinculado a Receta ${recetaAsignar}`,
-                    life: 1800,
-                });
+                toast.info(
+                    "Receta Aplicada",
+                    `${producto.nombre_comercial} vinculado a Receta ${recetaAsignar}`
+                );
             }
         },
         [agregarAlCarritoHook, triggerFeedback, handleSolicitarReceta, recetaVentaActual]
@@ -177,12 +172,7 @@ export default function VentaPos() {
         cooldownMs: 1500,
         onScan: (codigo) => {
             agregarPorCodigo(codigo);
-            toast.current?.show({
-                severity: "success",
-                summary: "Escaneado",
-                detail: `Código ${codigo} agregado al carrito`,
-                life: 1500,
-            });
+            toast.success("Escaneado", `Código ${codigo} agregado al carrito`);
         },
     });
 
@@ -494,12 +484,10 @@ export default function VentaPos() {
                 onAbrirRecetaModal={() => handleSolicitarReceta()}
                 onQuitarReceta={() => {
                     setRecetaVentaActual(null);
-                    toast.current?.show({
-                        severity: "info",
-                        summary: "Receta Desvinculada",
-                        detail: "Se retiró la receta activa de la venta actual",
-                        life: 2000,
-                    });
+                    toast.info(
+                        "Receta Desvinculada",
+                        "Se retiró la receta activa de la venta actual"
+                    );
                 }}
             />
 
@@ -510,7 +498,7 @@ export default function VentaPos() {
                 onClose={() => setShowAperturaModal(false)}
                 onConfirm={async (monto, obs) => {
                     await aperturarCaja(monto, obs);
-                    toast.current?.show({ severity: "success", summary: "Caja Aperturada", detail: `Turno iniciado con S/ ${monto.toFixed(2)}`, life: 3000 });
+                    toast.success("Caja Aperturada", `Turno iniciado con S/ ${monto.toFixed(2)}`);
                 }}
             />
 
@@ -520,7 +508,7 @@ export default function VentaPos() {
                 estadoCaja={estadoCaja}
                 onConfirm={async (efectivoContado, obs) => {
                     const res = await cerrarCaja(efectivoContado, obs);
-                    toast.current?.show({ severity: "info", summary: "Cierre Z Realizado", detail: "Turno cerrado exitosamente", life: 3000 });
+                    toast.info("Cierre Z Realizado", "Turno cerrado exitosamente");
                     return res;
                 }}
             />
@@ -559,7 +547,6 @@ export default function VentaPos() {
                 onRenewSession={remoteSocket.renewSession}
             />
 
-            <Toast ref={toast} />
             <ClienteSelectorModal
                 open={showClienteModal}
                 onClose={() => setShowClienteModal(false)}

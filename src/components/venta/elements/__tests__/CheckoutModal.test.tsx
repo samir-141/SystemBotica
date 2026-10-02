@@ -241,5 +241,49 @@ describe("CheckoutModal - contrato canónico de venta", () => {
       nombre_razon_social: "BOTICA DEMO S.A.C.",
     });
   });
+
+  it("permite emitir Boleta de Venta sin documento (Nuevo RUS / clientes varios)", async () => {
+    vi.mocked(facturacionService.obtenerConfiguracion).mockResolvedValue({
+      ruc: "10755820208",
+      razon_social: "BOTICA RUS",
+      nombre_comercial: "BOTICA RUS",
+      direccion_fiscal: "Av. Principal 123",
+      regimen_tributario: "NRUS",
+      comprobantes_permitidos: ["03"],
+    } as any);
+    vi.mocked(ventasService.registrarVenta).mockResolvedValue({
+      ...respuestaCanonica,
+      tipo_comprobante: "BOLETA",
+    });
+    renderCheckout();
+
+    const btnBoleta = await screen.findByRole("button", { name: /Boleta de Venta/i });
+    await waitFor(() => expect(btnBoleta).not.toBeDisabled());
+    fireEvent.click(btnBoleta);
+    fireEvent.click(screen.getByRole("button", { name: /Siguiente/i }));
+
+    // Seleccionar opción "Sin Documento"
+    const btnSinDoc = screen.getByRole("button", { name: /Sin Documento/i });
+    fireEvent.click(btnSinDoc);
+
+    // Debe mostrar la advertencia / información de boleta sin documento
+    expect(
+      screen.getByText(/Boleta sin documento \(Clientes Varios \/ RUS\)/i),
+    ).toBeInTheDocument();
+
+    // Seleccionar método de pago y emitir
+    fireEvent.click(screen.getByRole("button", { name: /Yape \/ Plin/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirmar y emitir/i }));
+
+    await screen.findByText(/Venta Registrada/i);
+
+    const payload = vi.mocked(ventasService.registrarVenta).mock.calls[0][0];
+    expect(payload.tipo_comprobante).toBe("BOLETA");
+    expect(payload.datos_cliente).toMatchObject({
+      tipo_documento: "NINGUNO",
+      numero_documento: "",
+      nombre_razon_social: "CLIENTES VARIOS",
+    });
+  });
 });
 

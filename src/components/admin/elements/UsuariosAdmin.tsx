@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Plus, Edit2, Trash2, Shield, CheckCircle2, XCircle, Search, RefreshCw, X, Save, Loader2 } from "lucide-react";
-import { Toast } from "primereact/toast";
+import { toast } from "../../../utils/toast";
 import type { UsuarioItem, RolItem, SucursalAdminItem } from "../hooks/useAdmin";
 
 
@@ -23,7 +23,6 @@ export default function UsuariosAdmin({
   onDeleteUser,
   onRefresh,
 }: Props) {
-  const toast = useRef<Toast>(null);
   const [busqueda, setBusqueda] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [userEdit, setUserEdit] = useState<UsuarioItem | null>(null);
@@ -102,9 +101,14 @@ export default function UsuariosAdmin({
       }
 
       await onSaveUser(payload, !!userEdit, userEdit?.id);
+      toast.success(
+        userEdit ? "Usuario actualizado" : "Usuario creado",
+        nombre.trim()
+      );
       setModalOpen(false);
     } catch (err: any) {
       setErrorForm(err.message || "Error al guardar el usuario");
+      toast.error("Error al guardar usuario", err.message || "Error al procesar usuario");
     } finally {
       setSaving(false);
     }
@@ -115,9 +119,10 @@ export default function UsuariosAdmin({
     setDeleting(true);
     try {
       await onDeleteUser(deleteTarget.id);
+      toast.success("Usuario eliminado", `Se eliminó a ${deleteTarget.nombre}`);
       setDeleteTarget(null);
     } catch (err: any) {
-      toast.current?.show({ severity: "error", summary: "Error", detail: err.message || "Error al eliminar el usuario", life: 3000 });
+      toast.error("Error al eliminar", err.message || "Error al eliminar el usuario");
     } finally {
       setDeleting(false);
     }
@@ -328,10 +333,10 @@ export default function UsuariosAdmin({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  <span>{userEdit ? "Guardar" : "Crear Usuario"}</span>
+                  <span>{saving ? "Guardando..." : userEdit ? "Guardar" : "Crear Usuario"}</span>
                 </button>
               </div>
             </form>
@@ -345,15 +350,15 @@ export default function UsuariosAdmin({
             <h3 className="font-bold text-slate-900 text-sm mb-1">¿Eliminar Usuario?</h3>
             <p className="text-xs text-slate-500 mb-4">Se desactivará el acceso de <strong>{deleteTarget.nombre}</strong></p>
             <div className="flex justify-center gap-2 text-xs font-bold">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 rounded-xl">Cancelar</button>
-              <button onClick={confirmDelete} disabled={deleting} className="px-4 py-2 bg-rose-600 text-white rounded-xl">
-                {deleting ? "Eliminando..." : "Sí, Eliminar"}
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">Cancelar</button>
+              <button onClick={confirmDelete} disabled={deleting} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 text-white rounded-xl flex items-center justify-center gap-1.5 cursor-pointer">
+                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>{deleting ? "Eliminando..." : "Sí, Eliminar"}</span>
               </button>
             </div>
           </div>
         </div>
       )}
-      <Toast ref={toast} />
     </div>
   );
 }

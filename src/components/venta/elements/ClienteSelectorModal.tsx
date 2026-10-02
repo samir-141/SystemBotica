@@ -1,7 +1,7 @@
-// src/components/venta/elements/ClienteSelectorModal.tsx
 import { useState, useEffect, useCallback } from "react";
 import { X, Search, UserPlus, UserCheck, Loader2 } from "lucide-react";
 import { clientesService } from "../../../services/clientes.service";
+import { toast } from "../../../utils/toast";
 
 export interface Cliente {
   id: string;
@@ -24,6 +24,7 @@ export default function ClienteSelectorModal({ open, onClose, onSelect }: Props)
   const [loading, setLoading] = useState(false);
   const [crearOpen, setCrearOpen] = useState(false);
   const [creando, setCreando] = useState(false);
+  const [consultandoPadron, setConsultandoPadron] = useState(false);
 
   const [nuevoTipoDoc, setNuevoTipoDoc] = useState("DNI");
   const [nuevoNumero, setNuevoNumero] = useState("");
@@ -58,22 +59,29 @@ export default function ClienteSelectorModal({ open, onClose, onSelect }: Props)
   };
 
   const handleConsultarPadronRapido = async () => {
-    if (!nuevoNumero.trim()) return;
+    if (!nuevoNumero.trim() || consultandoPadron) return;
     const esValido = (nuevoTipoDoc === "DNI" && nuevoNumero.length === 8) || (nuevoTipoDoc === "RUC" && nuevoNumero.length === 11);
     if (!esValido) return;
 
+    setConsultandoPadron(true);
     try {
       const res = await clientesService.consultarDocumentoPadron(nuevoTipoDoc, nuevoNumero);
       if (res.encontrado && res.nombre) {
         setNuevoNombre(res.nombre);
+        toast.success("Cliente verificado", `${res.nombre} (${res.origen})`);
+      } else {
+        toast.warn("No encontrado", "No se encontró el documento en SUNAT/RENIEC.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error en consulta de padrón rápido:", err);
+      toast.error("Error de consulta", err?.message || "No se pudo consultar el padrón.");
+    } finally {
+      setConsultandoPadron(false);
     }
   };
 
   const handleCrear = async () => {
-    if (!nuevoNumero.trim() || !nuevoNombre.trim()) return;
+    if (!nuevoNumero.trim() || !nuevoNombre.trim() || creando) return;
     setCreando(true);
     try {
       const payload: any = {
@@ -83,12 +91,14 @@ export default function ClienteSelectorModal({ open, onClose, onSelect }: Props)
         tipo_cliente: nuevoTipoDoc === "RUC" ? "JURIDICO" : "NATURAL",
       };
       await clientesService.crearCliente(payload);
+      toast.success("Cliente registrado", nuevoNombre.trim());
       setCrearOpen(false);
       setNuevoNumero("");
       setNuevoNombre("");
       await buscarClientes();
     } catch (err: any) {
       console.error("Error al crear cliente:", err);
+      toast.error("Error al guardar cliente", err?.message || "No se pudo registrar el cliente.");
     } finally {
       setCreando(false);
     }
@@ -144,15 +154,23 @@ export default function ClienteSelectorModal({ open, onClose, onSelect }: Props)
                   <option value="CE">Carnet Extranjería</option>
                   <option value="PASAPORTE">Pasaporte</option>
                 </select>
-                <input
-                  type="text"
-                  value={nuevoNumero}
-                  onChange={(e) => setNuevoNumero(e.target.value.replace(/\D/g, ""))}
-                  onBlur={handleConsultarPadronRapido}
-                  placeholder="Número de documento"
-                  maxLength={11}
-                  className="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={nuevoNumero}
+                    disabled={consultandoPadron}
+                    onChange={(e) => setNuevoNumero(e.target.value.replace(/\D/g, ""))}
+                    onBlur={handleConsultarPadronRapido}
+                    placeholder="Número de documento"
+                    maxLength={11}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 font-mono disabled:bg-slate-100"
+                  />
+                  {consultandoPadron && (
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+                    </div>
+                  )}
+                </div>
               </div>
               <input
                 type="text"

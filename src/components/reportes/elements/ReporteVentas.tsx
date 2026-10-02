@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { exportToCSV } from "../../../utils/csvExport";
 import { fechaCivil, fechaCivilMasDias } from "../../../utils/localDate";
+import { toast } from "../../../utils/toast";
 
 type Props = {
   reporte: any;
@@ -49,7 +50,10 @@ export default function ReporteVentas({
   const maxTendencia = Math.max(...tendencias.map((t: any) => t.total), 1);
 
   const handleExportarCSV = () => {
-    if (!lista || lista.length === 0) return;
+    if (!lista || lista.length === 0) {
+      toast.info("Sin datos para exportar", "No hay registros de venta en el rango seleccionado.");
+      return;
+    }
     const headers = ["ID Venta", "Fecha", "Tipo Comprobante", "Cliente", "Documento", "Subtotal (PEN)", "IGV (PEN)", "Total (PEN)", "Metodo Pago", "Estado"];
     const rows = lista.map((v: any) => [
       `"${v.id}"`,
@@ -65,6 +69,7 @@ export default function ReporteVentas({
     ]);
 
     exportToCSV(`Reporte_Ventas_${fechaCivil()}.csv`, headers, rows);
+    toast.success("CSV Exportado", `Se descargó el reporte con ${lista.length} ventas.`);
   };
 
   return (

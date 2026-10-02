@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Shield, KeyRound, Loader2, Plus, Pencil, Trash, Check, X } from "lucide-react";
 import type { RolItem } from "../hooks/useAdmin";
 import { useAuth } from "../../../hooks/useAuth";
+import { toast } from "../../../utils/toast";
 
 type Props = {
   roles: RolItem[];
@@ -211,8 +212,10 @@ export default function RolesAdmin({
     try {
       setUpdatingRoleId(rolId);
       await onUpdatePermisos(rolId, nuevosIds);
-    } catch (err) {
+      toast.success("Permisos actualizados", "La matriz de permisos se guardó correctamente.");
+    } catch (err: any) {
       console.error("Error al actualizar permisos:", err);
+      toast.error("Error al actualizar permisos", err?.message || "No se pudieron sincronizar los permisos.");
     } finally {
       setUpdatingRoleId(null);
     }
@@ -225,10 +228,13 @@ export default function RolesAdmin({
       setProcessing(true);
       setCrudError(null);
       await onCrearRol(roleName.trim());
+      toast.success("Rol creado", `El rol "${roleName.trim()}" fue registrado.`);
       setShowCreateModal(false);
       setRoleName("");
     } catch (err: any) {
-      setCrudError(err.message || "Error al crear el rol");
+      const msg = err.message || "Error al crear el rol";
+      setCrudError(msg);
+      toast.error("Error al crear rol", msg);
     } finally {
       setProcessing(false);
     }
@@ -241,11 +247,14 @@ export default function RolesAdmin({
       setProcessing(true);
       setCrudError(null);
       await onActualizarRol(editingRol.id, roleName.trim());
+      toast.success("Rol actualizado", `El rol fue renombrado a "${roleName.trim()}".`);
       setShowEditModal(false);
       setRoleName("");
       setEditingRol(null);
     } catch (err: any) {
-      setCrudError(err.message || "Error al actualizar el rol");
+      const msg = err.message || "Error al actualizar el rol";
+      setCrudError(msg);
+      toast.error("Error al actualizar rol", msg);
     } finally {
       setProcessing(false);
     }
@@ -257,13 +266,16 @@ export default function RolesAdmin({
       setProcessing(true);
       setCrudError(null);
       await onEliminarRol(deletingRol.id);
+      toast.success("Rol eliminado", `El rol "${deletingRol.nombre}" fue eliminado.`);
       setShowDeleteConfirm(false);
       setDeletingRol(null);
       if (selectedRolId === deletingRol.id) {
         setSelectedRolId(null);
       }
     } catch (err: any) {
-      setCrudError(err.message || "Error al eliminar el rol");
+      const msg = err.message || "Error al eliminar el rol";
+      setCrudError(msg);
+      toast.error("Error al eliminar rol", msg);
     } finally {
       setProcessing(false);
     }
@@ -536,9 +548,16 @@ export default function RolesAdmin({
                 <button
                   type="submit"
                   disabled={processing || !roleName.trim()}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  {processing ? "Creando..." : "Crear Rol"}
+                  {processing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Creando...</span>
+                    </>
+                  ) : (
+                    <span>Crear Rol</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -592,9 +611,16 @@ export default function RolesAdmin({
                 <button
                   type="submit"
                   disabled={processing || !roleName.trim() || roleName.trim() === editingRol.nombre}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  {processing ? "Guardando..." : "Guardar Cambios"}
+                  {processing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Guardar Cambios</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -637,9 +663,16 @@ export default function RolesAdmin({
                   type="button"
                   onClick={handleDeleteRoleConfirm}
                   disabled={processing}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                 >
-                  {processing ? "Eliminando..." : "Eliminar Rol"}
+                  {processing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Eliminando...</span>
+                    </>
+                  ) : (
+                    <span>Eliminar Rol</span>
+                  )}
                 </button>
               </div>
             </div>

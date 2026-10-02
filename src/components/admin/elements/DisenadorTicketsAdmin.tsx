@@ -11,8 +11,9 @@ import {
   MessageSquare,
   Eye,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
-import { Toast } from "primereact/toast";
+import { toast } from "../../../utils/toast";
 import { useReactToPrint } from "react-to-print";
 import { useAuth } from "../../../hooks/useAuth";
 import { TicketPOS } from "../../reportes/elements/TicketPOS";
@@ -77,7 +78,6 @@ const MOCK_COMPROBANTE: ComprobanteData = {
 };
 
 export default function DisenadorTicketsAdmin() {
-  const toast = useRef<Toast>(null);
   const { sucursalActual } = useAuth();
   const boticaId = sucursalActual?.botica_id || "default";
 
@@ -88,6 +88,8 @@ export default function DisenadorTicketsAdmin() {
     config.formatoPapel || "80mm"
   );
   const [seccionActiva, setSeccionActiva] = useState<"formato" | "logo" | "textos" | "visibilidad">("formato");
+  const [guardando, setGuardando] = useState(false);
+  const [reseteando, setReseteando] = useState(false);
 
   const ticketRef = useRef<HTMLDivElement>(null);
 
@@ -104,25 +106,35 @@ export default function DisenadorTicketsAdmin() {
   });
 
   const handleSave = async () => {
-    await ticketConfigService.guardarConfiguracion(config, boticaId);
-    toast.current?.show({
-      severity: "success",
-      summary: "Diseño Guardado",
-      detail: "La configuración de voucher se sincronizó en la base de datos y Supabase.",
-      life: 3000,
-    });
+    try {
+      setGuardando(true);
+      await ticketConfigService.guardarConfiguracion(config, boticaId);
+      toast.success(
+        "Diseño Guardado",
+        "La configuración de voucher se sincronizó en la base de datos y Supabase."
+      );
+    } catch (err: any) {
+      toast.error("Error al guardar diseño", err?.message || "No se pudo sincronizar la configuración.");
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const handleReset = async () => {
-    const restablecida = await ticketConfigService.restablecerConfiguracion(boticaId);
-    setConfig(restablecida);
-    setFormatoSimulador(restablecida.formatoPapel);
-    toast.current?.show({
-      severity: "info",
-      summary: "Valores Restablecidos",
-      detail: "Se han restaurado los valores por defecto del sistema.",
-      life: 3000,
-    });
+    try {
+      setReseteando(true);
+      const restablecida = await ticketConfigService.restablecerConfiguracion(boticaId);
+      setConfig(restablecida);
+      setFormatoSimulador(restablecida.formatoPapel);
+      toast.info(
+        "Valores Restablecidos",
+        "Se han restaurado los valores por defecto del sistema."
+      );
+    } catch (err: any) {
+      toast.error("Error al restablecer", err?.message || "No se pudo restablecer la configuración.");
+    } finally {
+      setReseteando(false);
+    }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,22 +142,12 @@ export default function DisenadorTicketsAdmin() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.current?.show({
-        severity: "error",
-        summary: "Formato no válido",
-        detail: "Seleccione una imagen PNG, JPG o WEBP.",
-        life: 3000,
-      });
+      toast.error("Formato no válido", "Seleccione una imagen PNG, JPG o WEBP.");
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      toast.current?.show({
-        severity: "error",
-        summary: "Imagen muy pesada",
-        detail: "El logo no debe superar los 2 MB para asegurar rapidez de impresión.",
-        life: 3000,
-      });
+      toast.error("Imagen muy pesada", "El logo no debe superar los 2 MB para asegurar rapidez de impresión.");
       return;
     }
 
@@ -178,24 +180,14 @@ export default function DisenadorTicketsAdmin() {
             ticketConfigService.guardarConfiguracion(updated, boticaId);
             return updated;
           });
-          toast.current?.show({
-            severity: "success",
-            summary: "Logo en Supabase Storage",
-            detail: "El logo fue subido a Supabase Storage y guardado con éxito.",
-            life: 3000,
-          });
+          toast.success("Logo en Supabase Storage", "El logo fue subido a Supabase Storage y guardado con éxito.");
           return;
         }
       } catch (err) {
         console.warn("Fallo subida a API storage, usando base64 local", err);
       }
 
-      toast.current?.show({
-        severity: "success",
-        summary: "Logo cargado",
-        detail: "El logo se ha añadido a la vista previa.",
-        life: 2500,
-      });
+      toast.success("Logo cargado", "El logo se ha añadido a la vista previa.");
     };
     reader.readAsDataURL(file);
   };
@@ -209,8 +201,6 @@ export default function DisenadorTicketsAdmin() {
 
   return (
     <div className="space-y-6">
-      <Toast ref={toast} />
-
       {/* Header Banner */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -234,9 +224,11 @@ export default function DisenadorTicketsAdmin() {
           <button
             type="button"
             onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+            disabled={reseteando || guardando}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
           >
-            <RotateCcw size={14} /> Restablecer
+            {reseteando ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+            <span>{reseteando ? "Restableciendo..." : "Restablecer"}</span>
           </button>
           <button
             type="button"
@@ -248,9 +240,11 @@ export default function DisenadorTicketsAdmin() {
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-600/20 transition cursor-pointer"
+            disabled={guardando || reseteando}
+            className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-600/20 transition cursor-pointer"
           >
-            <Save size={14} /> Guardar Diseño
+            {guardando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            <span>{guardando ? "Guardando..." : "Guardar Diseño"}</span>
           </button>
         </div>
       </div>

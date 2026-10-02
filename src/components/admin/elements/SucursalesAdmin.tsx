@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Store, Plus, MapPin, Phone, CreditCard, RefreshCw, X, Save, Loader2 } from "lucide-react";
 import type { SucursalAdminItem } from "../hooks/useAdmin";
+import { toast } from "../../../utils/toast";
 
 type Props = {
   sucursales: SucursalAdminItem[];
@@ -38,12 +39,15 @@ export default function SucursalesAdmin({
         direccion: direccion.trim(),
         telefono: telefono.trim() || undefined,
       });
+      toast.success("Sucursal registrada", `Sede "${nombre.trim()}" agregada con éxito.`);
       setModalOpen(false);
       setNombre("");
       setDireccion("");
       setTelefono("");
     } catch (err: any) {
-      setErrorForm(err.message || "Error al registrar la sucursal");
+      const msg = err.message || "Error al registrar la sucursal";
+      setErrorForm(msg);
+      toast.error("Error al registrar sucursal", msg);
     } finally {
       setSaving(false);
     }
@@ -176,10 +180,10 @@ export default function SucursalesAdmin({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  <span>Guardar Sucursal</span>
+                  <span>{saving ? "Guardando..." : "Guardar Sucursal"}</span>
                 </button>
               </div>
             </form>

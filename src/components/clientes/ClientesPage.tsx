@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import {
   Users,
   Search,
@@ -6,8 +6,9 @@ import {
   RefreshCw,
   X,
   FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
-import { Toast } from "primereact/toast";
+import { toast } from "../../utils/toast";
 import type { Cliente, FormMode } from "./types";
 import { useClientes } from "./hooks/useClientes";
 import ClienteTable from "./elements/ClienteTable";
@@ -17,7 +18,6 @@ import { exportToCSV } from "../../utils/csvExport";
 import type { CreateClienteDto, UpdateClienteDto } from "../../types/dto";
 
 export default function ClientesPage() {
-  const toast = useRef<Toast>(null);
   const {
     clientes,
     meta,
@@ -70,9 +70,10 @@ export default function ClientesPage() {
     setDeleting(true);
     try {
       await eliminarCliente(deleteTarget.id);
+      toast.success("Cliente eliminado", `Se eliminó a ${deleteTarget.nombre}`);
       setDeleteTarget(null);
     } catch (err: any) {
-      toast.current?.show({ severity: "error", summary: "Error", detail: err.message || "Error al eliminar el cliente", life: 3000 });
+      toast.error("Error al eliminar", err.message || "Error al eliminar el cliente");
     } finally {
       setDeleting(false);
     }
@@ -277,15 +278,15 @@ export default function ClientesPage() {
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 rounded-xl shadow-sm transition"
+                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5"
               >
-                {deleting ? "Eliminando..." : "Sí, Eliminar"}
+                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>{deleting ? "Eliminando..." : "Sí, Eliminar"}</span>
               </button>
             </div>
           </div>
         </div>
       )}
-      <Toast ref={toast} />
     </div>
   );
 }

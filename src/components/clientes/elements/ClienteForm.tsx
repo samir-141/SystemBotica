@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Save, Loader2, User, Hash, CheckCircle2 } from "lucide-react";
 import { clientesService } from "../../../services/clientes.service";
+import { toast } from "../../../utils/toast";
 import type { Cliente, ClienteFormData, FormMode, TipoDocumento, TipoCliente, CondicionContribuyente } from "../types";
 import type { CreateClienteDto, UpdateClienteDto } from "../../../types/dto";
 
@@ -112,9 +113,11 @@ export default function ClienteForm({
           condicion_contribuyente: res.condicion_contribuyente || "HABIDO",
         }));
         setOrigenBadge(res.origen);
+        toast.success("Cliente verificado", `${res.nombre} (${res.origen})`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al consultar padrón:", err);
+      toast.error("Error al consultar padrón", err?.message || "No se pudo obtener información del padrón");
     } finally {
       setConsultandoPadron(false);
     }
@@ -176,10 +179,16 @@ export default function ClienteForm({
         origen: form.origen || "POS",
       };
       await onSave(payload, mode);
+      toast.success(
+        isEdit ? "Cliente actualizado" : "Cliente registrado",
+        form.nombre.trim()
+      );
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Error al guardar los datos del cliente");
+      const msg = err.message || "Error al guardar los datos del cliente";
+      setError(msg);
+      toast.error("Error al guardar cliente", msg);
     } finally {
       setSaving(false);
     }

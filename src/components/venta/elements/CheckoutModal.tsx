@@ -39,6 +39,7 @@ import { ventasService } from "../../../services/ventas.service";
 import { clientesService } from "../../../services/clientes.service";
 import { facturacionService } from "../../../services/facturacion.service";
 import type { EstadoComprobanteVenta } from "../../../types/dto";
+import { useEmisionProgresoStore } from "../../../store/useEmisionProgresoStore";
 import {
   buildComprobanteSnapshot,
   buildVentaPayload,
@@ -49,6 +50,7 @@ import {
 import { useContext } from "react";
 import { AuthContext } from "../../../contexts/auth-context";
 import { useEmisorActivo } from "../../../hooks/useEmisorActivo";
+import { toast } from "../../../utils/toast";
 
 
 type Props = {
@@ -232,16 +234,26 @@ export default function CheckoutModal({
     }
   }, [open, clientePreseleccionado]);
 
-  const handleCambiarTipoDocBoleta = (nuevoTipo: "DNI" | "RUC") => {
+  const handleCambiarTipoDocBoleta = (nuevoTipo: "DNI" | "RUC" | "NINGUNO") => {
     if (datosCliente.tipo_documento === nuevoTipo) return;
     setOrigenBadge(null);
     setDatosCliente((prev) => {
+      if (nuevoTipo === "NINGUNO") {
+        return {
+          ...prev,
+          tipo_documento: "NINGUNO",
+          numero_documento: "",
+          nombre_razon_social: prev.nombre_razon_social.trim() || "CLIENTES VARIOS",
+        };
+      }
       const numLimpio = prev.numero_documento.replace(/\D/g, "");
       const nuevoNum = nuevoTipo === "DNI" ? numLimpio.slice(0, 8) : numLimpio.slice(0, 11);
       return {
         ...prev,
         tipo_documento: nuevoTipo,
         numero_documento: nuevoNum,
+        nombre_razon_social:
+          prev.nombre_razon_social === "CLIENTES VARIOS" ? "" : prev.nombre_razon_social,
       };
     });
   };
@@ -276,9 +288,13 @@ export default function CheckoutModal({
           direccion: res.direccion || prev.direccion,
         }));
         setOrigenBadge(res.origen);
+        toast.success("Documento verificado", res.nombre);
+      } else {
+        toast.warn("No encontrado en padrón", "Ingrese el nombre del cliente manualmente.");
       }
     } catch (err) {
       console.error("Error al consultar padrón:", err);
+      toast.error("Error de consulta", "No se pudo consultar el padrón en este momento.");
     } finally {
       setConsultandoPadron(false);
     }
@@ -308,7 +324,7 @@ export default function CheckoutModal({
 
     if (tipoComprobante === "BOLETA") {
       const numDoc = (datosCliente.numero_documento || "").trim();
-      const docTipo = datosCliente.tipo_documento === "RUC" ? "RUC" : "DNI";
+      const docTipo = datosCliente.tipo_documento;
 
       if (montoBrutoFinal >= 700) {
         if (docTipo === "RUC") {
@@ -323,13 +339,13 @@ export default function CheckoutModal({
             setProcesando(false);
             return;
           }
-        } else if (!numDoc || numDoc.length < 7) {
+        } else if (!numDoc || numDoc.length < 7 || docTipo === "NINGUNO") {
           setErrorVenta("Por normativa SUNAT, para Boletas iguales o mayores a S/ 700.00 es obligatorio identificar al cliente con DNI, RUC o CE.");
           setProcesando(false);
           return;
         }
 
-        if (!datosCliente.nombre_razon_social.trim()) {
+        if (!datosCliente.nombre_razon_social.trim() || datosCliente.nombre_razon_social.trim().toUpperCase() === "CLIENTES VARIOS") {
           setErrorVenta("Por normativa SUNAT, para Boletas de S/ 700.00 a más debe indicar el nombre o razón social del cliente.");
           setProcesando(false);
           return;
@@ -353,6 +369,24 @@ export default function CheckoutModal({
 
     try {
       idempotencyKeyRef.current ??= nuevaClaveIdempotencia();
+
+      const datosClienteAEnviar: DatosCliente = {
+        ...datosCliente,
+        tipo_documento:
+          tipoComprobante === "BOLETA" &&
+          (datosCliente.tipo_documento === "NINGUNO" || !datosCliente.numero_documento.trim())
+            ? "NINGUNO"
+            : datosCliente.tipo_documento,
+        numero_documento:
+          tipoComprobante === "BOLETA" &&
+          (datosCliente.tipo_documento === "NINGUNO" || !datosCliente.numero_documento.trim())
+            ? ""
+            : datosCliente.numero_documento.trim(),
+        nombre_razon_social:
+          datosCliente.nombre_razon_social.trim() ||
+          (tipoComprobante === "BOLETA" ? "CLIENTES VARIOS" : ""),
+      };
+
       const payload = buildVentaPayload({
         idempotencyKey: idempotencyKeyRef.current,
         perfilTributarioId: emisorActivo?.id,
@@ -360,7 +394,7 @@ export default function CheckoutModal({
         tipoPago,
         metodoPago,
         montoRecibido,
-        datosCliente,
+        datosCliente: datosClienteAEnviar,
         carrito,
       });
 
@@ -374,6 +408,16 @@ export default function CheckoutModal({
       // registrada: si SUNAT falla, el comprobante queda reintentable.
       let ventaParaSnapshot = { ...ventaRegistrada };
       if (tipoComprobante === "BOLETA" || tipoComprobante === "FACTURA") {
+        useEmisionProgresoStore.getState().iniciar({
+          modo: "CREACION",
+          tipoComprobante,
+          detalles: {
+            cliente: datosClienteAEnviar.nombre_razon_social,
+            total: montoBrutoFinal,
+            cantidadItems: carrito.length,
+          },
+        });
+
         try {
           const response = await ventasService.getSeriesDocumentos();
           const seriesList = Array.isArray(response) ? response : (response?.data || []);
@@ -393,6 +437,7 @@ export default function CheckoutModal({
           if (!serie) {
             estado = "PENDIENTE";
             mensaje = `No hay serie activa para ${tipoComprobante === "FACTURA" ? "facturas" : "boletas"}; emita el comprobante desde el historial.`;
+            useEmisionProgresoStore.getState().finalizarError(mensaje);
           } else {
             const emitido = await facturacionService.emitir({
               ventaId: ventaRegistrada.venta_id,
@@ -410,15 +455,27 @@ export default function CheckoutModal({
                 },
               };
             }
-            estado = emitido.estado.startsWith("ACEPTADO") ? "GENERADO" : "ERROR";
+            const esAceptado = emitido.estado.startsWith("ACEPTADO");
+            estado = esAceptado ? "GENERADO" : "ERROR";
             mensaje = emitido.mensaje_respuesta
-              || (emitido.estado.startsWith("ACEPTADO")
+              || (esAceptado
                 ? `Comprobante ${emitido.numero} aceptado por SUNAT`
                 : `Comprobante ${emitido.numero} en estado ${emitido.estado}; puede reintentarlo desde el historial.`);
+
+            if (esAceptado) {
+              useEmisionProgresoStore.getState().finalizarExito(emitido.numero);
+            } else {
+              useEmisionProgresoStore.getState().finalizarError(
+                emitido.mensaje_respuesta || `Comprobante en estado ${emitido.estado}`,
+              );
+            }
           }
         } catch (errEmision: any) {
           estado = "PENDIENTE";
           mensaje = `La venta se registró; el comprobante quedó pendiente (${errEmision.message || "error de emisión"}).`;
+          useEmisionProgresoStore.getState().finalizarError(
+            `La venta quedó registrada, pero el comprobante requiere reintento (${errEmision.message || "SUNAT demoró en responder"}).`,
+          );
         }
       }
 
@@ -451,12 +508,22 @@ export default function CheckoutModal({
       if (onVentaExitosa) {
         onVentaExitosa();
       }
+
+      if (tipoComprobante === "NOTA_VENTA") {
+        toast.success("Venta registrada", "Nota de venta procesada con éxito.");
+      } else if (estado === "GENERADO") {
+        toast.success("Comprobante emitido", `Comprobante ${ventaParaSnapshot.numero_comprobante || ""} aceptado por SUNAT.`);
+      } else {
+        toast.warn("Venta guardada (Pendiente)", mensaje || "Comprobante en proceso.");
+      }
       
       setSlideDir("left");
       setPaso(2);
     } catch (err: any) {
       console.error("Error al registrar venta:", err);
-      setErrorVenta(err.message || "Error al procesar la venta en el servidor");
+      const msg = err.message || "Error al procesar la venta en el servidor";
+      setErrorVenta(msg);
+      toast.error("Error al registrar venta", msg);
     } finally {
       setProcesando(false);
     }
@@ -757,12 +824,12 @@ export default function CheckoutModal({
                         Tipo de Documento
                       </label>
                       {tipoComprobante === "BOLETA" ? (
-                        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl max-w-xs border border-slate-200">
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl max-w-sm border border-slate-200">
                           <button
                             type="button"
                             onClick={() => handleCambiarTipoDocBoleta("DNI")}
-                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                              datosCliente.tipo_documento !== "RUC"
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                              datosCliente.tipo_documento === "DNI"
                                 ? "bg-white text-teal-700 shadow-sm border border-slate-200/80"
                                 : "text-slate-500 hover:text-slate-800"
                             }`}
@@ -773,7 +840,7 @@ export default function CheckoutModal({
                           <button
                             type="button"
                             onClick={() => handleCambiarTipoDocBoleta("RUC")}
-                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                               datosCliente.tipo_documento === "RUC"
                                 ? "bg-white text-teal-700 shadow-sm border border-slate-200/80"
                                 : "text-slate-500 hover:text-slate-800"
@@ -781,6 +848,25 @@ export default function CheckoutModal({
                           >
                             <span>RUC</span>
                             <span className="text-[10px] font-normal text-slate-400">(11 dígitos)</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={montoBrutoFinal >= 700}
+                            onClick={() => handleCambiarTipoDocBoleta("NINGUNO")}
+                            title={
+                              montoBrutoFinal >= 700
+                                ? "SUNAT exige DNI/RUC para boletas de S/ 700.00 a más"
+                                : "Boleta sin DNI ni RUC (RUS / Clientes Varios)"
+                            }
+                            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                              datosCliente.tipo_documento === "NINGUNO"
+                                ? "bg-white text-teal-700 shadow-sm border border-slate-200/80"
+                                : montoBrutoFinal >= 700
+                                ? "text-slate-300 cursor-not-allowed"
+                                : "text-slate-500 hover:text-slate-800"
+                            }`}
+                          >
+                            <span>Sin Documento</span>
                           </button>
                         </div>
                       ) : (
@@ -791,66 +877,78 @@ export default function CheckoutModal({
                       )}
                     </div>
 
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
-                          {tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC"
-                            ? "Número de RUC (11 dígitos)"
-                            : "Número de DNI (8 dígitos)"}
-                        </label>
-                        {origenBadge && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 animate-fadeIn">
-                            ✓ Verificado en {origenBadge}
-                          </span>
-                        )}
+                    {datosCliente.tipo_documento === "NINGUNO" && tipoComprobante === "BOLETA" ? (
+                      <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-start gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="text-xs text-emerald-950 space-y-0.5">
+                          <p className="font-bold">Boleta sin documento (Clientes Varios / RUS)</p>
+                          <p className="text-[11px] text-emerald-800 leading-relaxed">
+                            Emisión a consumidor final sin documento, autorizada por SUNAT para ventas menores a S/ 700.00. No se requiere ingresar DNI ni RUC.
+                          </p>
+                        </div>
                       </div>
-                      <div className="relative flex items-center">
-                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="text"
-                          maxLength={tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? 11 : 8}
-                          value={datosCliente.numero_documento}
-                          onChange={(e) => {
-                            const v = e.target.value.replace(/\D/g, "");
-                            setDatosCliente((d) => ({ ...d, numero_documento: v }));
-                            setOrigenBadge(null);
-                            const targetLen =
-                              tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? 11 : 8;
-                            if (v.length === targetLen) {
-                              handleConsultarPadron(
-                                v,
-                                tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? "RUC" : "DNI",
-                              );
-                            }
-                          }}
-                          placeholder={
-                            tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC"
-                              ? "Ej: 20123456789"
-                              : "Ej: 72456189"
-                          }
-                          className="w-full pl-10 pr-24 py-2.5 text-sm rounded-xl border border-slate-200 bg-white
-                            focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400
-                            placeholder:text-slate-300 font-mono tracking-wider transition"
-                        />
-                        <button
-                          type="button"
-                          disabled={consultandoPadron || !datosCliente.numero_documento}
-                          onClick={() =>
-                            handleConsultarPadron(
-                              datosCliente.numero_documento,
-                              tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? "RUC" : "DNI",
-                            )
-                          }
-                          className="absolute right-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white font-bold text-xs rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer"
-                        >
-                          {consultandoPadron ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <span>Buscar</span>
+                    ) : (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
+                            {tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC"
+                              ? "Número de RUC (11 dígitos)"
+                              : "Número de DNI (8 dígitos)"}
+                          </label>
+                          {origenBadge && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 animate-fadeIn">
+                              ✓ Verificado en {origenBadge}
+                            </span>
                           )}
-                        </button>
+                        </div>
+                        <div className="relative flex items-center">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="text"
+                            maxLength={tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? 11 : 8}
+                            value={datosCliente.numero_documento}
+                            onChange={(e) => {
+                              const v = e.target.value.replace(/\D/g, "");
+                              setDatosCliente((d) => ({ ...d, numero_documento: v }));
+                              setOrigenBadge(null);
+                              const targetLen =
+                                tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? 11 : 8;
+                              if (v.length === targetLen) {
+                                handleConsultarPadron(
+                                  v,
+                                  tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? "RUC" : "DNI",
+                                );
+                              }
+                            }}
+                            placeholder={
+                              tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC"
+                                ? "Ej: 20123456789"
+                                : "Ej: 72456189"
+                            }
+                            className="w-full pl-10 pr-24 py-2.5 text-sm rounded-xl border border-slate-200 bg-white
+                              focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-400
+                              placeholder:text-slate-300 font-mono tracking-wider transition"
+                          />
+                          <button
+                            type="button"
+                            disabled={consultandoPadron || !datosCliente.numero_documento}
+                            onClick={() =>
+                              handleConsultarPadron(
+                                datosCliente.numero_documento,
+                                tipoComprobante === "FACTURA" || datosCliente.tipo_documento === "RUC" ? "RUC" : "DNI",
+                              )
+                            }
+                            className="absolute right-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white font-bold text-xs rounded-lg transition active:scale-95 flex items-center gap-1 cursor-pointer"
+                          >
+                            {consultandoPadron ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <span>Buscar</span>
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
 
                     <div>

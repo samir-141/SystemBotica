@@ -1,9 +1,9 @@
-// src/components/productos/elements/CatalogoModal.tsx
 import { useState } from "react";
 import { X, Plus, Loader2 } from "lucide-react";
 import { inventarioService } from "../../../services/inventario.service";
 import type { TipoCatalogo, ItemCatalogo } from "../types";
 import { CATALOGO_LABELS } from "../types";
+import { toast } from "../../../utils/toast";
 
 type Props = {
   open: boolean;
@@ -51,10 +51,13 @@ export default function CatalogoModal({ open, tipo, onClose, onCreated }: Props)
       }
 
       const created = await inventarioService.crearItemCatalogo(tipo, payload);
+      toast.success(`${label} creado`, created.nombre);
       onCreated(created);
       resetForm();
     } catch (err: any) {
-      setError(err.message ?? "Error al crear");
+      const msg = err.message ?? "Error al crear";
+      setError(msg);
+      toast.error(`Error al crear ${label}`, msg);
     } finally {
       setSaving(false);
     }
@@ -226,7 +229,7 @@ export default function CatalogoModal({ open, tipo, onClose, onCreated }: Props)
               flex items-center gap-1.5 active:scale-[0.98]"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-            Crear {label}
+            <span>{saving ? "Creando..." : `Crear ${label}`}</span>
           </button>
         </div>
       </div>

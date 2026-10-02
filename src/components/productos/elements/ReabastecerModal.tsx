@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import CameraScannerModal from "../../common/CameraScannerModal";
-import { X, PackagePlus, Calendar, Hash, DollarSign, Check, Layers, Search, ScanLine } from "lucide-react";
-import { Toast } from "primereact/toast";
+import { X, PackagePlus, Calendar, Hash, DollarSign, Check, Layers, Search, ScanLine, Loader2 } from "lucide-react";
+import { toast } from "../../../utils/toast";
 import { productosService } from "../../../services/productos.service";
 import { inventarioService } from "../../../services/inventario.service";
 import { fechaCivil } from "../../../utils/localDate";
@@ -19,7 +19,6 @@ interface Props {
 }
 
 export default function ReabastecerModal({ open, onClose, producto, productosLista = [], onSuccess, modo = "reabastecer" }: Props) {
-  const toast = useRef<Toast>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
   const tituloId = useId();
@@ -195,7 +194,7 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
         return seleccionarProducto(item);
       }
     } catch { /* el aviso se muestra abajo */ }
-    toast.current?.show({ severity: "warn", summary: "Producto no encontrado", detail: "El código no corresponde a un producto disponible para reabastecer.", life: 3500 });
+    toast.warn("Producto no encontrado", "El código no corresponde a un producto disponible para reabastecer.");
   }, [productosLista, seleccionarProducto]);
 
   const lotesConMismoVencimiento = useMemo(() => fechaVencimiento
@@ -217,14 +216,14 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodId || !presentacion || !cantidad || (controlaLote && !numeroLote.trim()) || (requiereVencimiento && !fechaVencimiento) || !precioCompraPresentacion) {
-      toast.current?.show({ severity: "warn", summary: "Datos incompletos", detail: "Selecciona producto y presentación, luego completa cantidad, lote, vencimiento y costo.", life: 3500 }); return;
+      toast.warn("Datos incompletos", "Selecciona producto y presentación, luego completa cantidad, lote, vencimiento y costo."); return;
     }
     if (unidadesBase <= 0) return;
     setCargando(true);
     try {
       const res = await inventarioService.reabastecerStock({ producto_comercial_id: prodId, numero_lote: controlaLote ? numeroLote.trim() : "", fecha_vencimiento: requiereVencimiento ? fechaVencimiento : undefined, stock_adicional: unidadesBase, precio_compra_base: Number(precioCompraPresentacion) / equivalencia });
-      toast.current?.show({ severity: "success", summary: "Stock ingresado", detail: res.mensaje || "Lote registrado correctamente.", life: 3000 }); onSuccess?.(); onClose();
-    } catch (err: any) { toast.current?.show({ severity: "error", summary: "Error", detail: err.message || "No se pudo ingresar el lote.", life: 3500 }); }
+      toast.success("Stock ingresado", res.mensaje || "Lote registrado correctamente."); onSuccess?.(); onClose();
+    } catch (err: any) { toast.error("Error al registrar stock", err.message || "No se pudo ingresar el lote."); }
     finally { setCargando(false); }
   };
 
@@ -239,6 +238,6 @@ export default function ReabastecerModal({ open, onClose, producto, productosLis
       {lotesConMismoVencimiento.length === 1 && <p className="-mt-2 text-[10px] font-bold text-teal-700">Se encontró el lote vigente {lotesConMismoVencimiento[0].numero_lote} con este vencimiento; se agregará allí.</p>}
       {lotesConMismoVencimiento.length > 1 && <p className="-mt-2 text-[10px] font-bold text-amber-700">Hay varios lotes con este vencimiento. Escribe el número de lote impreso para conservar la trazabilidad.</p>}
       <div><label className="block text-xs font-extrabold text-slate-700 mb-1 flex gap-1"><DollarSign size={13} /> Costo por {presentacion?.presentacion_nombre || "presentación"} (S/)</label><input type="number" min="0" step="0.01" value={precioCompraPresentacion} onChange={e => setPrecioCompraPresentacion(e.target.value)} disabled={!presentacion} placeholder="0.00" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono" required />{presentacion && precioCompraPresentacion && <p className="mt-1 text-[11px] text-slate-500">Costo unitario base: S/ {(Number(precioCompraPresentacion) / equivalencia).toFixed(4)}</p>}</div>
-      <div className="flex gap-3 pt-2"><button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-100 rounded-xl text-xs font-bold">Cancelar</button><button type="submit" disabled={cargando} className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl text-xs font-extrabold flex justify-center gap-1">{cargando ? "Guardando..." : <><Check size={16} /> Ingresar stock</>}</button></div>
-    </form></div><Toast ref={toast} /></div>;
+      <div className="flex gap-3 pt-2"><button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-100 rounded-xl text-xs font-bold">Cancelar</button><button type="submit" disabled={cargando} className="flex-1 py-2.5 bg-teal-600 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 disabled:opacity-50">{cargando ? <><Loader2 size={16} className="animate-spin" /><span>Guardando...</span></> : <><Check size={16} /><span>Ingresar stock</span></>}</button></div>
+    </form></div></div>;
 }

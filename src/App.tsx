@@ -2,7 +2,8 @@
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { PrimeReactProvider } from "primereact/api";
-import { Toast } from "primereact/toast";
+import { Toaster } from "sileo";
+import "sileo/styles.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -12,6 +13,7 @@ import { CAPACIDADES } from "./components/navegacion/config/perimisos";
 
 import { SocketProvider } from "./contexts/SocketContext";
 import RealtimeNotifications from "./components/notifications/RealtimeNotifications";
+import { EmisionProgresoModal } from "./components/common/EmisionProgresoModal";
 
 const LoginForm = lazy(() => import("./pages/auth/Login"));
 const VentaPos = lazy(() => import("./components/venta/venta"));
@@ -53,8 +55,9 @@ const RouteFallback = () => (
 const AppContent: React.FC = () => {
   return (
     <div className="marifarma-app min-h-full">
-      <Toast />
+      <Toaster position="top-right" />
       <RealtimeNotifications />
+      <EmisionProgresoModal />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Rutas públicas */}

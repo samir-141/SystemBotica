@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Building2,
   Plus,
@@ -19,7 +19,7 @@ import {
   Bot,
   Sparkles,
 } from "lucide-react";
-import { Toast } from "primereact/toast";
+import { toast } from "../../../utils/toast";
 import {
   perfilesTributariosService,
   type PerfilTributario,
@@ -100,7 +100,6 @@ const formInicial: CreatePerfilTributarioPayload = {
 };
 
 export default function FacturacionAdmin() {
-  const toast = useRef<Toast>(null);
   const { cargarPerfiles } = useEmisorStore();
   const [perfiles, setPerfiles] = useState<PerfilTributario[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -143,14 +142,14 @@ export default function FacturacionAdmin() {
       });
 
       if (res.exito) {
-        toast.current?.show({
+        toast.show({
           severity: "success",
           summary: "Conexión SOL Exitosa (Playwright)",
           detail: `${res.mensaje}${res.razonSocialDetectada ? ` — Contribuyente: ${res.razonSocialDetectada}` : ""}`,
           life: 5000,
         });
       } else {
-        toast.current?.show({
+        toast.show({
           severity: "warn",
           summary: "Fallo de Inicio de Sesión SOL",
           detail: res.mensaje || "No se pudo acceder al portal SUNAT SOL con las credenciales",
@@ -158,7 +157,7 @@ export default function FacturacionAdmin() {
         });
       }
     } catch (err: any) {
-      toast.current?.show({
+      toast.show({
         severity: "error",
         summary: "Error al ejecutar Bot SOL",
         detail: err?.response?.data?.message || err?.message || "Error al conectar con SUNAT SOL",
@@ -176,7 +175,7 @@ export default function FacturacionAdmin() {
       setPerfiles(data);
       await cargarPerfiles(true);
     } catch (err: any) {
-      toast.current?.show({
+      toast.show({
         severity: "error",
         summary: "Error",
         detail: err?.response?.data?.message || err?.message || "Error al cargar perfiles",
@@ -194,7 +193,7 @@ export default function FacturacionAdmin() {
   const handleConsultarRuc = async () => {
     const rucLimpio = form.ruc.trim();
     if (rucLimpio.length !== 11) {
-      toast.current?.show({
+      toast.show({
         severity: "warn",
         summary: "RUC Inválido",
         detail: "El RUC debe tener exactamente 11 dígitos numéricos.",
@@ -221,14 +220,14 @@ export default function FacturacionAdmin() {
         estado_sunat: datos.estado || "ACTIVO",
         condicion_sunat: datos.condicion || "HABIDO",
       }));
-      toast.current?.show({
+      toast.show({
         severity: "success",
         summary: "Datos obtenidos",
         detail: `RUC ${rucLimpio} verificado: ${datos.razonSocial}`,
         life: 3000,
       });
     } catch {
-      toast.current?.show({
+      toast.show({
         severity: "info",
         summary: "Consulta manual",
         detail: "No se pudo consultar automáticamente. Puedes completar los datos manualmente.",
@@ -278,7 +277,7 @@ export default function FacturacionAdmin() {
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.ruc.trim() || !form.razon_social.trim() || !form.direccion_fiscal.trim()) {
-      toast.current?.show({
+      toast.show({
         severity: "warn",
         summary: "Campos requeridos",
         detail: "RUC, Razón Social y Dirección Fiscal son obligatorios.",
@@ -289,7 +288,7 @@ export default function FacturacionAdmin() {
 
     const cleanUbigeo = form.ubigeo?.trim() || "";
     if (cleanUbigeo && !/^\d{6}$/.test(cleanUbigeo)) {
-      toast.current?.show({
+      toast.show({
         severity: "warn",
         summary: "Ubigeo inválido",
         detail: "El código de ubigeo debe tener exactamente 6 dígitos numéricos (o déjalo en blanco si no lo conoces).",
@@ -330,7 +329,7 @@ export default function FacturacionAdmin() {
         });
       }
 
-      toast.current?.show({
+      toast.show({
         severity: "success",
         summary: editId ? "Actualizado" : "Registrado",
         detail: "Perfil tributario y credenciales guardados correctamente.",
@@ -340,7 +339,7 @@ export default function FacturacionAdmin() {
       setModalOpen(false);
       await cargar();
     } catch (err: any) {
-      toast.current?.show({
+      toast.show({
         severity: "error",
         summary: "Error al guardar",
         detail: err?.response?.data?.message || err?.message || "Ocurrió un error",
@@ -355,7 +354,7 @@ export default function FacturacionAdmin() {
     if (!confirm(`¿Eliminar el perfil tributario "${razon}"?`)) return;
     try {
       await perfilesTributariosService.eliminar(id);
-      toast.current?.show({
+      toast.show({
         severity: "success",
         summary: "Eliminado",
         detail: "Perfil tributario eliminado.",
@@ -363,7 +362,7 @@ export default function FacturacionAdmin() {
       });
       await cargar();
     } catch (err: any) {
-      toast.current?.show({
+      toast.show({
         severity: "error",
         summary: "Error",
         detail: err?.response?.data?.message || err?.message,
@@ -382,7 +381,7 @@ export default function FacturacionAdmin() {
   const handleSubirCertificado = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!certPerfilId || !certFile) {
-      toast.current?.show({
+      toast.show({
         severity: "warn",
         summary: "Archivo requerido",
         detail: "Seleccione un archivo .pfx o .p12",
@@ -394,7 +393,7 @@ export default function FacturacionAdmin() {
     setSubiendoCert(true);
     try {
       await perfilesTributariosService.subirCertificado(certPerfilId, certFile, certClave);
-      toast.current?.show({
+      toast.show({
         severity: "success",
         summary: "Certificado subido",
         detail: "El certificado digital fue cargado y validado exitosamente.",
@@ -403,7 +402,7 @@ export default function FacturacionAdmin() {
       setCertModalOpen(false);
       await cargar();
     } catch (err: any) {
-      toast.current?.show({
+      toast.show({
         severity: "error",
         summary: "Error en certificado",
         detail: err?.response?.data?.message || err?.message || "No se pudo leer el certificado",
@@ -419,14 +418,14 @@ export default function FacturacionAdmin() {
     try {
       const res = await perfilesTributariosService.verificarConfiguracion(id);
       if (res.valido) {
-        toast.current?.show({
+        toast.show({
           severity: "success",
           summary: "Configuración Verificada",
           detail: res.mensaje,
           life: 4000,
         });
       } else {
-        toast.current?.show({
+        toast.show({
           severity: "warn",
           summary: "Advertencia",
           detail: res.mensaje,
@@ -435,7 +434,7 @@ export default function FacturacionAdmin() {
       }
       await cargar();
     } catch (err: any) {
-      toast.current?.show({
+      toast.show({
         severity: "error",
         summary: "Error de verificación",
         detail: err?.response?.data?.message || err?.message,
@@ -454,7 +453,6 @@ export default function FacturacionAdmin() {
 
   return (
     <div className="space-y-6">
-      <Toast ref={toast} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -735,7 +733,7 @@ export default function FacturacionAdmin() {
                         className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
                       >
                         {consultandoRuc ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                        <span>Consultar</span>
+                        <span>{consultandoRuc ? "Consultando..." : "Consultar"}</span>
                       </button>
                     </div>
                   </div>
@@ -1058,7 +1056,7 @@ export default function FacturacionAdmin() {
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {guardando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  <span>{editId ? "Guardar Cambios" : "Registrar Emisor"}</span>
+                  <span>{guardando ? "Guardando..." : editId ? "Guardar Cambios" : "Registrar Emisor"}</span>
                 </button>
               </div>
             </form>
@@ -1132,7 +1130,7 @@ export default function FacturacionAdmin() {
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {subiendoCert ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                  <span>Subir y Cifrar</span>
+                  <span>{subiendoCert ? "Subiendo..." : "Subir y Cifrar"}</span>
                 </button>
               </div>
             </form>

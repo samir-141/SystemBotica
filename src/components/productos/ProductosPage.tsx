@@ -1,5 +1,4 @@
-// src/components/productos/ProductosPage.tsx
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import {
   Search,
   Plus,
@@ -8,8 +7,9 @@ import {
   RefreshCw,
   ChevronDown,
   PackagePlus,
+  Loader2,
 } from "lucide-react";
-import { Toast } from "primereact/toast";
+import { toast } from "../../utils/toast";
 import type { ProductoPOS } from "../../types/api.types";
 import type { FormMode, TipoCatalogo } from "./types";
 import { useProductos } from "./hooks/useProductos";
@@ -23,7 +23,6 @@ import ComprasPage from "../compras/ComprasPage";
 
 export default function ProductosPage() {
   const [activeTab, setActiveTab] = useState<"productos" | "compras">("productos");
-  const toast = useRef<Toast>(null);
   const {
     productos,
     meta,
@@ -100,9 +99,10 @@ export default function ProductosPage() {
     setDeleting(true);
     try {
       await eliminarProducto(deleteTarget.producto_comercial_id);
+      toast.success("Producto eliminado", deleteTarget.nombre_comercial);
       setDeleteTarget(null);
     } catch (err: any) {
-      toast.current?.show({ severity: "error", summary: "Error", detail: err.message ?? "Error al eliminar", life: 3000 });
+      toast.error("Error al eliminar", err.message ?? "Error al eliminar");
     } finally {
       setDeleting(false);
     }
@@ -112,6 +112,7 @@ export default function ProductosPage() {
     async (data: CreateProductoDto | UpdateProductoDto, mode: FormMode) => {
       if (mode === "editar" && productoEditar) {
         await actualizarProducto(productoEditar.producto_comercial_id, data);
+        toast.success("Producto actualizado", data.nombre_comercial);
       } else {
         const nuevo = await crearProducto(data);
         const creado = data as CreateProductoDto;
@@ -124,7 +125,7 @@ export default function ProductosPage() {
         });
         setIngresoInicial(true);
         setReabastecerOpen(true);
-        toast.current?.show({ severity: "success", summary: "Producto creado", detail: "Ahora registra el primer lote para habilitar su venta.", life: 3500 });
+        toast.success("Producto creado", "Ahora registra el primer lote para habilitar su venta.");
       }
     },
     [productoEditar, actualizarProducto, crearProducto]
@@ -367,9 +368,10 @@ export default function ProductosPage() {
               <button
                 onClick={confirmDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 rounded-xl shadow-sm transition active:scale-[0.98] cursor-pointer"
+                className="flex-1 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 rounded-xl shadow-sm transition active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
               >
-                {deleting ? "Eliminando..." : "Sí, Eliminar"}
+                {deleting ? <Loader2 size={15} className="animate-spin" /> : null}
+                <span>{deleting ? "Eliminando..." : "Sí, Eliminar"}</span>
               </button>
             </div>
           </div>
@@ -389,7 +391,6 @@ export default function ProductosPage() {
         }
         .animate-scaleIn { animation: scaleIn 0.2s ease-out both; }
       `}</style>
-      <Toast ref={toast} />
     </div>
   );
 }

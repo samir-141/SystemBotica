@@ -1,4 +1,3 @@
-// src/components/admin/elements/CatalogosAdmin.tsx
 import { useState, useEffect, useCallback } from "react";
 import {
   Package,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { inventarioService } from "../../../services/inventario.service";
 import type { TipoCatalogo, ItemCatalogo } from "../../../types/api.types";
+import { toast } from "../../../utils/toast";
 
 type Props = {};
 
@@ -36,6 +36,7 @@ export default function CatalogosAdmin(_props: Props) {
   const [editItem, setEditItem] = useState<ItemCatalogo | null>(null);
   const [form, setForm] = useState({ nombre: "", abreviatura: "", descripcion: "", pais: "", telefono: "", email: "" });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
@@ -84,25 +85,35 @@ export default function CatalogosAdmin(_props: Props) {
     try {
       if (editItem) {
         await inventarioService.actualizarItemCatalogo(tipoActivo, editItem.id, form);
+        toast.success("Registro actualizado", `"${form.nombre}" actualizado con éxito.`);
       } else {
         await inventarioService.crearItemCatalogo(tipoActivo, form);
+        toast.success("Registro creado", `"${form.nombre}" creado con éxito.`);
       }
       setModalOpen(false);
       cargar();
     } catch (err: any) {
-      setError(err.message || "Error al guardar");
+      const msg = err.message || "Error al guardar";
+      setError(msg);
+      toast.error("Error al guardar", msg);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, nombre?: string) => {
     if (!confirm("¿Eliminar este registro?")) return;
+    setDeletingId(id);
     try {
       await inventarioService.eliminarItemCatalogo(tipoActivo, id);
+      toast.success("Registro eliminado", nombre ? `"${nombre}" fue eliminado.` : "Registro eliminado con éxito.");
       cargar();
     } catch (err: any) {
-      setError(err.message || "Error al eliminar");
+      const msg = err.message || "Error al eliminar";
+      setError(msg);
+      toast.error("Error al eliminar", msg);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -199,8 +210,17 @@ export default function CatalogosAdmin(_props: Props) {
                           <button onClick={() => handleOpenEdit(item)} className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition cursor-pointer">
                             <Save className="w-3.5 h-3.5" />
                           </button>
-                          <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer">
-                            <X className="w-3.5 h-3.5" />
+                          <button
+                            onClick={() => handleDelete(item.id, item.nombre)}
+                            disabled={deletingId === item.id}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-50 rounded-lg transition cursor-pointer"
+                            title="Eliminar registro"
+                          >
+                            {deletingId === item.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
+                            ) : (
+                              <X className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -250,8 +270,19 @@ export default function CatalogosAdmin(_props: Props) {
               </div>
               <div className="flex gap-2 pt-3">
                 <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">Cancelar</button>
-                <button type="submit" disabled={saving} className="flex-1 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-slate-200 rounded-xl transition cursor-pointer">
-                  {saving ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "Guardar"}
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Guardar</span>
+                  )}
                 </button>
               </div>
             </form>
