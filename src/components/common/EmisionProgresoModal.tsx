@@ -33,7 +33,6 @@ export const EmisionProgresoModal: React.FC = () => {
     numeroComprobante,
     detalles,
     actualizarProgreso,
-    avanzarPaso,
     cerrar,
   } = useEmisionProgresoStore();
 
@@ -72,20 +71,7 @@ export const EmisionProgresoModal: React.FC = () => {
     };
   }, [socket, isOpen, actualizarProgreso]);
 
-  // 2. Temporizador inteligente: asegura que la animación fluya suavemente si hay latencia
-  useEffect(() => {
-    if (!isOpen || estado !== 'PROCESANDO') return;
-
-    const timer = setInterval(() => {
-      if (pasoActual < 6) {
-        avanzarPaso();
-      }
-    }, 2800);
-
-    return () => clearInterval(timer);
-  }, [isOpen, estado, pasoActual, avanzarPaso]);
-
-  // 3. Prevenir tecla Escape para no cancelar el bloqueo mientras procesa
+  // 2. Prevenir tecla Escape para no cancelar el bloqueo mientras procesa
   useEffect(() => {
     if (!isOpen) return;
 
