@@ -37,7 +37,10 @@ export function useCatalogos() {
           inventarioService
             .getCatalogo(tipo, { limit: 500, orden: "asc" })
             .then((res) => ({ tipo, items: res.data }))
-            .catch(() => ({ tipo, items: [] as ItemCatalogo[] }))
+            .catch((err) => {
+              console.warn(`[useCatalogos] Error al cargar catálogo "${tipo}":`, err);
+              return { tipo, items: [] as ItemCatalogo[] };
+            })
         )
       );
 
@@ -62,8 +65,8 @@ export function useCatalogos() {
     try {
       const res = await inventarioService.getCatalogo(tipo, { limit: 500, orden: "asc" });
       setCatalogos((prev) => ({ ...prev, [tipo]: res.data }));
-    } catch {
-      /* silencioso — el select sigue mostrando los datos previos */
+    } catch (err) {
+      console.warn(`[useCatalogos] Error al refrescar catálogo "${tipo}":`, err);
     }
   }, []);
 
