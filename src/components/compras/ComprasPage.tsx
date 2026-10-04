@@ -277,6 +277,8 @@ export default function ComprasPage() {
         patch.numeroLote = matching[0].numero_lote;
         patch.fechaFabricacion =
           matching[0].fecha_fabricacion?.slice(0, 10) || "";
+      } else if (matching.length === 0) {
+        patch.numeroLote = `LOTE-${fechaVencimiento}`;
       } else {
         patch.numeroLote = "";
       }
