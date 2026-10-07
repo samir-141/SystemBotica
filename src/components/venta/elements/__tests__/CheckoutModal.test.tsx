@@ -190,7 +190,7 @@ describe("CheckoutModal - contrato canónico de venta", () => {
     expect(screen.getByText(/solo es accesible en la red local/i)).toBeInTheDocument();
   });
 
-  it("permite alternar entre DNI y RUC al emitir Boleta de Venta", async () => {
+  it("permite alternar entre Sin Datos, DNI y RUC al emitir Boleta Electrónica o Simple", async () => {
     vi.mocked(facturacionService.obtenerConfiguracion).mockResolvedValue({
       ruc: "20123456789",
       razon_social: "FARMACIA PRUEBA",
@@ -201,23 +201,27 @@ describe("CheckoutModal - contrato canónico de venta", () => {
     } as any);
     vi.mocked(ventasService.registrarVenta).mockResolvedValue({
       ...respuestaCanonica,
-      tipo_comprobante: "BOLETA",
+      tipo_comprobante: "BOLETA_ELECTRONICA",
     });
     renderCheckout();
 
     // Esperar a que cargue la configuración tributaria y habilite el botón
-    const btnBoleta = await screen.findByRole("button", { name: /Boleta de Venta/i });
+    const btnBoleta = await screen.findByRole("button", { name: /Boleta Electrónica/i });
     await waitFor(() => expect(btnBoleta).not.toBeDisabled());
     fireEvent.click(btnBoleta);
     fireEvent.click(screen.getByRole("button", { name: /Siguiente/i }));
 
-    // Paso 1: Por defecto está seleccionado DNI
+    // Paso 1: Por defecto la primera opción es "Sin Datos" (Cliente General)
+    expect(await screen.findByText(/Cliente General \(Sin Datos\)/i)).toBeInTheDocument();
+
+    // Alternar a DNI
+    const btnDni = screen.getByRole("button", { name: /DNI/i });
+    fireEvent.click(btnDni);
     expect(await screen.findByText(/Número de DNI \(8 dígitos\)/i)).toBeInTheDocument();
 
     // Alternar a RUC
     const btnRuc = screen.getByRole("button", { name: /RUC/i });
     fireEvent.click(btnRuc);
-
     expect(screen.getByText(/Número de RUC \(11 dígitos\)/i)).toBeInTheDocument();
 
     // Llenar datos de cliente con RUC
@@ -227,14 +231,14 @@ describe("CheckoutModal - contrato canónico de venta", () => {
     const razonSocialInput = screen.getByPlaceholderText(/FARMACIA SAM S.A.C./i);
     fireEvent.change(razonSocialInput, { target: { value: "BOTICA DEMO S.A.C." } });
 
-    // Paso 1: Seleccionar método de pago y emitir
+    // Seleccionar método de pago y emitir
     fireEvent.click(screen.getByRole("button", { name: /Yape \/ Plin/i }));
     fireEvent.click(screen.getByRole("button", { name: /Confirmar y emitir/i }));
 
     await screen.findByText(/Venta Registrada/i);
 
     const payload = vi.mocked(ventasService.registrarVenta).mock.calls[0][0];
-    expect(payload.tipo_comprobante).toBe("BOLETA");
+    expect(payload.tipo_comprobante).toBe("BOLETA_ELECTRONICA");
     expect(payload.datos_cliente).toMatchObject({
       tipo_documento: "RUC",
       numero_documento: "20123456789",
@@ -242,7 +246,7 @@ describe("CheckoutModal - contrato canónico de venta", () => {
     });
   });
 
-  it("permite emitir Boleta de Venta sin documento (Nuevo RUS / clientes varios)", async () => {
+  it("permite emitir Boleta a Cliente General por defecto y exige datos si el usuario elige DNI", async () => {
     vi.mocked(facturacionService.obtenerConfiguracion).mockResolvedValue({
       ruc: "10755820208",
       razon_social: "BOTICA RUS",
@@ -253,36 +257,45 @@ describe("CheckoutModal - contrato canónico de venta", () => {
     } as any);
     vi.mocked(ventasService.registrarVenta).mockResolvedValue({
       ...respuestaCanonica,
-      tipo_comprobante: "BOLETA",
+      tipo_comprobante: "BOLETA_SIMPLE",
     });
     renderCheckout();
 
-    const btnBoleta = await screen.findByRole("button", { name: /Boleta de Venta/i });
+    const btnBoleta = await screen.findByRole("button", { name: /Boleta Simple/i });
     await waitFor(() => expect(btnBoleta).not.toBeDisabled());
     fireEvent.click(btnBoleta);
     fireEvent.click(screen.getByRole("button", { name: /Siguiente/i }));
 
-    // Seleccionar opción "Sin Documento"
-    const btnSinDoc = screen.getByRole("button", { name: /Sin Documento/i });
-    fireEvent.click(btnSinDoc);
+    // Con "Sin Datos" activo por defecto, el botón de confirmar está habilitado
+    const btnConfirmar = screen.getByRole("button", { name: /Confirmar y emitir/i });
+    expect(btnConfirmar).not.toBeDisabled();
 
-    // Debe mostrar la advertencia / información de boleta sin documento
-    expect(
-      screen.getByText(/Boleta sin documento \(Clientes Varios \/ RUS\)/i),
-    ).toBeInTheDocument();
+    // Si el cajero cambia a opción DNI, ahora sí exige ingresar DNI y nombre
+    const btnDni = screen.getByRole("button", { name: /DNI/i });
+    fireEvent.click(btnDni);
 
-    // Seleccionar método de pago y emitir
-    fireEvent.click(screen.getByRole("button", { name: /Yape \/ Plin/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Confirmar y emitir/i }));
+    // Debe bloquearse hasta que se completen los 8 dígitos y el nombre
+    await waitFor(() => expect(btnConfirmar).toBeDisabled());
+
+    // Ingresar DNI y Nombre
+    const dniInput = screen.getByPlaceholderText(/Ej: 72456189/i);
+    fireEvent.change(dniInput, { target: { value: "40644730" } });
+
+    const nombreInput = screen.getByPlaceholderText(/Juan Pérez García/i);
+    fireEvent.change(nombreInput, { target: { value: "JUAN ALARCON" } });
+
+    // Ahora sí debe habilitarse
+    await waitFor(() => expect(btnConfirmar).not.toBeDisabled());
+    fireEvent.click(btnConfirmar);
 
     await screen.findByText(/Venta Registrada/i);
 
     const payload = vi.mocked(ventasService.registrarVenta).mock.calls[0][0];
-    expect(payload.tipo_comprobante).toBe("BOLETA");
+    expect(payload.tipo_comprobante).toBe("BOLETA_SIMPLE");
     expect(payload.datos_cliente).toMatchObject({
-      tipo_documento: "NINGUNO",
-      numero_documento: "",
-      nombre_razon_social: "CLIENTES VARIOS",
+      tipo_documento: "DNI",
+      numero_documento: "40644730",
+      nombre_razon_social: "JUAN ALARCON",
     });
   });
 });

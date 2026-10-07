@@ -27,8 +27,12 @@ export interface PresentacionOption {
 export type ModoPrecio = "CON_IGV" | "SIN_IGV";
 export type TipoPago = "CONTADO" | "ABONO" | "ANTICIPO";
 
-// ── Checkout / Comprobante types ──────────────────────────
-export type TipoComprobante = "BOLETA" | "FACTURA" | "NOTA_VENTA";
+export type TipoComprobante =
+  | "BOLETA"
+  | "BOLETA_SIMPLE"
+  | "BOLETA_ELECTRONICA"
+  | "FACTURA"
+  | "NOTA_VENTA";
 export type MetodoPago = "EFECTIVO" | "TARJETA" | "YAPE_PLIN" | "TRANSFERENCIA";
 
 export interface DatosCliente {

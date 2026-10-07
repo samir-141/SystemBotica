@@ -1,6 +1,6 @@
 export interface ComprobanteData {
   id?: string;
-  tipoComprobante: "BOLETA" | "FACTURA" | "NOTA_VENTA";
+  tipoComprobante: "BOLETA" | "FACTURA" | "NOTA_VENTA" | "BOLETA_SIMPLE" | "BOLETA_ELECTRONICA";
   serieNumero: string;
   fechaEmision: string;
   boticaId?: string;
@@ -38,7 +38,7 @@ export interface ComprobanteData {
 
 export function generarXmlUbl21(c: ComprobanteData): string {
   const isFactura = c.tipoComprobante === "FACTURA";
-  const tipoDocCode = isFactura ? "01" : c.tipoComprobante === "BOLETA" ? "03" : "07";
+  const tipoDocCode = isFactura ? "01" : (c.tipoComprobante === "NOTA_VENTA" ? "07" : "03");
   const rucEmisor = c.botica?.ruc ?? "";
   const razonSocialEmisor = c.botica?.nombre ?? "Sin datos de empresa";
 

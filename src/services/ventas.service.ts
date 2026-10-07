@@ -18,6 +18,22 @@ export const ventasService = {
     return data;
   },
 
+  actualizarVenta: async (
+    id: string,
+    payload: {
+      cliente_nombre?: string;
+      cliente_tipo_documento?: string;
+      cliente_numero_documento?: string;
+      cliente_telefono?: string;
+      cliente_direccion?: string;
+      metodo_pago?: string;
+      observacion?: string;
+    },
+  ): Promise<any> => {
+    const { data } = await api.patch(`/ventas/${id}`, payload);
+    return data;
+  },
+
   getSeriesDocumentos: async (): Promise<any> => {
     const { data } = await api.get("/series-documentos");
     return data;

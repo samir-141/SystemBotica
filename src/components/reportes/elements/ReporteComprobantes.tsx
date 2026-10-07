@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../../services/api";
+import { useAuth } from "../../../hooks/useAuth";
 import {
   Search,
   Receipt,
@@ -24,8 +25,13 @@ import {
   PackageCheck,
   XCircle,
   Share2,
-  Download,
   Loader2,
+  MoreHorizontal,
+  X,
+  Lock,
+  Pencil,
+  Send,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "../../../utils/toast";
 import ImpresionComprobanteModal from "./ImpresionComprobanteModal";
@@ -86,10 +92,13 @@ export default function ReporteComprobantes({
   const fechaFin = fechaFinProp !== undefined ? fechaFinProp : fechaFinLocal;
   const setFechaFin = setFechaFinProp || setFechaFinLocal;
 
-  // Modales
+  // Modales y Drawer
   const [modalOpen, setModalOpen] = useState(false);
   const [comprobanteSeleccionado, setComprobanteSeleccionado] = useState<ComprobanteData | null>(null);
   const [formatoInicialModal, setFormatoInicialModal] = useState<"80mm" | "58mm" | "A4" | "xml">("80mm");
+
+  // Drawer Lateral de Acciones
+  const [drawerComprobante, setDrawerComprobante] = useState<ComprobanteConCliente | null>(null);
 
   // Modal de Confirmación de Anulación
   const [comprobanteParaAnular, setComprobanteParaAnular] = useState<ComprobanteData | null>(null);
@@ -97,6 +106,27 @@ export default function ReporteComprobantes({
   const [comprobanteParaEnviar, setComprobanteParaEnviar] = useState<ComprobanteConCliente | null>(null);
   const [telefonoEnvio, setTelefonoEnvio] = useState("");
   const [enviando, setEnviando] = useState(false);
+
+  // Modal de Edición de Comprobante (Solo Admins)
+  const { user } = useAuth();
+  const isAdmin = Boolean(
+    user?.rol && (
+      user.rol.toUpperCase().includes("ADMIN") ||
+      user.rol.toUpperCase().includes("PROPIETARIO") ||
+      user.rol.toUpperCase().includes("GERENTE")
+    )
+  );
+  const [comprobanteParaEditar, setComprobanteParaEditar] = useState<ComprobanteConCliente | null>(null);
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+  const [formEditar, setFormEditar] = useState({
+    clienteNombre: "",
+    clienteTipoDoc: "DNI",
+    clienteNumDoc: "",
+    clienteTelefono: "",
+    clienteDireccion: "",
+    metodoPago: "EFECTIVO",
+    observaciones: "",
+  });
 
   // Comprobantes electrónicos reales (SUNAT) indexados por venta
   const { data: comprobantesElectronicos } = useQuery({
@@ -464,6 +494,59 @@ export default function ReporteComprobantes({
       return;
     }
     void procesarEnvioComprobante(comprobanteParaEnviar, numeroNacional);
+  };
+
+  const abrirModalEdicion = (c: ComprobanteConCliente) => {
+    if (!isAdmin) {
+      toast.warn("Acceso Denegado", "Solo usuarios con rol Administrador pueden editar comprobantes.");
+      return;
+    }
+    setComprobanteParaEditar(c);
+    setFormEditar({
+      clienteNombre: c.cliente?.nombre || "",
+      clienteTipoDoc: c.cliente?.tipoDocumento || "DNI",
+      clienteNumDoc: c.cliente?.numeroDocumento || "",
+      clienteTelefono: c.telefonoCliente || "",
+      clienteDireccion: "",
+      metodoPago: c.metodoPago || "EFECTIVO",
+      observaciones: "",
+    });
+  };
+
+  const handleGuardarEdicionAdmin = async () => {
+    if (!comprobanteParaEditar?.id) return;
+    setGuardandoEdicion(true);
+    try {
+      await ventasService.actualizarVenta(comprobanteParaEditar.id, {
+        cliente_nombre: formEditar.clienteNombre.trim() || undefined,
+        cliente_tipo_documento: formEditar.clienteNumDoc.trim() ? formEditar.clienteTipoDoc : undefined,
+        cliente_numero_documento: formEditar.clienteNumDoc.trim() || undefined,
+        cliente_telefono: formEditar.clienteTelefono.trim() || undefined,
+        cliente_direccion: formEditar.clienteDireccion.trim() || undefined,
+        metodo_pago: formEditar.metodoPago || undefined,
+        observacion: formEditar.observaciones.trim() || undefined,
+      });
+      toast.success("Comprobante actualizado", `Se actualizaron los datos administrativos de ${comprobanteParaEditar.serieNumero}`);
+      setComprobanteParaEditar(null);
+      setDrawerComprobante(null);
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast.error("Error al actualizar", err?.response?.data?.message || err.message || "Error al actualizar comprobante");
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  };
+
+  const enviarASunat = async (c: ComprobanteConCliente) => {
+    if (c.estadoSunat === "ACEPTADO") {
+      toast.info("SUNAT", "El comprobante ya fue emitido y aceptado por SUNAT.");
+      return;
+    }
+    if (c.estadoSunat === "ANULADO") {
+      toast.warn("Comprobante Anulado", "No se puede enviar a SUNAT un comprobante anulado.");
+      return;
+    }
+    await reintentarComprobante(c);
   };
 
   const getMetodoIcon = (metodo?: string) => {
@@ -866,111 +949,28 @@ export default function ReporteComprobantes({
                         {formatMoney(c.total)}
                       </td>
 
-                      {/* Botones Acciones Coherentes */}
+                      {/* Botones Acciones */}
                       <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1.5">
-                          {/* Botón Ver Comprobante */}
+                          {/* Botón Ver Comprobante Rápido */}
                           <button
                             onClick={() => abrirModal(c, "80mm")}
-                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer border border-indigo-200 shadow-2xs"
+                            className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer border border-indigo-200 shadow-2xs"
                             title="Ver o Imprimir Comprobante Completo"
                           >
                             <Eye size={13} />
                             <span>Ver</span>
                           </button>
 
-                          {/* Botón XML Rápido SUNAT */}
+                          {/* Botón Abrir Menú Lateral de Acciones */}
                           <button
-                            onClick={() => abrirModal(c, "xml")}
-                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-emerald-200"
-                            title="Ver Modelo XML SUNAT UBL 2.1"
+                            onClick={() => setDrawerComprobante(c)}
+                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-purple-100 hover:text-purple-700 hover:border-purple-300 text-slate-700 rounded-xl text-[11px] font-extrabold transition flex items-center gap-1.5 cursor-pointer border border-slate-200 shadow-2xs group"
+                            title="Abrir menú lateral con todas las opciones"
                           >
-                            <FileCode size={12} />
-                            <span>XML</span>
+                            <MoreHorizontal size={14} className="group-hover:scale-110 transition text-slate-600 group-hover:text-purple-700" />
+                            <span>Acciones</span>
                           </button>
-
-                          <button
-                            onClick={() => enviarEnlaceComprobante(c)}
-                            className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-teal-200"
-                            title="Enviar enlace del comprobante por WhatsApp"
-                          >
-                            <Share2 size={12} />
-                            <span>WhatsApp</span>
-                          </button>
-
-                          {/* Artefactos SUNAT reales (cuando existe comprobante electrónico) */}
-                          {c.comprobanteElectronicoId && c.tieneXml && (
-                            <button
-                              onClick={() => descargarArtefacto(c, "xml")}
-                              disabled={descargandoArtefacto === `${c.comprobanteElectronicoId}-xml`}
-                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-slate-300"
-                              title="Descargar XML firmado"
-                            >
-                              {descargandoArtefacto === `${c.comprobanteElectronicoId}-xml` ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                              <span>XML</span>
-                            </button>
-                          )}
-                          {c.comprobanteElectronicoId && c.tieneCdr && (
-                            <button
-                              onClick={() => descargarArtefacto(c, "cdr")}
-                              disabled={descargandoArtefacto === `${c.comprobanteElectronicoId}-cdr`}
-                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-slate-300"
-                              title="Descargar CDR (constancia SUNAT)"
-                            >
-                              {descargandoArtefacto === `${c.comprobanteElectronicoId}-cdr` ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                              <span>CDR</span>
-                            </button>
-                          )}
-                          {c.comprobanteElectronicoId && c.tienePdf && (
-                            <button
-                              onClick={() => descargarArtefacto(c, "pdf")}
-                              disabled={descargandoArtefacto === `${c.comprobanteElectronicoId}-pdf`}
-                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-slate-300"
-                              title="Descargar representación impresa (PDF)"
-                            >
-                              {descargandoArtefacto === `${c.comprobanteElectronicoId}-pdf` ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                              <span>PDF</span>
-                            </button>
-                          )}
-
-                          {/* Botón Reintentar / Rehacer para comprobantes pendientes o con error ante SUNAT */}
-                          {c.tipoComprobante !== "NOTA_VENTA" &&
-                            c.estadoSunat !== "ACEPTADO" &&
-                            c.estadoSunat !== "ANULADO" && (
-                              <button
-                                onClick={() => reintentarComprobante(c)}
-                                disabled={reintentandoId === (c.comprobanteElectronicoId || c.id)}
-                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 text-amber-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-amber-200"
-                                title={`Reintentar envío a SUNAT (${c.comprobanteElectronicoMensaje ?? "pendiente"})`}
-                              >
-                                {reintentandoId === (c.comprobanteElectronicoId || c.id) ? (
-                                  <Loader2 size={12} className="animate-spin" />
-                                ) : (
-                                  <RefreshCw size={12} />
-                                )}
-                                <span>
-                                  {reintentandoId === (c.comprobanteElectronicoId || c.id)
-                                    ? "Enviando..."
-                                    : "Reintentar"}
-                                </span>
-                              </button>
-                            )}
-
-                          {/* Botón Anular / Cancelar */}
-                          {c.estadoSunat === "ANULADO" ? (
-                            <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-bold border border-slate-200 cursor-not-allowed inline-flex items-center gap-1">
-                              <Ban size={12} /> Anulado
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => setComprobanteParaAnular(c)}
-                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-[10px] font-bold transition flex items-center gap-1 cursor-pointer border border-rose-200"
-                              title="Anular comprobante y devolver stock a lotes FEFO"
-                            >
-                              <Ban size={12} />
-                              <span>Anular</span>
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1027,15 +1027,16 @@ export default function ReporteComprobantes({
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); abrirModal(c, "80mm"); }}
-                      className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-bold"
+                      className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-bold"
                     >
                       Ver
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); enviarEnlaceComprobante(c); }}
-                      className="px-2 py-1 bg-teal-50 text-teal-700 rounded-lg text-[10px] font-bold"
+                      onClick={(e) => { e.stopPropagation(); setDrawerComprobante(c); }}
+                      className="px-2.5 py-1 bg-slate-100 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-extrabold flex items-center gap-1 border border-slate-200"
                     >
-                      Enviar
+                      <MoreHorizontal size={12} />
+                      <span>Acciones</span>
                     </button>
                   </div>
                 </div>
@@ -1131,6 +1132,461 @@ export default function ReporteComprobantes({
               >
                 {anulando ? <RefreshCw size={14} className="animate-spin" /> : <Ban size={14} />}
                 <span>{anulando ? "Anulando..." : "Sí, Anular Venta"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MENÚ LATERAL DE ACCIONES (DRAWER) ════════════════════════ */}
+      {drawerComprobante && (
+        <div className="fixed inset-0 z-[120] overflow-hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setDrawerComprobante(null)}
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-white shadow-2xl border-l border-slate-200 flex flex-col animate-in slide-in-from-right duration-300">
+              {/* Header Drawer */}
+              <div className="p-5 border-b border-slate-100 bg-slate-50/80 flex items-start justify-between">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        drawerComprobante.estadoSunat === "ANULADO"
+                          ? "bg-rose-500"
+                          : drawerComprobante.tipoComprobante === "FACTURA"
+                          ? "bg-violet-500"
+                          : drawerComprobante.tipoComprobante === "NOTA_VENTA"
+                          ? "bg-amber-500"
+                          : "bg-sky-500"
+                      }`}
+                    />
+                    <h2 className="text-base font-black text-slate-900 tracking-tight">
+                      {drawerComprobante.serieNumero}
+                    </h2>
+                    <span
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        drawerComprobante.tipoComprobante === "FACTURA"
+                          ? "bg-violet-100 text-violet-700"
+                          : drawerComprobante.tipoComprobante === "NOTA_VENTA"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-sky-100 text-sky-800"
+                      }`}
+                    >
+                      {drawerComprobante.tipoComprobante}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 font-semibold truncate max-w-[280px]">
+                    {drawerComprobante.cliente.nombre}
+                  </p>
+
+                  <div className="flex items-center gap-2 pt-1 flex-wrap text-[11px]">
+                    <span className="font-black text-teal-700 text-xs">
+                      {formatMoney(drawerComprobante.total)}
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    {drawerComprobante.estadoSunat === "ACEPTADO" ? (
+                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-bold text-[10px] border border-emerald-200">
+                        <CheckCircle2 size={11} /> ACEPTADO SUNAT
+                      </span>
+                    ) : drawerComprobante.estadoSunat === "ANULADO" ? (
+                      <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded-md font-bold text-[10px] border border-rose-200">
+                        <XCircle size={11} /> ANULADO
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md font-bold text-[10px] border border-amber-200">
+                        <Clock size={11} /> PENDIENTE SUNAT
+                      </span>
+                    )}
+                    {getMetodoIcon(drawerComprobante.metodoPago)}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setDrawerComprobante(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/70 transition cursor-pointer"
+                  title="Cerrar panel de acciones"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Lista de Opciones */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 mb-1">
+                  Menú de Opciones
+                </div>
+
+                {/* 1. Ver */}
+                <button
+                  onClick={() => {
+                    abrirModal(drawerComprobante, "80mm");
+                    setDrawerComprobante(null);
+                  }}
+                  className="w-full text-left p-3.5 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition flex items-center justify-between group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                      <Eye size={20} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-800 group-hover:text-indigo-700">
+                        Ver / Imprimir Comprobante
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        Vista previa y emisión en tickets 80mm, 58mm o A4
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-indigo-600 transition" />
+                </button>
+
+                {/* 2. XML */}
+                <button
+                  onClick={() => {
+                    if (drawerComprobante.comprobanteElectronicoId && drawerComprobante.tieneXml) {
+                      descargarArtefacto(drawerComprobante, "xml");
+                    } else {
+                      abrirModal(drawerComprobante, "xml");
+                    }
+                    setDrawerComprobante(null);
+                  }}
+                  className="w-full text-left p-3.5 rounded-2xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40 transition flex items-center justify-between group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                      <FileCode size={20} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-800 group-hover:text-emerald-700">
+                        Ver / Descargar XML
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {drawerComprobante.comprobanteElectronicoId && drawerComprobante.tieneXml
+                          ? "Descargar archivo XML oficial firmado por SUNAT"
+                          : "Visualizar estructura UBL 2.1 del comprobante"}
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-emerald-600 transition" />
+                </button>
+
+                {/* 3. WhatsApp */}
+                <button
+                  onClick={() => {
+                    enviarEnlaceComprobante(drawerComprobante);
+                    setDrawerComprobante(null);
+                  }}
+                  disabled={drawerComprobante.estadoSunat === "ANULADO"}
+                  className="w-full text-left p-3.5 rounded-2xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50/40 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition flex items-center justify-between group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                      <Share2 size={20} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-800 group-hover:text-teal-700">
+                        Enviar por WhatsApp
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        Compartir enlace web del comprobante al cliente
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-teal-600 transition" />
+                </button>
+
+                {/* 4. Reintentar si no se envió correctamente */}
+                <button
+                  onClick={() => {
+                    reintentarComprobante(drawerComprobante);
+                    setDrawerComprobante(null);
+                  }}
+                  disabled={
+                    drawerComprobante.estadoSunat === "ACEPTADO" ||
+                    drawerComprobante.estadoSunat === "ANULADO" ||
+                    reintentandoId === (drawerComprobante.comprobanteElectronicoId || drawerComprobante.id)
+                  }
+                  className="w-full text-left p-3.5 rounded-2xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50/40 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition flex items-center justify-between group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                      <RefreshCw size={20} className={reintentandoId === (drawerComprobante.comprobanteElectronicoId || drawerComprobante.id) ? "animate-spin" : ""} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-800 group-hover:text-amber-700">
+                        Reintentar si no se envió correctamente
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {drawerComprobante.estadoSunat === "ACEPTADO"
+                          ? "Comprobante ya aceptado ante SUNAT"
+                          : "Reintentar conexión y reenvío automático a SUNAT"}
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-amber-600 transition" />
+                </button>
+
+                {/* 5. Enviar a la SUNAT si en primera instancia no se quiso enviar y después sí */}
+                <button
+                  onClick={() => {
+                    enviarASunat(drawerComprobante);
+                    setDrawerComprobante(null);
+                  }}
+                  disabled={
+                    drawerComprobante.estadoSunat === "ACEPTADO" ||
+                    drawerComprobante.estadoSunat === "ANULADO" ||
+                    reintentandoId === (drawerComprobante.comprobanteElectronicoId || drawerComprobante.id)
+                  }
+                  className="w-full text-left p-3.5 rounded-2xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition flex items-center justify-between group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                      <Send size={20} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-800 group-hover:text-sky-700">
+                        Enviar a la SUNAT
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {drawerComprobante.estadoSunat === "ACEPTADO"
+                          ? "Comprobante ya emitido y validado por SUNAT"
+                          : "Transmitir a SUNAT boleta simple o comprobante pendiente"}
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-sky-600 transition" />
+                </button>
+
+                {/* 6. Editar solo para admins */}
+                <button
+                  onClick={() => {
+                    if (isAdmin) {
+                      abrirModalEdicion(drawerComprobante);
+                    } else {
+                      toast.warn("Acceso Denegado", "Solo usuarios con rol Administrador pueden editar datos del comprobante.");
+                    }
+                  }}
+                  disabled={!isAdmin || drawerComprobante.estadoSunat === "ANULADO"}
+                  className={`w-full text-left p-3.5 rounded-2xl border transition flex items-center justify-between group shadow-2xs ${
+                    isAdmin && drawerComprobante.estadoSunat !== "ANULADO"
+                      ? "border-slate-200 hover:border-purple-300 hover:bg-purple-50/40 cursor-pointer"
+                      : "border-slate-200/70 bg-slate-50/60 opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        isAdmin
+                          ? "bg-purple-50 text-purple-600 group-hover:scale-105 transition"
+                          : "bg-slate-200 text-slate-400"
+                      }`}
+                    >
+                      {isAdmin ? <Pencil size={20} /> : <Lock size={20} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-slate-800 group-hover:text-purple-700">
+                          Editar Comprobante
+                        </span>
+                        <span
+                          className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
+                            isAdmin
+                              ? "bg-purple-100 text-purple-700 border border-purple-200"
+                              : "bg-slate-200 text-slate-500"
+                          }`}
+                        >
+                          Solo Admins
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {isAdmin
+                          ? "Modificar cliente, DNI/RUC, celular, pago u observaciones"
+                          : "Requiere rol Administrador para modificar"}
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-purple-600 transition" />
+                </button>
+
+                {/* 7. Anular */}
+                <button
+                  onClick={() => {
+                    setComprobanteParaAnular(drawerComprobante);
+                    setDrawerComprobante(null);
+                  }}
+                  disabled={drawerComprobante.estadoSunat === "ANULADO"}
+                  className="w-full text-left p-3.5 rounded-2xl border border-slate-200 hover:border-rose-300 hover:bg-rose-50/40 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition flex items-center justify-between group cursor-pointer shadow-2xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                      <Ban size={20} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-800 group-hover:text-rose-700">
+                        Anular Comprobante
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        {drawerComprobante.estadoSunat === "ANULADO"
+                          ? "Este comprobante ya se encuentra anulado"
+                          : "Anular venta y reponer inventario a lotes FEFO"}
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-rose-600 transition" />
+                </button>
+              </div>
+
+              {/* Footer Drawer */}
+              <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
+                <button
+                  onClick={() => setDrawerComprobante(null)}
+                  className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                >
+                  Cerrar Menú
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL EDICIÓN ADMINISTRATIVA (SOLO ADMINS) ═══════════════ */}
+      {comprobanteParaEditar && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 p-6 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                  <Pencil size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Editar {comprobanteParaEditar.serieNumero}
+                  </h3>
+                  <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
+                    MODO ADMINISTRADOR
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setComprobanteParaEditar(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nombre / Razón Social del Cliente
+                </label>
+                <input
+                  type="text"
+                  value={formEditar.clienteNombre}
+                  onChange={(e) => setFormEditar({ ...formEditar, clienteNombre: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-400 focus:bg-white text-xs font-semibold"
+                  placeholder="Ej. Juan Pérez / Inversiones SAC"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tipo Doc.</label>
+                  <select
+                    value={formEditar.clienteTipoDoc}
+                    onChange={(e) => setFormEditar({ ...formEditar, clienteTipoDoc: e.target.value })}
+                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold"
+                  >
+                    <option value="DNI">DNI</option>
+                    <option value="RUC">RUC</option>
+                    <option value="CE">CE</option>
+                    <option value="PASAPORTE">PASAPORTE</option>
+                    <option value="S/D">SIN DOC</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Número Documento</label>
+                  <input
+                    type="text"
+                    value={formEditar.clienteNumDoc}
+                    onChange={(e) => setFormEditar({ ...formEditar, clienteNumDoc: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                    placeholder="Ej. 40644730"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp</label>
+                  <input
+                    type="text"
+                    value={formEditar.clienteTelefono}
+                    onChange={(e) => setFormEditar({ ...formEditar, clienteTelefono: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold"
+                    placeholder="987654321"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Método de Pago</label>
+                  <select
+                    value={formEditar.metodoPago}
+                    onChange={(e) => setFormEditar({ ...formEditar, metodoPago: e.target.value })}
+                    className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold"
+                  >
+                    <option value="EFECTIVO">EFECTIVO</option>
+                    <option value="YAPE">YAPE</option>
+                    <option value="PLIN">PLIN</option>
+                    <option value="TARJETA">TARJETA</option>
+                    <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Fiscal / Entrega</label>
+                <input
+                  type="text"
+                  value={formEditar.clienteDireccion}
+                  onChange={(e) => setFormEditar({ ...formEditar, clienteDireccion: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold"
+                  placeholder="Dirección del cliente"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Observaciones / Notas Internas</label>
+                <textarea
+                  rows={2}
+                  value={formEditar.observaciones}
+                  onChange={(e) => setFormEditar({ ...formEditar, observaciones: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium"
+                  placeholder="Nota administrativa o motivo de edición..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-slate-100">
+              <button
+                disabled={guardandoEdicion}
+                onClick={() => setComprobanteParaEditar(null)}
+                className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={guardandoEdicion}
+                onClick={handleGuardarEdicionAdmin}
+                className="flex-1 rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2.5 text-xs font-bold text-white transition flex items-center justify-center gap-1.5 shadow-md disabled:opacity-60 cursor-pointer"
+              >
+                {guardandoEdicion ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                <span>{guardandoEdicion ? "Guardando..." : "Guardar Cambios"}</span>
               </button>
             </div>
           </div>
